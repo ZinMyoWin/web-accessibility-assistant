@@ -57,7 +57,7 @@ docker compose up --build
 
 ### What
 
-We created [backend/Dockerfile](/d:/Lithan/UOR/Final%20Year%20Project/web-accessibility-assistant/backend/Dockerfile).
+We created [backend/Dockerfile](web-accessibility-assistant/backend/Dockerfile).
 
 ### Why
 
@@ -128,7 +128,7 @@ If you build this image, Docker creates a backend environment that already knows
 
 ### What
 
-We created [backend/.dockerignore](/d:/Lithan/UOR/Final%20Year%20Project/web-accessibility-assistant/backend/.dockerignore).
+We created [backend/.dockerignore](web-accessibility-assistant/backend/.dockerignore).
 
 ### Why
 
@@ -164,7 +164,7 @@ venv/
 
 ### What
 
-We created [frontend/Dockerfile](/d:/Lithan/UOR/Final%20Year%20Project/web-accessibility-assistant/frontend/Dockerfile).
+We created [frontend/Dockerfile](web-accessibility-assistant/frontend/Dockerfile).
 
 ### Why
 
@@ -247,7 +247,7 @@ from the browser.
 
 ### What
 
-We created [frontend/.dockerignore](/d:/Lithan/UOR/Final%20Year%20Project/web-accessibility-assistant/frontend/.dockerignore).
+We created [frontend/.dockerignore](web-accessibility-assistant/frontend/.dockerignore).
 
 ### Why
 
@@ -275,7 +275,7 @@ build/
 
 ### What
 
-We created [docker-compose.yml](/d:/Lithan/UOR/Final%20Year%20Project/web-accessibility-assistant/docker-compose.yml).
+We created [docker-compose.yml](web-accessibility-assistant/docker-compose.yml).
 
 ### Why
 
@@ -363,7 +363,7 @@ With `depends_on`, the startup order is safer:
 
 ### What
 
-We updated [README.md](/d:/Lithan/UOR/Final%20Year%20Project/web-accessibility-assistant/README.md).
+We updated [README.md](web-accessibility-assistant/README.md).
 
 ### Why
 
