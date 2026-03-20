@@ -481,4 +481,47 @@ The project now has a documented container-based startup path for both frontend 
 ### Next step
 
 Run `docker compose up --build`, verify both services in the browser, and then decide whether a separate Docker-based development workflow with hot reload is needed.
+## 2026-03-20 - Docker Development Workflow
 
+### Completed work
+
+Added a separate Docker-based development workflow:
+
+- added `backend/Dockerfile.dev`
+- added `frontend/Dockerfile.dev`
+- added `docker-compose.dev.yml`
+- documented how to use the development Docker workflow
+
+### Why this was done
+
+The existing Docker setup was suitable for a production-style run, but not ideal for active development because it required rebuild-oriented usage.
+
+This development workflow was added to:
+
+- support hot reload for frontend and backend
+- reduce rebuild time during coding
+- keep production-style and development-style Docker usage separate
+- improve day-to-day implementation speed
+
+### Files involved
+
+- `backend/Dockerfile.dev`
+- `frontend/Dockerfile.dev`
+- `docker-compose.dev.yml`
+- `README.md`
+- `docs/docker-setup-guide.md`
+
+### Verification
+
+- development Dockerfiles created for frontend and backend
+- development Docker Compose file created
+- README updated with the dev startup command
+- Docker guide updated with development workflow instructions
+
+### Outcome
+
+The project now has both a production-style Docker workflow and a development-focused Docker workflow with hot reload.
+
+### Next step
+
+Run `docker compose -f docker-compose.dev.yml up --build`, edit a frontend and backend file, and confirm the containers reload without a full rebuild.

@@ -497,3 +497,69 @@ To make the project easier to run, easier to share, and more consistent across m
 ### How
 
 We gave each service its own Dockerfile, reduced build noise with `.dockerignore`, connected them with Docker Compose, documented the run command, and validated the configuration before running it.
+## 13. Docker Development Workflow
+
+### What
+
+After the production-style Docker setup was working, we added a separate Docker development workflow.
+
+### Why
+
+The original Docker setup is good for a clean, repeatable run, but it is slow for coding because every meaningful change may require rebuilding containers.
+
+For development, we want:
+
+- hot reload for the backend
+- hot reload for the frontend
+- source code mounted directly into the containers
+- no full rebuild after each file change
+
+### How
+
+We added these files:
+
+- `backend/Dockerfile.dev`
+- `frontend/Dockerfile.dev`
+- `docker-compose.dev.yml`
+
+The backend dev container:
+
+- installs Python dependencies and Playwright once
+- mounts `./backend` into the container
+- runs `uvicorn app.main:app --reload`
+
+The frontend dev container:
+
+- installs Node dependencies once
+- mounts `./frontend` into the container
+- keeps `node_modules` inside the container with a Docker volume
+- runs `next dev`
+- uses polling so file changes are detected reliably in Docker on Windows
+
+### Example
+
+To start the development stack:
+
+```powershell
+docker compose -f docker-compose.dev.yml up --build
+```
+
+To stop it:
+
+```powershell
+docker compose -f docker-compose.dev.yml down
+```
+
+### When To Use Which Docker File
+
+Use the original `docker-compose.yml` when you want:
+
+- a production-style run
+- a clean demo setup
+- behavior closer to deployment
+
+Use `docker-compose.dev.yml` when you want:
+
+- fast local development
+- auto-reload after code changes
+- fewer rebuilds while implementing features

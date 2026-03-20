@@ -75,6 +75,16 @@ Services:
 - Backend docs: `http://127.0.0.1:8000/docs`
 
 The frontend image is built with `NEXT_PUBLIC_API_BASE_URL=http://localhost:8000`, so browser requests still reach the backend through the published host port.
+## Run With Docker (Development)
 
+From `web-accessibility-assistant/`:
 
+```powershell
+docker compose -f docker-compose.dev.yml up --build
+```
 
+Use this for day-to-day coding. It enables hot reload through bind mounts:
+
+- backend reloads with `uvicorn --reload`
+- frontend runs with `next dev`
+- source code changes do not require a full image rebuild
