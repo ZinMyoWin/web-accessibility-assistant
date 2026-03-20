@@ -525,3 +525,82 @@ The project now has both a production-style Docker workflow and a development-fo
 ### Next step
 
 Run `docker compose -f docker-compose.dev.yml up --build`, edit a frontend and backend file, and confirm the containers reload without a full rebuild.
+
+## 2026-03-20 - Render Backend Deployment Preparation
+
+### Completed work
+
+Prepared the backend for deployment on Render:
+
+- updated backend CORS handling to support environment-configured frontend origins
+- kept local frontend origins for development
+- documented the Render backend service field values needed for Docker deployment
+
+### Why this was done
+
+The backend previously allowed requests only from localhost frontend URLs.
+
+That would cause browser CORS failures once the frontend is deployed to a public Render domain.
+
+This update makes the backend deployment-ready by allowing the production frontend origin to be injected through Render environment variables instead of being hardcoded in source.
+
+### Files involved
+
+- `backend/app/main.py`
+- `docs/implementation-log.md`
+
+### Verification
+
+- confirmed the FastAPI CORS middleware now reads:
+  - `FRONTEND_URL`
+  - `CORS_ALLOWED_ORIGINS`
+- confirmed the origin list still includes local development URLs
+- Render deployment verification is still pending and should be completed after the backend and frontend services are live
+
+### Outcome
+
+The backend can now be configured to accept requests from both local development and the deployed Render frontend without editing source code again for each environment.
+
+### Next step
+
+Deploy the backend and frontend on Render, set `FRONTEND_URL` on the backend service, set `NEXT_PUBLIC_API_BASE_URL` on the frontend service, and verify that a browser scan request completes without a CORS error.
+
+## 2026-03-20 - Vercel Frontend Deployment Preparation
+
+### Completed work
+
+Prepared the project for a Vercel frontend deployment:
+
+- updated the frontend test-page shortcut to use the configured API base URL instead of hardcoded localhost
+- extended backend CORS configuration to support an optional origin regex for hosted preview deployments
+
+### Why this was done
+
+The frontend previously included a localhost-only test-page shortcut, which would not work after deployment.
+
+Also, exact-origin CORS configuration is enough for a single production domain, but hosted preview deployments often use changing subdomains.
+
+These updates reduce deployment friction by making the frontend and backend more environment-aware.
+
+### Files involved
+
+- `frontend/app/page.tsx`
+- `backend/app/main.py`
+- `docs/implementation-log.md`
+
+### Verification
+
+- confirmed the frontend test URL now resolves from `NEXT_PUBLIC_API_BASE_URL`
+- confirmed the backend now supports:
+  - `FRONTEND_URL`
+  - `CORS_ALLOWED_ORIGINS`
+  - `CORS_ALLOWED_ORIGIN_REGEX`
+- local production-build verification is still pending because the Windows sandbox interrupted the `npm run build` check
+
+### Outcome
+
+The frontend is now better aligned with Vercel deployment, and the backend can be configured to accept either a single Vercel production origin or a pattern for preview deployments.
+
+### Next step
+
+Deploy the frontend to Vercel, set `NEXT_PUBLIC_API_BASE_URL` to the Render backend URL, and if preview deployments need API access, configure `CORS_ALLOWED_ORIGIN_REGEX` on the backend to match the Vercel preview domain pattern.

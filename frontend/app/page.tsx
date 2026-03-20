@@ -31,7 +31,7 @@ type ScanResponse = {
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
 
-const DEFAULT_TEST_URL = "http://127.0.0.1:8000/test/page-bad";
+const DEFAULT_TEST_URL = `${API_BASE_URL}/test/page-bad`;
 
 function getBestLocator(issue: ScanIssue): string | null {
   if (issue.rule_id === "heading-order" && issue.text_preview) {
@@ -146,7 +146,7 @@ export default function HomePage() {
             className="ghost-button"
             onClick={() => setUrl(DEFAULT_TEST_URL)}
           >
-            Use Local Test Page
+            Use Test Page
           </button>
         </div>
 
