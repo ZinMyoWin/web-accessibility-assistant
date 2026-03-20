@@ -11,6 +11,12 @@ class ScanIssue(BaseModel):
     element: str
     message: str
     recommendation: str
+    line: int | None = None
+    column: int | None = None
+    source_hint: str | None = None
+    dom_path: str | None = None
+    text_preview: str | None = None
+    screenshot_data_url: str | None = None
 
 
 class ScanSummary(BaseModel):

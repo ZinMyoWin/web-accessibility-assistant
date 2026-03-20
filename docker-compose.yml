@@ -1,0 +1,45 @@
+# Define the containers that make up the application stack.
+services:
+  # FastAPI backend service.
+  backend:
+    build:
+      # Build the backend image from the backend folder.
+      context: ./backend
+      dockerfile: Dockerfile
+    # Give the running backend container a fixed, readable name.
+    container_name: web-accessibility-backend
+    ports:
+      # Map host port 8000 to container port 8000.
+      - "8000:8000"
+    # Mark the backend healthy only after the /health endpoint responds.
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8000/health\")",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  # Next.js frontend service.
+  frontend:
+    build:
+      # Build the frontend image from the frontend folder.
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Inject the browser-facing API base URL during the frontend build.
+        NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+    # Give the running frontend container a fixed, readable name.
+    container_name: web-accessibility-frontend
+    ports:
+      # Map host port 3000 to container port 3000.
+      - "3000:3000"
+    # Wait for the backend health check before starting the frontend.
+    depends_on:
+      backend:
+        condition: service_healthy
