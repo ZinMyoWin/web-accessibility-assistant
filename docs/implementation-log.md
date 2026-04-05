@@ -604,3 +604,219 @@ The frontend is now better aligned with Vercel deployment, and the backend can b
 ### Next step
 
 Deploy the frontend to Vercel, set `NEXT_PUBLIC_API_BASE_URL` to the Render backend URL, and if preview deployments need API access, configure `CORS_ALLOWED_ORIGIN_REGEX` on the backend to match the Vercel preview domain pattern.
+
+## 2026-04-01 - axe-core Integration
+
+### Completed work
+
+Integrated axe-core standards-based accessibility analysis into the scan pipeline:
+
+- created `backend/app/services/axe_scanner.py` as the axe-core integration module
+- axe-core JavaScript library is downloaded from CDN and cached in memory on first scan
+- axe-core runs inside the existing Playwright browser session alongside screenshot capture
+- axe-core results are mapped to the project `ScanIssue` format with severity, WCAG criteria, and recommendations
+- added deduplication logic that merges custom checks with axe-core findings
+- overlapping rules (document-title, html-lang, image-alt, link-name, duplicate-id, heading-order) keep the custom version enriched with WCAG tags from axe-core
+- non-overlapping axe-core rules are appended as new issues
+- added `wcag_criteria` field to `ScanIssue` for WCAG success criteria references
+- added `source` field to `ScanIssue` to indicate detection origin (custom, axe-core, or both)
+- restructured `page_scanner.py` to use a single Playwright session for both axe-core analysis and screenshot capture
+- updated frontend issue cards to display WCAG criteria as visual pills
+- updated frontend to show detection source (custom, axe-core, or both) on each issue
+- updated frontend to render axe-core help URLs as clickable links in recommendations
+- expanded the local test page to trigger additional axe-core rules including color contrast, button name, form labels, marquee, and table headers
+- added CSS styles for WCAG tags, source pills, and help links
+
+### Why this was done
+
+The previous scan pipeline relied on 6 custom HTML-based checks. While useful for proving the pipeline, they covered only a small fraction of WCAG success criteria.
+
+axe-core is an industry-standard accessibility engine maintained by Deque Systems. Integrating it gives the project:
+
+- coverage of WCAG 2.0 A/AA, WCAG 2.1 A/AA, and best-practice rules
+- detection of issues the custom parser cannot catch (color contrast, ARIA misuse, form accessibility, table structure, etc.)
+- WCAG success criteria references for each issue, improving academic credibility
+- alignment with the same engine used by Google Lighthouse and browser DevTools
+
+### Files involved
+
+- `backend/app/services/axe_scanner.py` (new)
+- `backend/app/services/page_scanner.py` (modified)
+- `backend/app/schemas/scan.py` (modified)
+- `backend/app/main.py` (modified)
+- `frontend/app/page.tsx` (modified)
+- `frontend/app/globals.css` (modified)
+- `docs/implementation-log.md` (this file)
+- `docs/system-architecture.md` (modified)
+
+### axe-core rules now active
+
+The integration runs axe-core with the following rule tag sets:
+
+- `wcag2a` — WCAG 2.0 Level A
+- `wcag2aa` — WCAG 2.0 Level AA
+- `wcag21a` — WCAG 2.1 Level A
+- `wcag21aa` — WCAG 2.1 Level AA
+- `best-practice` — industry best practices
+
+This covers dozens of additional rules beyond the original 6, including:
+
+- color contrast (color-contrast)
+- button accessible names (button-name)
+- form input labels (label, select-name)
+- ARIA attribute validity (aria-valid-attr, aria-roles)
+- table headers (td-headers-attr)
+- landmark structure (region, landmark-*)
+- deprecated HTML elements (marquee)
+- and many more
+
+### Deduplication strategy
+
+When both custom checks and axe-core detect the same rule:
+
+1. The custom check version is kept because it includes line/column positions and source hints from raw HTML parsing
+2. WCAG criteria from axe-core are added to the custom issue
+3. The issue source is marked as "both"
+4. The axe-core duplicate is discarded
+
+When axe-core detects a rule not covered by custom checks:
+
+1. The axe-core issue is included with full detail
+2. The issue source is marked as "axe-core"
+
+### Architectural change
+
+The Playwright browser session was previously used only for screenshots. It now serves two purposes in a single session:
+
+1. axe-core injection and analysis
+2. contextual screenshot capture for all issues
+
+This avoids launching the browser twice and keeps scan latency reasonable.
+
+### Verification
+
+- axe_scanner.py module created with CDN-based script caching, result mapping, WCAG tag formatting, and merge logic
+- page_scanner.py restructured to run axe-core before screenshots in one Playwright session
+- ScanIssue schema extended with wcag_criteria and source fields
+- frontend updated to render WCAG pills, source indicators, and clickable help links
+- test page expanded with additional elements that trigger axe-core rules
+- graceful fallback: if axe-core fails to load or run, the scan falls back to custom checks only
+
+### Outcome
+
+The scan pipeline now detects significantly more accessibility issues using industry-standard axe-core rules while preserving the original custom checks that provide source-level location hints.
+
+### Next step
+
+Run the backend and frontend, scan the test page, and verify that both custom and axe-core issues appear in the results with WCAG criteria tags and correct source indicators.
+
+## 2026-04-01 - Dashboard UI Redesign
+
+### Completed work
+
+Replaced the single-page hero layout with a full dashboard interface:
+
+- added a sidebar navigation with icons (Dashboard, Issues, Scan History, Reports, Preferences)
+- added a top bar with URL input, scan mode selector, test-page shortcut, and scan button
+- added an animated progress bar with stage-aware status messages during scans
+- added four summary metric cards (Total, High, Medium, Low)
+- added a severity breakdown panel with horizontal bar chart and top-rules list
+- added a scan details panel showing URL, timestamp, and issue counts
+- added a filterable issues list with severity toggle buttons (All, High, Medium, Low)
+- added expandable issue rows that reveal screenshots, WCAG tags, element info, DOM paths, source hints, recommendations, and locator guidance
+- switched from serif typography to Inter via next/font/google
+- added responsive layout with collapsible sidebar on mobile and adaptive grid breakpoints
+- preserved all existing API integration and data types
+
+### Why this was done
+
+The previous frontend was a vertically-stacked page with a hero section and a flat list of issues. While functional, it did not match the dashboard-style interface expected for the final project.
+
+This redesign brings the frontend in line with the mockup provided, giving it a professional dashboard feel with:
+
+- at-a-glance metrics visible before scrolling
+- severity filtering to focus on what matters
+- expandable detail views to reduce visual clutter
+- a sidebar that establishes the application structure for future views
+
+### Files involved
+
+- `frontend/app/layout.tsx` (modified — added Inter font)
+- `frontend/app/globals.css` (rewritten — dashboard styles)
+- `frontend/app/page.tsx` (rewritten — dashboard component)
+
+### Key improvements over the reference mockup
+
+- real API integration instead of demo data
+- simulated progress bar during actual backend scan calls
+- expandable issue details with screenshots, WCAG criteria, source hints, and DOM paths
+- "Learn more" links extracted from axe-core recommendations
+- locator hints for finding elements in DevTools
+- responsive sidebar that collapses to an overlay on mobile
+- accessible markup (button elements for nav, aria-label on toggle)
+
+### Verification
+
+- `npm run build` completed successfully with zero errors
+- all existing TypeScript types preserved and used correctly
+- layout renders the dashboard shell with sidebar, topbar, and scrollable content area
+
+### Outcome
+
+The frontend now presents a professional dashboard interface that matches the project's target design while keeping all existing scan functionality intact.
+
+### Next step
+
+Run the full stack locally, perform a scan, and verify that metrics, severity breakdown, issue filtering, and expandable details all work correctly with real backend data.
+
+## 2026-04-01 - shadcn/ui Dropdown Refresh
+
+### Completed work
+
+Improved the dashboard dropdown by introducing shadcn/ui into the frontend stack:
+
+- installed Tailwind CSS v4 so shadcn/ui components can be used in the Next.js app
+- added shadcn/ui project configuration (`components.json`) and PostCSS config for Tailwind
+- generated the official shadcn/ui `Select` component and supporting `cn` utility
+- replaced the native scan-mode `<select>` in the dashboard top bar with the shadcn/ui select component
+- mapped the existing dashboard palette into shadcn-compatible theme tokens so the new control matches the current visual language
+- kept the mobile behavior that hides the scan-mode control below the tablet breakpoint
+
+### Why this was done
+
+The previous native browser `<select>` looked visually out of place compared with the rest of the redesigned dashboard.
+
+This change improves UI consistency by:
+
+- using a reusable component from a modern UI library instead of browser-default form styling
+- making the dropdown visually consistent with the dashboard input, cards, and buttons
+- laying the groundwork for reusing shadcn/ui primitives for future frontend refinements
+
+### Files involved
+
+- `frontend/package.json`
+- `frontend/package-lock.json`
+- `frontend/tsconfig.json`
+- `frontend/postcss.config.mjs`
+- `frontend/components.json`
+- `frontend/lib/utils.ts`
+- `frontend/components/ui/select.tsx`
+- `frontend/app/page.tsx`
+- `frontend/app/globals.css`
+- `README.md`
+- `docs/system-architecture.md`
+- `docs/implementation-log.md`
+
+### Verification
+
+- installed the required frontend dependencies for Tailwind CSS v4, shadcn/ui helpers, and the generated select component
+- confirmed the dashboard page renders the shadcn/ui select markup in place of the native `<select>`
+- ran `npm run build` successfully after the integration
+
+### Outcome
+
+The dashboard now uses a reusable shadcn/ui dropdown that looks more consistent with the rest of the interface, and the frontend project is prepared to adopt additional shadcn/ui components later.
+
+### Next step
+
+Replace other ad-hoc dashboard controls with shared component primitives where it improves clarity without disrupting the current layout.

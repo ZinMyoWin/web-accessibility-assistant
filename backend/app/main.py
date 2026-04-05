@@ -82,6 +82,18 @@ def test_bad_page():
         <h3>Skipped heading level</h3>
         <div id="duplicate-id">First block</div>
         <div id="duplicate-id">Second block</div>
+
+        <!-- Additional issues for axe-core detection -->
+        <p style="color: #aaa; background-color: #fff;">Low contrast text</p>
+        <button></button>
+        <form>
+          <input type="text">
+          <select><option>Pick one</option></select>
+        </form>
+        <marquee>Scrolling text</marquee>
+        <table>
+          <tr><td>Data without headers</td><td>Another cell</td></tr>
+        </table>
       </body>
     </html>
     """

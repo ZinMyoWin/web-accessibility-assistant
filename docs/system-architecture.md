@@ -31,8 +31,8 @@ FastAPI Backend
   |
   +--> Accessibility Analysis
   |       |
-  |       +--> Built-in custom checks
-  |       +--> axe-core integration later
+  |       +--> Built-in custom checks (line/column detail)
+  |       +--> axe-core standards-based checks (WCAG coverage)
   |
   +--> Recommendation Mapping
   |
@@ -55,13 +55,14 @@ Contains the web interface. It will allow the user to:
 - inspect detailed recommendations
 - export reports later
 
-Planned technology: **Next.js**
+Current technologies: **Next.js 15**, **Tailwind CSS v4**, and **shadcn/ui** (currently used for the dashboard scan-mode select component)
 
 Current status:
 
 - Next.js frontend scaffold created
 - single-page scan form implemented
 - results summary and issue list UI implemented
+- shadcn/ui Select component integrated for the dashboard scan-mode dropdown
 
 ### `backend/`
 
@@ -155,7 +156,19 @@ Responsibilities:
 - normalize the results
 - generate a summary object
 
-This file is the beginning of the scanning engine. It is currently simple by design so the project can prove the single-page workflow before adding more advanced tooling.
+This file manages the overall scan pipeline: fetching HTML, running custom checks, coordinating with axe-core, and capturing screenshots.
+
+### `backend/app/services/axe_scanner.py`
+
+Contains the axe-core integration logic.
+
+Responsibilities:
+
+- download and cache the axe-core JavaScript library from CDN
+- inject axe-core into a Playwright page and run analysis
+- map axe-core violation results into the project `ScanIssue` format
+- extract and format WCAG success criteria from axe-core tags
+- merge custom and axe-core issues with deduplication for overlapping rules
 
 ### `backend/app/utils/url_utils.py`
 
@@ -167,25 +180,32 @@ Current responsibility:
 
 ## 5. Current Scan Flow
 
-The current MVP backend flow for one-page scanning is:
+The current backend flow for one-page scanning is:
 
 1. The frontend or API client sends a `POST /scan/page` request with a URL.
 2. FastAPI validates the request body using `ScanPageRequest`.
 3. The backend validates the URL format.
 4. The scanner fetches the HTML of the page.
 5. The scanner parses the HTML and extracts key elements.
-6. The scanner runs a small set of custom accessibility checks.
-7. The backend returns JSON containing:
-   - scanned URL
-   - scan timestamp
-   - issue summary
-   - issue list
-   - source location hints when available
-   - issue screenshots when capture succeeds
+6. The scanner runs custom accessibility checks (line/column-level detail).
+7. A Playwright browser session is opened and the page HTML is loaded.
+8. axe-core is injected into the page and runs standards-based analysis.
+9. Custom and axe-core issues are merged with deduplication.
+10. Contextual screenshots are captured for all merged issues.
+11. The backend returns JSON containing:
+    - scanned URL
+    - scan timestamp
+    - issue summary
+    - issue list with WCAG criteria references
+    - source location hints when available (custom checks)
+    - detection source (custom, axe-core, or both)
+    - issue screenshots when capture succeeds
 
 ## 6. Current Accessibility Checks
 
-The current version checks for a small but useful baseline set of issues:
+### Custom checks (with line/column positions)
+
+These 6 checks parse the raw HTML and provide source-level location detail:
 
 1. missing or empty `<title>`
 2. missing `lang` on the `<html>` element
@@ -194,7 +214,22 @@ The current version checks for a small but useful baseline set of issues:
 5. duplicate `id` values
 6. heading hierarchy skips
 
-These are not enough for a full accessibility audit. They are the first practical checks used to prove the scan pipeline works.
+### axe-core checks (standards-based)
+
+The axe-core engine runs inside Playwright and covers WCAG 2.0 A/AA, WCAG 2.1 A/AA, and best-practice rules. This adds dozens of additional checks including:
+
+- color contrast (color-contrast)
+- button accessible names (button-name)
+- form input labels (label, select-name)
+- ARIA attribute validity (aria-valid-attr, aria-roles)
+- table headers (td-headers-attr)
+- landmark structure (region, landmark-*)
+- deprecated HTML elements (marquee)
+- and many more
+
+### Deduplication
+
+When both systems detect the same rule, the custom check version is kept (for line/column detail) and enriched with WCAG criteria from axe-core. The issue source is marked as "both". Non-overlapping axe-core rules are added with source "axe-core".
 
 ## 7. Why the Architecture Is Split This Way
 
@@ -231,11 +266,12 @@ As the project grows, the backend will expand into a more complete pipeline.
 - one-page scan endpoint
 - custom HTML-based checks
 
-### Stage 2: Stronger page analysis
+### Stage 2: Stronger page analysis (partially complete)
 
-- Playwright for rendering JavaScript-heavy pages
-- axe-core integration for standards-based issue detection
-- normalization of tool findings into one internal JSON format
+- Playwright for rendering JavaScript-heavy pages (used for axe-core and screenshots)
+- axe-core integration for standards-based issue detection (completed)
+- normalization of tool findings into one internal JSON format (completed)
+- full JavaScript rendering for single-page apps (not yet started)
 
 ### Stage 3: Recommendation engine
 
@@ -254,7 +290,7 @@ The frontend will provide:
 - scan trigger button
 - result cards and tables
 - severity summary view
-
+- shared shadcn/ui component primitives for higher-quality form controls
 Current implementation status:
 
 - URL input implemented
@@ -370,7 +406,9 @@ Response shape:
       "line": 42,
       "column": 7,
       "source_hint": "<h3>Example heading</h3>",
-      "screenshot_data_url": "data:image/png;base64,..."
+      "screenshot_data_url": "data:image/png;base64,...",
+      "wcag_criteria": ["WCAG 2.0 A", "WCAG 1.3.1"],
+      "source": "both"
     }
   ]
 }
@@ -378,10 +416,12 @@ Response shape:
 
 Location fields:
 
-- `line` and `column` refer to the fetched HTML source
+- `line` and `column` refer to the fetched HTML source (available for custom checks)
 - `source_hint` shows the matching opening tag or a short location hint
 - `screenshot_data_url` contains a contextual screenshot of the affected page area when Playwright capture succeeds
-- on framework-generated sites, these may not map directly to the original source file in the repository
+- `wcag_criteria` lists relevant WCAG success criteria (e.g. `["WCAG 2.0 A", "WCAG 1.3.1"]`)
+- `source` indicates detection origin: `"custom"`, `"axe-core"`, or `"both"`
+- on framework-generated sites, line/column may not map directly to the original source file in the repository
 
 ## 11. Current Status
 
@@ -392,12 +432,14 @@ Completed:
 - FastAPI app setup
 - health endpoint
 - single-page scan endpoint
-- baseline custom checks
+- baseline custom checks (6 rules with line/column detail)
+- axe-core integration (WCAG 2.0/2.1 A/AA + best-practice rules)
+- issue merge and deduplication pipeline
+- WCAG criteria display in frontend
 
 Not built yet:
 
-- Playwright rendering
-- axe-core integration
+- full JavaScript rendering for single-page apps
 - database persistence
 - multi-page crawl
 - reporting
@@ -425,3 +467,4 @@ When a new feature is finished, update:
 1. architecture documentation if the design changed
 2. implementation log with what was built, why, files changed, and verification
 3. API or module documentation later if the feature introduces a new interface
+

@@ -185,8 +185,8 @@ def scan_page(url: str) -> ScanPageResponse:
     parser = AccessibilityHTMLParser()
     parser.feed(html)
     page_data = parser.finalize()
-    issues = _build_issues(page_data)
-    issues = _attach_issue_screenshots(final_url, html, issues)
+    custom_issues = _build_issues(page_data)
+    issues = _run_playwright_analysis(final_url, html, custom_issues)
     summary = _build_summary(issues)
 
     return ScanPageResponse(
@@ -329,14 +329,23 @@ def _build_issues(page: ParsedPageData) -> list[ScanIssue]:
     return issues
 
 
-def _attach_issue_screenshots(url: str, html: str, issues: list[ScanIssue]) -> list[ScanIssue]:
-    if not issues:
-        return issues
-
+def _run_playwright_analysis(
+    url: str, html: str, custom_issues: list[ScanIssue]
+) -> list[ScanIssue]:
+    """Run axe-core analysis and capture screenshots in a single Playwright session."""
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
-        return issues
+        for issue in custom_issues:
+            issue.source = "custom"
+        return custom_issues
+
+    try:
+        from app.services.axe_scanner import merge_issues, run_axe_core
+    except ImportError:
+        for issue in custom_issues:
+            issue.source = "custom"
+        return custom_issues
 
     try:
         with sync_playwright() as playwright:
@@ -358,18 +367,32 @@ def _attach_issue_screenshots(url: str, html: str, issues: list[ScanIssue]) -> l
                 ),
             )
             page = context.new_page()
-            page.set_content(_prepare_html_for_screenshot(html, url), wait_until="domcontentloaded")
+            page.set_content(
+                _prepare_html_for_screenshot(html, url),
+                wait_until="domcontentloaded",
+            )
             page.wait_for_timeout(1200)
 
-            for issue in issues:
+            # Run axe-core analysis and merge with custom issues
+            try:
+                axe_issues = run_axe_core(page)
+                all_issues = merge_issues(custom_issues, axe_issues)
+            except Exception:
+                all_issues = custom_issues
+                for issue in all_issues:
+                    issue.source = issue.source or "custom"
+
+            # Capture screenshots for all merged issues
+            for issue in all_issues:
                 issue.screenshot_data_url = _capture_issue_screenshot(page, issue)
 
             context.close()
             browser.close()
+            return all_issues
     except Exception:
-        return issues
-
-    return issues
+        for issue in custom_issues:
+            issue.source = "custom"
+        return custom_issues
 
 
 def _capture_issue_screenshot(page, issue: ScanIssue) -> str | None:

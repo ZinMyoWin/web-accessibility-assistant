@@ -17,6 +17,8 @@ class ScanIssue(BaseModel):
     dom_path: str | None = None
     text_preview: str | None = None
     screenshot_data_url: str | None = None
+    wcag_criteria: list[str] | None = None
+    source: str | None = None
 
 
 class ScanSummary(BaseModel):

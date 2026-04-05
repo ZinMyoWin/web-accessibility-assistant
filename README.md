@@ -8,6 +8,7 @@ The project currently includes:
 
 - a FastAPI backend
 - a Next.js frontend
+- a Tailwind CSS v4 + shadcn/ui component layer for polished frontend controls
 - a health endpoint and root endpoint
 - a single-page scan endpoint
 - baseline accessibility checks
@@ -119,6 +120,11 @@ Then open:
 
 The frontend will call the backend using `NEXT_PUBLIC_API_BASE_URL` when set, or fall back to `http://127.0.0.1:8000`.
 
+Frontend UI note:
+
+- Tailwind CSS v4 is installed to support shadcn/ui primitives
+- the scan-mode dropdown in the dashboard now uses the shadcn/ui `Select` component
+
 ## Run With Docker
 
 From the project root:
@@ -202,3 +208,5 @@ After changing backend CORS variables on Render, redeploy the backend service.
 - The frontend test-page shortcut uses the configured API base URL instead of hardcoded localhost.
 - Some external websites block automated screenshot capture in headless environments.
 - Render backend CORS configuration must match the actual deployed frontend origin.
+
+
