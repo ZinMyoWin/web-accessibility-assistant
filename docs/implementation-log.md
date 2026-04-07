@@ -820,3 +820,101 @@ The dashboard now uses a reusable shadcn/ui dropdown that looks more consistent 
 ### Next step
 
 Replace other ad-hoc dashboard controls with shared component primitives where it improves clarity without disrupting the current layout.
+
+## 2026-04-07 - Frontend Source Reorganization And Dashboard Refactor
+
+### Completed work
+
+Reorganized and documented the current frontend implementation:
+
+- moved the frontend source tree to a `src/`-based structure
+- fixed frontend import alias resolution to target `src/*`
+- updated shadcn/ui configuration to point at `src/app/globals.css`
+- updated the home dashboard to render inside the shared `DashboardShell`
+- refactored the oversized home dashboard page into smaller feature components and a dedicated scan hook
+- created a project feature checklist document capturing implemented and missing work
+- refreshed architecture and README documentation so current status better matches the codebase
+
+### Why this was done
+
+The frontend had become harder to maintain because:
+
+- source files were no longer aligned with the intended `src/` layout
+- the home page contained too much logic and UI in one file
+- project documentation no longer matched the actual implementation status
+
+This update improves maintainability and makes project tracking more reliable for future implementation and reporting.
+
+### Files involved
+
+- `frontend/tsconfig.json`
+- `frontend/components.json`
+- `frontend/src/app/page.tsx`
+- `frontend/src/hooks/useDashboardScan.ts`
+- `frontend/src/components/home/types.ts`
+- `frontend/src/components/home/constants.ts`
+- `frontend/src/components/home/utils.ts`
+- `frontend/src/components/home/ScanToolbar.tsx`
+- `frontend/src/components/home/ProgressPanel.tsx`
+- `frontend/src/components/home/MetricsGrid.tsx`
+- `frontend/src/components/home/OverviewPanels.tsx`
+- `frontend/src/components/home/IssuesSection.tsx`
+- `frontend/src/components/home/IssueRow.tsx`
+- `README.md`
+- `docs/system-architecture.md`
+- `docs/feature-checklist.md`
+- `docs/implementation-log.md`
+
+### Verification
+
+- regenerated Next route types after the source move
+- ran `npx tsc --noEmit` successfully after the alias update
+- ran `npx tsc --noEmit` successfully after the home page refactor
+- manually reviewed current frontend routes to identify implemented versus missing pages
+
+### Outcome
+
+The frontend codebase is more maintainable, the home dashboard is split into focused modules, and the project now has an explicit checklist describing implemented and unimplemented features.
+
+### Next step
+
+Decide whether to implement the missing sidebar destinations first or remove those links until history, reports, and preferences are actually available.
+
+## 2026-04-07 - Documentation Clarification For AI-Related Features
+
+### Completed work
+
+Updated the project documentation to make the implemented intelligent analysis features explicit:
+
+- added an AI / intelligent-analysis section to the feature checklist
+- clarified in the architecture document which automated analysis and guidance features are already implemented
+- separated implemented automated analysis from not-yet-implemented generative AI functionality
+
+### Why this was done
+
+The project documentation did not clearly show the currently implemented analysis features, which made it easy to read the implementation status as if no AI-related or intelligent automation features had been added yet.
+
+This clarification improves accuracy by distinguishing:
+
+- implemented automated analysis and repair-guidance support
+- not-yet-implemented generative AI or LLM-based remediation features
+
+### Files involved
+
+- `docs/feature-checklist.md`
+- `docs/system-architecture.md`
+- `docs/implementation-log.md`
+
+### Verification
+
+- reviewed the current backend scan pipeline in `backend/app/services/page_scanner.py`
+- reviewed the axe-core integration in `backend/app/services/axe_scanner.py`
+- confirmed that the implemented features are rules-based and automation-driven, but not LLM-based
+
+### Outcome
+
+The documentation now explicitly lists the implemented intelligent analysis features without overstating the current system as using generative AI.
+
+### Next step
+
+If the project overview document defines a specific planned AI feature set, close the `.docx` file and align the docs wording with that source document exactly.

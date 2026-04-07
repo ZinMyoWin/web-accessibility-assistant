@@ -1,4 +1,4 @@
-# Web Accessibility Audit and Repair Assistant
+﻿# Web Accessibility Audit and Repair Assistant
 
 A web-based system for scanning webpages, detecting accessibility issues, and presenting repair guidance through a browser UI.
 
@@ -33,6 +33,7 @@ web-accessibility-assistant/
 - `docs/system-architecture.md`
 - `docs/implementation-log.md`
 - `docs/docker-setup-guide.md`
+- `docs/feature-checklist.md`
 
 ## Prerequisites
 
@@ -124,6 +125,26 @@ Frontend UI note:
 
 - Tailwind CSS v4 is installed to support shadcn/ui primitives
 - the scan-mode dropdown in the dashboard now uses the shadcn/ui `Select` component
+- the frontend source is organized under `frontend/src/`
+
+## Current Feature Status
+
+Implemented today:
+
+- backend single-page scanning
+- custom HTML checks plus axe-core checks
+- contextual issue screenshots
+- dashboard home scan UI
+- dedicated issues screen with mock-data drilldown
+- Docker setup for production-style and development workflows
+
+Not implemented yet:
+
+- scan history persistence
+- report export
+- multi-page crawling
+- working history, reports, and preferences pages
+- automated test suites
 
 ## Run With Docker
 
@@ -208,5 +229,7 @@ After changing backend CORS variables on Render, redeploy the backend service.
 - The frontend test-page shortcut uses the configured API base URL instead of hardcoded localhost.
 - Some external websites block automated screenshot capture in headless environments.
 - Render backend CORS configuration must match the actual deployed frontend origin.
+
+
 
 

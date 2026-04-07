@@ -1,4 +1,4 @@
-# System Architecture
+﻿# System Architecture
 
 ## 1. Project Purpose
 
@@ -60,10 +60,13 @@ Current technologies: **Next.js 15**, **Tailwind CSS v4**, and **shadcn/ui** (cu
 Current status:
 
 - Next.js frontend scaffold created
-- single-page scan form implemented
+- frontend source reorganized under `frontend/src/`
+- dashboard home scan form implemented
 - results summary and issue list UI implemented
-- shadcn/ui Select component integrated for the dashboard scan-mode dropdown
-
+- separate issues page implemented with mock issue data
+- shared dashboard shell with sidebar implemented
+- shadcn/ui Select component integrated for dashboard controls
+- sidebar destinations for history, reports, and preferences are not implemented yet
 ### `backend/`
 
 Contains the API and scan logic. It is responsible for:
@@ -297,8 +300,10 @@ Current implementation status:
 - scan button implemented
 - summary cards implemented
 - issue list implemented
+- dedicated issues page implemented with mock data and local drilldown
 - local test URL workflow supported
-
+- dashboard shell and mobile sidebar implemented
+- history, reports, and preferences routes not implemented yet
 ### Stage 5: Multi-page crawling
 
 The crawler will:
@@ -436,7 +441,19 @@ Completed:
 - axe-core integration (WCAG 2.0/2.1 A/AA + best-practice rules)
 - issue merge and deduplication pipeline
 - WCAG criteria display in frontend
+- `src/`-based frontend structure
+- componentized home dashboard page
+- shared dashboard shell
+- dedicated issues screen with filters and detail panel
 
+Implemented intelligent-analysis features:
+
+- automated standards-based issue detection using axe-core
+- automated issue merging between custom rules and axe-core findings
+- automated repair guidance and help-link surfacing in issue results
+- automated WCAG tagging for detected issues
+- automated locator guidance using source hints, DOM paths, and text previews
+- automated contextual screenshot capture to support issue review
 Not built yet:
 
 - full JavaScript rendering for single-page apps
@@ -444,6 +461,8 @@ Not built yet:
 - multi-page crawl
 - reporting
 - formal test suite
+- functional history, reports, and preferences pages
+- generative AI / LLM-based repair suggestions
 
 ## 12. How to Explain This in the Final Report
 
@@ -467,4 +486,10 @@ When a new feature is finished, update:
 1. architecture documentation if the design changed
 2. implementation log with what was built, why, files changed, and verification
 3. API or module documentation later if the feature introduces a new interface
+
+
+
+
+
+
 
