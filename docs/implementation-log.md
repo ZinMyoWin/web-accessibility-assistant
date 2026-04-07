@@ -918,3 +918,105 @@ The documentation now explicitly lists the implemented intelligent analysis feat
 ### Next step
 
 If the project overview document defines a specific planned AI feature set, close the `.docx` file and align the docs wording with that source document exactly.
+
+## 2026-04-07 - Documentation Alignment With Project Overview
+
+### Completed work
+
+Read the latest `project_overview.docx` and aligned the project documentation with its intended target scope:
+
+- confirmed the overview defines the long-term AI feature as real-time LLM-generated repair guidance and corrected code examples
+- clarified in the docs that this LLM layer is planned but not implemented yet
+- updated the architecture and README so the intended AI scope, multi-page crawl scope, persistence, and report export scope are visible
+
+### Why this was done
+
+The project overview describes a broader target system than the current implementation. Without reflecting that in the docs, it was too easy to confuse:
+
+- what the final project is intended to become
+- what is actually implemented today
+
+This update makes the documentation more faithful to the approved project direction while keeping implementation status accurate.
+
+### Files involved
+
+- `documents/project_overview.docx` (source reference)
+- `README.md`
+- `docs/system-architecture.md`
+- `docs/implementation-log.md`
+
+### Verification
+
+- extracted the text content from `project_overview.docx`
+- confirmed the overview explicitly includes:
+  - multi-page crawling
+  - AI-generated repair suggestions
+  - corrected code examples
+  - persistent scan history
+  - PDF and CSV export
+- updated project docs without changing implemented feature claims
+
+### Outcome
+
+The documentation now distinguishes more clearly between the current implemented system and the broader AI-enabled target system described in the project overview.
+
+### Next step
+
+Update the PRD, SRS, or final report draft so the same implemented-versus-planned distinction is consistent across all project documents.
+
+## 2026-04-07 - Scan History Page
+
+### Completed work
+
+Implemented the Scan History page as a new dashboard view:
+
+- created the `Scan` type and `MOCK_SCANS` mock data module
+- created the scan history page at `/scan-history` inside the dashboard layout
+- built five focused components: `ScanHistoryMetrics`, `ScanHistoryFilterBar`, `CompareBanner`, `ScanHistoryRow`, `ScanHistoryList`
+- implemented client-side filtering by search query, scan status, and scan mode
+- implemented client-side sorting (newest, oldest, most/fewest issues)
+- implemented compare mode with checkbox selection (max 2 scans)
+- implemented animated progress bar for running scans
+- used the existing `Badge` component for severity chips
+- used the existing `Input`, `Select`, `Button`, and `ScrollArea` shadcn/ui components
+- followed the design system tokens from `globals.css` and `CLAUDE.md` throughout
+- updated the sidebar nav link to `/scan-history`
+
+### Why this was done
+
+The sidebar had a Scan History link pointing to a route that did not exist. This page fills that gap and provides the scan history view described in the reference design, including:
+
+- at-a-glance scan metrics
+- filterable and sortable scan list
+- status indicators (running, complete, error)
+- severity breakdown per scan
+- accessibility score display
+- compare mode for side-by-side scan selection
+
+### Files involved
+
+- `frontend/src/lib/mock-scans.ts` (new)
+- `frontend/src/app/(dashboard)/scan-history/page.tsx` (new)
+- `frontend/src/components/scan-history/ScanHistoryMetrics.tsx` (new)
+- `frontend/src/components/scan-history/ScanHistoryFilterBar.tsx` (new)
+- `frontend/src/components/scan-history/CompareBanner.tsx` (new)
+- `frontend/src/components/scan-history/ScanHistoryRow.tsx` (new)
+- `frontend/src/components/scan-history/ScanHistoryList.tsx` (new)
+- `frontend/src/components/dashboard/DashboardShell.tsx` (modified — nav href)
+- `docs/implementation-log.md` (this file)
+
+### Verification
+
+- `npx tsc --noEmit` passed with zero errors after all files were created
+- all components follow existing patterns from the Issues page and dashboard home
+- severity chips use the `Badge` component with existing severity variants
+- no inline styles — Tailwind classes only
+- no new npm dependencies added
+
+### Outcome
+
+The Scan History page is now a functional dashboard view with mock data, ready for API integration when the backend scan history endpoint is implemented.
+
+### Next step
+
+Connect the scan history page to a real backend endpoint, replace mock data with API calls, and implement real pagination.

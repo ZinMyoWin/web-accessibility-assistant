@@ -1,4 +1,4 @@
-﻿# Web Accessibility Audit and Repair Assistant
+# Web Accessibility Audit and Repair Assistant
 
 A web-based system for scanning webpages, detecting accessibility issues, and presenting repair guidance through a browser UI.
 
@@ -138,6 +138,14 @@ Implemented today:
 - dedicated issues screen with mock-data drilldown
 - Docker setup for production-style and development workflows
 
+Planned target from the project overview:
+
+- multi-page domain-limited crawling
+- AI-generated repair guidance
+- corrected code examples for detected issues
+- persistent scan history
+- PDF and CSV report export
+
 Not implemented yet:
 
 - scan history persistence
@@ -229,7 +237,3 @@ After changing backend CORS variables on Render, redeploy the backend service.
 - The frontend test-page shortcut uses the configured API base URL instead of hardcoded localhost.
 - Some external websites block automated screenshot capture in headless environments.
 - Render backend CORS configuration must match the actual deployed frontend origin.
-
-
-
-

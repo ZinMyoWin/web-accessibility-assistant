@@ -1,4 +1,4 @@
-﻿# Feature Checklist
+# Feature Checklist
 
 Use this file as the current source of truth for what is implemented, partially implemented, and not implemented yet.
 
@@ -68,6 +68,7 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [ ] Generative AI / LLM-based fix generation
 - [ ] Automatic code repair suggestions per issue
 - [ ] Conversational remediation assistant
+
 ## Data And Reporting
 
 - [ ] Database schema and migrations
@@ -94,4 +95,3 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [ ] Connect the issues page to actual scan results instead of mock data
 - [ ] Decide whether scan history requires database persistence now or after multi-page crawl
 - [ ] Add at least a minimal automated smoke test path for backend and frontend
-

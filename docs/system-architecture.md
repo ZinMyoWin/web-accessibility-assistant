@@ -9,7 +9,7 @@ The MVP is designed to do four things well:
 1. Accept a URL from the user.
 2. Scan one page, and later multiple pages in the same site.
 3. Detect common accessibility issues.
-4. Present issues, severity, and suggested fixes in a format developers can act on.
+4. Present issues, severity, and suggested fixes in a format developers can act on.`r`n5. Progress toward real-time AI-generated repair guidance as defined in the project overview.
 
 ## 2. High-Level Architecture
 
@@ -34,7 +34,7 @@ FastAPI Backend
   |       +--> Built-in custom checks (line/column detail)
   |       +--> axe-core standards-based checks (WCAG coverage)
   |
-  +--> Recommendation Mapping
+  +--> AI Recommendation Engine (planned)
   |
   +--> Database later
           |
@@ -276,9 +276,9 @@ As the project grows, the backend will expand into a more complete pipeline.
 - normalization of tool findings into one internal JSON format (completed)
 - full JavaScript rendering for single-page apps (not yet started)
 
-### Stage 3: Recommendation engine
+### Stage 3: AI recommendation engine
 
-Each issue type will be mapped to:
+The target system described in the project overview adds an LLM-backed recommendation engine. Each issue should be mapped to:
 
 - plain-language explanation
 - why the issue matters
@@ -486,6 +486,7 @@ When a new feature is finished, update:
 1. architecture documentation if the design changed
 2. implementation log with what was built, why, files changed, and verification
 3. API or module documentation later if the feature introduces a new interface
+
 
 
 
