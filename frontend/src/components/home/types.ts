@@ -26,6 +26,7 @@ export type ScanSummary = {
 }
 
 export type ScanResponse = {
+  scan_id?: string | null
   url: string
   scanned_at: string
   summary: ScanSummary

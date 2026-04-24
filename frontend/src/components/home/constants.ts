@@ -1,6 +1,7 @@
 import type { IssueSeverity, ProgressState, ScanSummary } from "@/components/home/types"
+import { API_BASE_URL } from "@/lib/api"
 
-export const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000"
+export const API = API_BASE_URL
 
 export const TEST_URL = `${API}/test/page-bad`
 

@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { Slot } from "@radix-ui/react-slot"
 import { cn } from "@/lib/utils"
 
 type ButtonVariant =
@@ -36,16 +37,19 @@ const sizeStyles: Record<ButtonSize, string> = {
 interface ButtonProps extends React.ComponentProps<"button"> {
   variant?: ButtonVariant
   size?: ButtonSize
+  asChild?: boolean
 }
 
 function Button({
   className,
   variant = "default",
   size = "default",
+  asChild = false,
   ...props
 }: ButtonProps) {
+  const Comp = asChild ? Slot : "button"
   return (
-    <button
+    <Comp
       data-slot="button"
       className={cn(
         "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 cursor-pointer",

@@ -1,33 +1,30 @@
-import type { Scan } from "@/lib/mock-scans"
+import {
+  getSavedScanDomain,
+  getSavedScanTotalIssues,
+  type SavedScanListItem,
+} from "@/lib/saved-scans"
 
 interface ScanHistoryMetricsProps {
-  scans: Scan[]
+  scans: SavedScanListItem[]
 }
 
 export function ScanHistoryMetrics({ scans }: ScanHistoryMetricsProps) {
   const totalScans = scans.length
-  const domains = new Set(scans.map((s) => s.url.split("/")[0])).size
+  const domains = new Set(scans.map((scan) => getSavedScanDomain(scan))).size
 
   const completedScans = scans.filter((s) => s.status === "complete")
   const avgIssues =
     completedScans.length > 0
       ? Math.round(
-          completedScans.reduce(
-            (sum, s) =>
-              sum +
-              s.issues.critical +
-              s.issues.serious +
-              s.issues.moderate +
-              s.issues.minor,
-            0
-          ) / completedScans.length
+          completedScans.reduce((sum, scan) => sum + getSavedScanTotalIssues(scan), 0) /
+            completedScans.length
         )
       : 0
 
-  const totalPages = scans.reduce((sum, s) => sum + s.pagesScanned, 0)
+  const totalPages = scans.reduce((sum, scan) => sum + scan.pages_scanned, 0)
 
   const thisWeekCount = scans.filter((s) => {
-    const d = new Date(s.startedAt)
+    const d = new Date(s.started_at)
     const now = new Date()
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
     return d >= weekAgo

@@ -3,12 +3,12 @@
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge, type BadgeVariant } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
-import type { Issue } from "@/lib/mock-issues"
+import type { IssueListItem } from "@/lib/saved-scans"
 
 interface IssueListProps {
-  issues: Issue[]
-  selectedId: number | null
-  onSelect: (id: number) => void
+  issues: IssueListItem[]
+  selectedId: string | null
+  onSelect: (id: string) => void
 }
 
 export function IssueList({ issues, selectedId, onSelect }: IssueListProps) {
@@ -49,7 +49,7 @@ export function IssueList({ issues, selectedId, onSelect }: IssueListProps) {
                 <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-foreground/70">
                   {issue.selector}
                 </code>
-                <span>WCAG {issue.wcag}</span>
+                <span>{issue.wcag}</span>
               </div>
             </div>
             <span className="shrink-0 whitespace-nowrap text-xs text-muted-foreground">

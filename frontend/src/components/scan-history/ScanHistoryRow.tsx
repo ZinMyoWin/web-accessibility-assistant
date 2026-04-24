@@ -1,12 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
-import type { Scan } from "@/lib/mock-scans"
+import type { SavedScanListItem } from "@/lib/saved-scans"
 
 export interface ScanHistoryRowProps {
-  scan: Scan
+  scan: SavedScanListItem
   isSelected: boolean
   compareMode: boolean
   isCompareSelected: boolean
@@ -66,19 +65,6 @@ export function ScanHistoryRow({
   onSelect,
   onCompareToggle,
 }: ScanHistoryRowProps) {
-  const [progress, setProgress] = useState(scan.status === "running" ? 40 : 0)
-
-  useEffect(() => {
-    if (scan.status !== "running") return
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) return prev
-        return Math.min(100, prev + Math.random() * 3)
-      })
-    }, 1800)
-    return () => clearInterval(interval)
-  }, [scan.status])
-
   const handleClick = () => {
     if (compareMode) {
       onCompareToggle(scan.id)
@@ -87,22 +73,20 @@ export function ScanHistoryRow({
     }
   }
 
-  const totalIssues =
-    scan.issues.critical + scan.issues.serious + scan.issues.moderate + scan.issues.minor
+  const totalIssues = scan.summary.total_issues
 
   const modeLabel =
     scan.mode === "multi"
-      ? `Multi-page \u00b7 ${scan.pageLimit ? `up to ${scan.pageLimit}` : scan.pagesScanned} pages`
+      ? `Multi-page \u00b7 ${
+          scan.page_limit ? `up to ${scan.page_limit}` : scan.pages_scanned
+        } pages`
       : "Single page"
-
-  const currentPage = scan.status === "running" ? Math.round(progress / 5) : 0
 
   return (
     <div
       className={cn(
         "group cursor-pointer rounded-md border-[0.5px] border-border bg-card p-4 transition-all hover:border-accent-foreground/30 hover:shadow-sm",
         isSelected && "border-l-2 border-l-primary bg-secondary/30",
-        scan.status === "running" && "grid-rows-[auto_auto]"
       )}
       onClick={handleClick}
     >
@@ -130,7 +114,6 @@ export function ScanHistoryRow({
                 "size-2 rounded-full",
                 scan.status === "complete" && "bg-primary",
                 scan.status === "error" && "bg-severity-critical-text",
-                scan.status === "running" && "animate-pulse bg-accent-foreground/60"
               )}
             />
           )}
@@ -148,35 +131,28 @@ export function ScanHistoryRow({
                   <circle cx="8" cy="8" r="5.5" />
                   <path d="M8 5v3M8 11h.01" strokeLinecap="round" />
                 </svg>
-                Failed &mdash; {scan.errorMessage}
+                Failed &mdash; {scan.error_message}
               </span>
             ) : (
               <>
                 <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
                   {clockIcon}
-                  {scan.status === "running"
-                    ? "Running \u2014 2 min ago"
-                    : `${formatDate(scan.startedAt)} \u00b7 ${scan.duration ? formatDuration(scan.duration) : ""}`}
+                  {`${formatDate(scan.started_at)}${
+                    scan.duration_seconds != null
+                      ? ` \u00b7 ${formatDuration(scan.duration_seconds)}`
+                      : ""
+                  }`}
                 </span>
                 <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
                   {pageIcon}
                   {modeLabel}
                 </span>
-                {scan.status === "running" && (
-                  <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                    <svg className="size-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path d="M8 3v3l2 2" strokeLinecap="round" />
-                      <circle cx="8" cy="8" r="5.5" />
-                    </svg>
-                    {scan.pagesScanned} / {scan.pageLimit} pages crawled
-                  </span>
-                )}
               </>
             )}
             {scan.status === "error" && (
               <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
                 {clockIcon}
-                {formatDate(scan.startedAt)}
+                {formatDate(scan.started_at)}
               </span>
             )}
           </div>
@@ -186,21 +162,17 @@ export function ScanHistoryRow({
         <div className="flex items-center gap-2">
           {scan.status === "complete" && totalIssues > 0 && (
             <>
-              <Badge variant="critical" className="gap-1 px-2 py-0 text-[11px]">
+              <Badge variant="high" className="gap-1 px-2 py-0 text-[11px]">
                 <span className="inline-block size-[5px] rounded-full bg-current" />
-                {scan.issues.critical}
+                {scan.summary.high}
               </Badge>
-              <Badge variant="serious" className="gap-1 px-2 py-0 text-[11px]">
+              <Badge variant="medium" className="gap-1 px-2 py-0 text-[11px]">
                 <span className="inline-block size-[5px] rounded-full bg-current" />
-                {scan.issues.serious}
+                {scan.summary.medium}
               </Badge>
-              <Badge variant="moderate" className="gap-1 px-2 py-0 text-[11px]">
+              <Badge variant="low" className="gap-1 px-2 py-0 text-[11px]">
                 <span className="inline-block size-[5px] rounded-full bg-current" />
-                {scan.issues.moderate}
-              </Badge>
-              <Badge variant="minor" className="gap-1 px-2 py-0 text-[11px]">
-                <span className="inline-block size-[5px] rounded-full bg-current" />
-                {scan.issues.minor}
+                {scan.summary.low}
               </Badge>
             </>
           )}
@@ -271,22 +243,6 @@ export function ScanHistoryRow({
           </IconButton>
         </div>
       </div>
-
-      {/* Progress bar for running scans */}
-      {scan.status === "running" && (
-        <div className="mt-3">
-          <div className="flex justify-between text-[11px] text-muted-foreground">
-            <span>Scanning page {currentPage} of {scan.pageLimit}&hellip;</span>
-            <span>{Math.round(progress)}%</span>
-          </div>
-          <div className="mt-1 h-[3px] overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full bg-primary transition-[width] duration-400"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        </div>
-      )}
     </div>
   )
 }

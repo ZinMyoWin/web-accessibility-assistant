@@ -2,10 +2,10 @@
 
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { ScanHistoryRow } from "@/components/scan-history/ScanHistoryRow"
-import type { Scan } from "@/lib/mock-scans"
+import type { SavedScanListItem } from "@/lib/saved-scans"
 
 interface ScanHistoryListProps {
-  scans: Scan[]
+  scans: SavedScanListItem[]
   selectedScanId: string | null
   compareMode: boolean
   compareIds: string[]

@@ -10,17 +10,6 @@ import {
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 
-const SEVERITIES = ["all", "critical", "serious", "moderate", "minor"] as const
-const CATEGORIES = [
-  "all",
-  "Images",
-  "Forms",
-  "Links",
-  "Contrast",
-  "Structure",
-  "Landmarks",
-] as const
-
 interface IssueFilterBarProps {
   searchQuery: string
   onSearchChange: (query: string) => void
@@ -28,6 +17,7 @@ interface IssueFilterBarProps {
   onSeverityChange: (severity: string) => void
   categoryFilter: string
   onCategoryChange: (category: string) => void
+  categories: string[]
   sortBy: "severity" | "frequency" | "category"
   onSortChange: (sort: "severity" | "frequency" | "category") => void
 }
@@ -39,9 +29,13 @@ export function IssueFilterBar({
   onSeverityChange,
   categoryFilter,
   onCategoryChange,
+  categories,
   sortBy,
   onSortChange,
 }: IssueFilterBarProps) {
+  const severityOptions = ["all", "high", "medium", "low"] as const
+  const categoryOptions = ["all", ...categories]
+
   return (
     <div className="flex flex-col gap-2.5 border-b border-border bg-card p-3">
       {/* Search */}
@@ -69,7 +63,7 @@ export function IssueFilterBar({
       <div className="flex items-center gap-2">
         <span className="text-xs text-muted-foreground">Severity</span>
         <div className="flex flex-wrap gap-1">
-          {SEVERITIES.map((sev) => (
+          {severityOptions.map((sev) => (
             <button
               key={sev}
               onClick={() => onSeverityChange(sev)}
@@ -90,7 +84,7 @@ export function IssueFilterBar({
       <div className="flex items-center gap-2">
         <span className="text-xs text-muted-foreground">Category</span>
         <div className="flex flex-wrap gap-1">
-          {CATEGORIES.map((cat) => (
+          {categoryOptions.map((cat) => (
             <button
               key={cat}
               onClick={() => onCategoryChange(cat)}
@@ -124,14 +118,12 @@ export function IssueFilterBar({
 
 function severityActiveStyle(sev: string): string {
   switch (sev) {
-    case "critical":
-      return "border-severity-critical bg-severity-critical-text text-white"
-    case "serious":
-      return "border-severity-serious bg-severity-serious-text text-white"
-    case "moderate":
-      return "border-severity-moderate bg-severity-moderate-text text-white"
-    case "minor":
-      return "border-severity-minor bg-severity-minor-text text-white"
+    case "high":
+      return "border-[var(--high)] bg-[var(--high)] text-white"
+    case "medium":
+      return "border-[var(--medium)] bg-[var(--medium)] text-white"
+    case "low":
+      return "border-[var(--low)] bg-[var(--low)] text-white"
     default:
       return "border-primary bg-primary text-primary-foreground"
   }

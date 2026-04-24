@@ -1,10 +1,9 @@
 import { Badge } from "@/components/ui/badge"
 
 interface SeverityCounts {
-  critical: number
-  serious: number
-  moderate: number
-  minor: number
+  high: number
+  medium: number
+  low: number
 }
 
 interface IssueCountBarProps {
@@ -20,17 +19,14 @@ export function IssueCountBar({ total, counts }: IssueCountBarProps) {
         {total} issue{total !== 1 ? "s" : ""}
       </span>
       <div className="ml-auto flex gap-1.5">
-        <Badge variant="critical" className="text-[10px]">
-          {counts.critical} critical
+        <Badge variant="high" className="text-[10px]">
+          {counts.high} high
         </Badge>
-        <Badge variant="serious" className="text-[10px]">
-          {counts.serious} serious
+        <Badge variant="medium" className="text-[10px]">
+          {counts.medium} medium
         </Badge>
-        <Badge variant="moderate" className="text-[10px]">
-          {counts.moderate} moderate
-        </Badge>
-        <Badge variant="minor" className="text-[10px]">
-          {counts.minor} minor
+        <Badge variant="low" className="text-[10px]">
+          {counts.low} low
         </Badge>
       </div>
     </div>

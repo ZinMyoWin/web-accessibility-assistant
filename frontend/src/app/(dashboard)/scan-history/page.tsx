@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useDeferredValue, useEffect, useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -10,26 +11,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { ScanHistoryMetrics } from "@/components/scan-history/ScanHistoryMetrics"
-import { ScanHistoryFilterBar } from "@/components/scan-history/ScanHistoryFilterBar"
 import { CompareBanner } from "@/components/scan-history/CompareBanner"
+import { ScanHistoryFilterBar } from "@/components/scan-history/ScanHistoryFilterBar"
 import { ScanHistoryList } from "@/components/scan-history/ScanHistoryList"
-import { MOCK_SCANS, type Scan } from "@/lib/mock-scans"
+import { ScanHistoryMetrics } from "@/components/scan-history/ScanHistoryMetrics"
+import {
+  fetchSavedScans,
+  getSavedScanDomain,
+  getSavedScanTotalIssues,
+  type SavedScanListItem,
+} from "@/lib/saved-scans"
 
 type StatusFilter = "all" | "complete" | "error"
 type ModeFilter = "all" | "single" | "multi"
 type SortBy = "newest" | "oldest" | "most" | "fewest"
 
-function totalIssues(scan: Scan): number {
-  return (
-    scan.issues.critical +
-    scan.issues.serious +
-    scan.issues.moderate +
-    scan.issues.minor
-  )
-}
+const PAGE_SIZE = 10
 
 export default function ScanHistoryPage() {
+  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [modeFilter, setModeFilter] = useState<ModeFilter>("all")
@@ -37,53 +37,127 @@ export default function ScanHistoryPage() {
   const [selectedScanId, setSelectedScanId] = useState<string | null>(null)
   const [compareMode, setCompareMode] = useState(false)
   const [compareIds, setCompareIds] = useState<string[]>([])
+  const [currentPage, setCurrentPage] = useState(1)
+  const [scans, setScans] = useState<SavedScanListItem[]>([])
+  const [totalScans, setTotalScans] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+
+  const deferredSearchQuery = useDeferredValue(searchQuery)
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [deferredSearchQuery, statusFilter, modeFilter])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadScans() {
+      setLoading(true)
+      setError("")
+
+      try {
+        const response = await fetchSavedScans({
+          limit: PAGE_SIZE,
+          offset: (currentPage - 1) * PAGE_SIZE,
+          status: statusFilter === "all" ? undefined : statusFilter,
+          mode: modeFilter === "all" ? undefined : modeFilter,
+          q: deferredSearchQuery.trim() || undefined,
+        })
+
+        if (cancelled) {
+          return
+        }
+
+        setScans(response.items)
+        setTotalScans(response.total)
+        setSelectedScanId((current) => {
+          if (response.items.length === 0) {
+            return null
+          }
+          if (current && response.items.some((scan) => scan.id === current)) {
+            return current
+          }
+          return response.items[0]?.id ?? null
+        })
+      } catch (loadError) {
+        if (cancelled) {
+          return
+        }
+
+        setScans([])
+        setTotalScans(0)
+        setSelectedScanId(null)
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "Failed to load saved scans."
+        )
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+
+    void loadScans()
+
+    return () => {
+      cancelled = true
+    }
+  }, [currentPage, deferredSearchQuery, modeFilter, statusFilter])
 
   const filteredScans = useMemo(() => {
-    let result = [...MOCK_SCANS]
-
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase()
-      result = result.filter((s) => s.url.toLowerCase().includes(q))
-    }
-
-    if (statusFilter !== "all") {
-      result = result.filter((s) => s.status === statusFilter)
-    }
-
-    if (modeFilter !== "all") {
-      result = result.filter((s) => s.mode === modeFilter)
-    }
+    const result = [...scans]
 
     switch (sortBy) {
       case "newest":
         result.sort(
           (a, b) =>
-            new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
+            new Date(b.started_at).getTime() - new Date(a.started_at).getTime()
         )
         break
       case "oldest":
         result.sort(
           (a, b) =>
-            new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime()
+            new Date(a.started_at).getTime() - new Date(b.started_at).getTime()
         )
         break
       case "most":
-        result.sort((a, b) => totalIssues(b) - totalIssues(a))
+        result.sort(
+          (a, b) => getSavedScanTotalIssues(b) - getSavedScanTotalIssues(a)
+        )
         break
       case "fewest":
-        result.sort((a, b) => totalIssues(a) - totalIssues(b))
+        result.sort(
+          (a, b) => getSavedScanTotalIssues(a) - getSavedScanTotalIssues(b)
+        )
         break
     }
 
     return result
-  }, [searchQuery, statusFilter, modeFilter, sortBy])
+  }, [scans, sortBy])
+
+  const totalPages = Math.max(1, Math.ceil(totalScans / PAGE_SIZE))
+  const selectedCount = compareIds.length
+  const domainCount = new Set(filteredScans.map((scan) => getSavedScanDomain(scan)))
+    .size
 
   const handleCompareToggle = (id: string) => {
-    setCompareIds((prev) => {
-      if (prev.includes(id)) return prev.filter((i) => i !== id)
-      if (prev.length >= 2) return prev
-      return [...prev, id]
+    setCompareIds((previous) => {
+      if (previous.includes(id)) {
+        return previous.filter((item) => item !== id)
+      }
+      if (previous.length >= 2) {
+        return previous
+      }
+      return [...previous, id]
     })
+  }
+
+  const handleSelect = (id: string) => {
+    setSelectedScanId(id)
+    router.push(`/issues?scanId=${id}`)
   }
 
   const cancelCompare = () => {
@@ -91,14 +165,22 @@ export default function ScanHistoryPage() {
     setCompareIds([])
   }
 
+  const goToPreviousPage = () => {
+    setCurrentPage((page) => Math.max(1, page - 1))
+  }
+
+  const goToNextPage = () => {
+    setCurrentPage((page) => Math.min(totalPages, page + 1))
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
-      {/* Topbar */}
       <header className="flex shrink-0 items-center gap-3 border-b border-border bg-card px-6 py-3">
         <Input
           type="text"
           placeholder="https://example.com"
           className="h-8 max-w-[420px] flex-1 bg-muted text-xs"
+          readOnly
         />
         <Select defaultValue="single">
           <SelectTrigger size="sm" className="h-8 border bg-muted text-xs shadow-none">
@@ -106,7 +188,9 @@ export default function ScanHistoryPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="single">Single page</SelectItem>
-            <SelectItem value="multi">Multi-page</SelectItem>
+            <SelectItem value="multi" disabled>
+              Multi-page
+            </SelectItem>
           </SelectContent>
         </Select>
         <Input
@@ -114,8 +198,13 @@ export default function ScanHistoryPage() {
           placeholder="Pages"
           defaultValue={20}
           className="h-8 w-20 bg-muted text-xs"
+          readOnly
         />
-        <Button size="sm" className="gap-2 text-xs">
+        <Button
+          size="sm"
+          className="gap-2 text-xs"
+          onClick={() => router.push("/")}
+        >
           <svg
             className="size-3.5"
             viewBox="0 0 16 16"
@@ -134,22 +223,19 @@ export default function ScanHistoryPage() {
         </Button>
       </header>
 
-      {/* Content */}
       <div className="flex flex-1 flex-col gap-5 overflow-y-auto p-6">
-        {/* Page header */}
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-xl font-semibold tracking-tight text-foreground">
               Scan History
             </h1>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              All previous scans across{" "}
-              {new Set(MOCK_SCANS.map((s) => s.url.split("/")[0])).size} domains
-              &mdash; click any row to view results
+              Saved scan runs from {domainCount || 0} domain
+              {domainCount === 1 ? "" : "s"}.
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="gap-2 text-xs">
+            <Button variant="outline" size="sm" className="gap-2 text-xs" disabled>
               <svg
                 className="size-3.5"
                 viewBox="0 0 16 16"
@@ -196,21 +282,18 @@ export default function ScanHistoryPage() {
           </div>
         </div>
 
-        {/* Metric cards */}
-        <ScanHistoryMetrics scans={MOCK_SCANS} />
+        <ScanHistoryMetrics scans={filteredScans} />
 
-        {/* Compare banner */}
         {compareMode && (
           <CompareBanner
-            selectedCount={compareIds.length}
+            selectedCount={selectedCount}
             onCompare={() => {
-              /* Compare view would open here */
+              /* Comparison view is not implemented yet. */
             }}
             onCancel={cancelCompare}
           />
         )}
 
-        {/* Filter bar */}
         <ScanHistoryFilterBar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -222,37 +305,47 @@ export default function ScanHistoryPage() {
           onSortChange={setSortBy}
         />
 
-        {/* Count bar */}
         <div className="flex items-center justify-between px-1">
           <span className="text-[11px] text-muted-foreground">
-            Showing <strong className="text-foreground">{filteredScans.length}</strong> of{" "}
-            {MOCK_SCANS.length} scans
+            Showing{" "}
+            <strong className="text-foreground">{filteredScans.length}</strong> of{" "}
+            {totalScans} scans
           </span>
-          <span className="text-[11px] text-muted-foreground">Page 1 of 3</span>
+          <span className="text-[11px] text-muted-foreground">
+            Page {currentPage} of {totalPages}
+          </span>
         </div>
 
-        {/* Scan list */}
-        <ScanHistoryList
-          scans={filteredScans}
-          selectedScanId={selectedScanId}
-          compareMode={compareMode}
-          compareIds={compareIds}
-          onSelect={setSelectedScanId}
-          onCompareToggle={handleCompareToggle}
-        />
+        {error ? (
+          <div className="rounded-md border border-red-600/20 bg-[var(--high-bg)] px-4 py-3 text-[13px] text-[var(--high-text)]">
+            {error}
+          </div>
+        ) : loading ? (
+          <div className="rounded-md border border-border bg-card px-4 py-10 text-center text-sm text-muted-foreground">
+            Loading saved scans...
+          </div>
+        ) : (
+          <ScanHistoryList
+            scans={filteredScans}
+            selectedScanId={selectedScanId}
+            compareMode={compareMode}
+            compareIds={compareIds}
+            onSelect={handleSelect}
+            onCompareToggle={handleCompareToggle}
+          />
+        )}
 
-        {/* Pagination */}
         <div className="flex items-center justify-center gap-2 py-3">
-          <PaginationButton disabled>
+          <PaginationButton disabled={currentPage === 1} onClick={goToPreviousPage}>
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path d="M10 3L5 8l5 5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </PaginationButton>
-          <PaginationButton active>1</PaginationButton>
-          <PaginationButton>2</PaginationButton>
-          <PaginationButton>3</PaginationButton>
-          <span className="px-1 text-xs text-muted-foreground">&hellip;</span>
-          <PaginationButton>
+          <PaginationButton active>{String(currentPage)}</PaginationButton>
+          <PaginationButton
+            disabled={currentPage === totalPages}
+            onClick={goToNextPage}
+          >
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
@@ -267,10 +360,12 @@ function PaginationButton({
   children,
   active,
   disabled,
+  onClick,
 }: {
   children: React.ReactNode
   active?: boolean
   disabled?: boolean
+  onClick?: () => void
 }) {
   return (
     <button
@@ -280,6 +375,7 @@ function PaginationButton({
           : "bg-card text-muted-foreground hover:border-accent-foreground/30 hover:text-accent-foreground"
       } ${disabled ? "pointer-events-none opacity-35" : "cursor-pointer"}`}
       disabled={disabled}
+      onClick={onClick}
     >
       {typeof children === "string" ? (
         children

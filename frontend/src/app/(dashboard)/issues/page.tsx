@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useEffect, useMemo, useState, Suspense } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   Select,
   SelectContent,
@@ -9,98 +10,251 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
-import { IssueFilterBar } from "@/components/issues/IssueFilterBar"
 import { IssueCountBar } from "@/components/issues/IssueCountBar"
-import { IssueList } from "@/components/issues/IssueList"
 import { IssueDetailPanel } from "@/components/issues/IssueDetailPanel"
-import { MOCK_ISSUES, type Issue } from "@/lib/mock-issues"
+import { IssueFilterBar } from "@/components/issues/IssueFilterBar"
+import { IssueList } from "@/components/issues/IssueList"
+import {
+  fetchSavedScan,
+  fetchSavedScans,
+  mapSavedScanToIssueList,
+  type IssueListItem,
+  type SavedScanDetail,
+  type SavedScanListItem,
+} from "@/lib/saved-scans"
 
-const SEV_ORDER: Record<Issue["severity"], number> = {
-  critical: 0,
-  serious: 1,
-  moderate: 2,
-  minor: 3,
+const SEVERITY_ORDER: Record<IssueListItem["severity"], number> = {
+  high: 0,
+  medium: 1,
+  low: 2,
 }
 
 export default function IssuesPage() {
-  const [selectedIssueId, setSelectedIssueId] = useState<number | null>(null)
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <IssuesPageContent />
+    </Suspense>
+  )
+}
+
+function IssuesPageContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const requestedScanId = searchParams.get("scanId")
+
+  const [scans, setScans] = useState<SavedScanListItem[]>([])
+  const [activeScanId, setActiveScanId] = useState<string | null>(requestedScanId)
+  const [activeScan, setActiveScan] = useState<SavedScanDetail | null>(null)
+  const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null)
   const [severityFilter, setSeverityFilter] = useState("all")
   const [categoryFilter, setCategoryFilter] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [sortBy, setSortBy] = useState<"severity" | "frequency" | "category">(
     "severity"
   )
+  const [loadingScans, setLoadingScans] = useState(true)
+  const [loadingIssues, setLoadingIssues] = useState(false)
+  const [error, setError] = useState("")
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadSavedScans() {
+      setLoadingScans(true)
+      setError("")
+
+      try {
+        const response = await fetchSavedScans({ limit: 50, offset: 0 })
+
+        if (cancelled) {
+          return
+        }
+
+        setScans(response.items)
+
+        const defaultScanId =
+          requestedScanId && response.items.some((scan) => scan.id === requestedScanId)
+            ? requestedScanId
+            : response.items[0]?.id ?? null
+
+        setActiveScanId(defaultScanId)
+      } catch (loadError) {
+        if (cancelled) {
+          return
+        }
+
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "Failed to load saved scans."
+        )
+        setScans([])
+        setActiveScanId(null)
+      } finally {
+        if (!cancelled) {
+          setLoadingScans(false)
+        }
+      }
+    }
+
+    void loadSavedScans()
+
+    return () => {
+      cancelled = true
+    }
+  }, [requestedScanId])
+
+  useEffect(() => {
+    if (!activeScanId) {
+      setActiveScan(null)
+      return
+    }
+
+    const scanId = activeScanId
+    let cancelled = false
+
+    async function loadSavedScan() {
+      setLoadingIssues(true)
+      setError("")
+
+      try {
+        const response = await fetchSavedScan(scanId)
+
+        if (cancelled) {
+          return
+        }
+
+        setActiveScan(response)
+      } catch (loadError) {
+        if (cancelled) {
+          return
+        }
+
+        setActiveScan(null)
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "Failed to load saved scan."
+        )
+      } finally {
+        if (!cancelled) {
+          setLoadingIssues(false)
+        }
+      }
+    }
+
+    void loadSavedScan()
+
+    return () => {
+      cancelled = true
+    }
+  }, [activeScanId])
+
+  const issues = useMemo(() => {
+    return activeScan ? mapSavedScanToIssueList(activeScan) : []
+  }, [activeScan])
+
+  const categories = useMemo(() => {
+    return Array.from(new Set(issues.map((issue) => issue.category))).sort()
+  }, [issues])
 
   const filteredIssues = useMemo(() => {
-    let result = [...MOCK_ISSUES]
+    const result = [...issues]
 
-    if (severityFilter !== "all") {
-      result = result.filter((i) => i.severity === severityFilter)
-    }
-    if (categoryFilter !== "all") {
-      result = result.filter((i) => i.category === categoryFilter)
-    }
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase()
-      result = result.filter(
-        (i) =>
-          i.title.toLowerCase().includes(q) ||
-          i.category.toLowerCase().includes(q) ||
-          i.selector.toLowerCase().includes(q)
-      )
-    }
+    const normalizedSearch = searchQuery.trim().toLowerCase()
+
+    const visibleIssues = result.filter((issue) => {
+      const matchesSeverity =
+        severityFilter === "all" || issue.severity === severityFilter
+      const matchesCategory =
+        categoryFilter === "all" || issue.category === categoryFilter
+      const matchesSearch =
+        !normalizedSearch ||
+        issue.title.toLowerCase().includes(normalizedSearch) ||
+        issue.category.toLowerCase().includes(normalizedSearch) ||
+        issue.selector.toLowerCase().includes(normalizedSearch) ||
+        issue.wcag.toLowerCase().includes(normalizedSearch)
+
+      return matchesSeverity && matchesCategory && matchesSearch
+    })
 
     if (sortBy === "severity") {
-      result.sort((a, b) => SEV_ORDER[a.severity] - SEV_ORDER[b.severity])
+      visibleIssues.sort(
+        (a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]
+      )
     } else if (sortBy === "frequency") {
-      result.sort((a, b) => b.pages.length - a.pages.length)
+      visibleIssues.sort((a, b) => b.pages.length - a.pages.length)
     } else {
-      result.sort((a, b) => a.category.localeCompare(b.category))
+      visibleIssues.sort((a, b) => a.category.localeCompare(b.category))
     }
 
-    return result
-  }, [severityFilter, categoryFilter, searchQuery, sortBy])
+    return visibleIssues
+  }, [categoryFilter, issues, searchQuery, severityFilter, sortBy])
 
-  const counts = useMemo(() => {
-    const c = { critical: 0, serious: 0, moderate: 0, minor: 0 }
-    filteredIssues.forEach((i) => c[i.severity]++)
-    return c
+  useEffect(() => {
+    setSelectedIssueId((current) => {
+      if (filteredIssues.length === 0) {
+        return null
+      }
+      if (current && filteredIssues.some((issue) => issue.id === current)) {
+        return current
+      }
+      return filteredIssues[0]?.id ?? null
+    })
   }, [filteredIssues])
 
-  const selectedIssue = selectedIssueId !== null
-    ? MOCK_ISSUES.find((i) => i.id === selectedIssueId) ?? null
-    : null
+  const counts = useMemo(() => {
+    return filteredIssues.reduce(
+      (summary, issue) => {
+        summary[issue.severity] += 1
+        return summary
+      },
+      { high: 0, medium: 0, low: 0 }
+    )
+  }, [filteredIssues])
+
+  const selectedIssue =
+    selectedIssueId !== null
+      ? filteredIssues.find((issue) => issue.id === selectedIssueId) ?? null
+      : null
+
+  const activeScanSummary = scans.find((scan) => scan.id === activeScanId) ?? null
+  const headerSubtitle = activeScanSummary
+    ? `${activeScanSummary.url} | ${formatScanTimestamp(activeScanSummary.started_at)}`
+    : "Select a saved scan to inspect its issues."
 
   return (
     <div className="flex min-h-screen flex-col">
-      {/* Top bar */}
       <header className="flex items-center justify-between gap-3 border-b border-border bg-card px-5 py-3.5">
         <div>
           <h1 className="text-base font-medium text-foreground">Issues</h1>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            example.com &middot; scanned 2 min ago
-          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{headerSubtitle}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Select defaultValue="scan-4">
+          <Select
+            value={activeScanId ?? ""}
+            onValueChange={(value) => {
+              setActiveScanId(value)
+              router.push(`/issues?scanId=${value}`)
+            }}
+            disabled={loadingScans || scans.length === 0}
+          >
             <SelectTrigger
               size="sm"
-              className="h-8 min-w-36 border bg-muted text-xs shadow-none"
+              className="h-8 min-w-44 border bg-muted text-xs shadow-none"
             >
-              <SelectValue />
+              <SelectValue placeholder="Select a scan" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="scan-4">Scan #4 &mdash; today</SelectItem>
-              <SelectItem value="scan-3">Scan #3 &mdash; yesterday</SelectItem>
-              <SelectItem value="scan-2">Scan #2 &mdash; 3 days ago</SelectItem>
+              {scans.map((scan) => (
+                <SelectItem key={scan.id} value={scan.id}>
+                  {formatScanOption(scan)}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" className="gap-1.5 text-xs">
-            <svg
-              className="size-3.5"
-              viewBox="0 0 16 16"
-              fill="none"
-            >
+          <Button variant="outline" size="sm" className="gap-1.5 text-xs" disabled>
+            <svg className="size-3.5" viewBox="0 0 16 16" fill="none">
               <path
                 d="M3 10v3h10v-3M8 2v8M5 7l3 3 3-3"
                 stroke="currentColor"
@@ -114,9 +268,7 @@ export default function IssuesPage() {
         </div>
       </header>
 
-      {/* Body: issue list (1fr) + detail panel (340px) */}
       <div className="grid flex-1 grid-cols-1 overflow-hidden md:grid-cols-[1fr_var(--width-detail-panel)]">
-        {/* Left column */}
         <div className="flex flex-col overflow-hidden border-r border-border">
           <IssueFilterBar
             searchQuery={searchQuery}
@@ -125,18 +277,30 @@ export default function IssuesPage() {
             onSeverityChange={setSeverityFilter}
             categoryFilter={categoryFilter}
             onCategoryChange={setCategoryFilter}
+            categories={categories}
             sortBy={sortBy}
             onSortChange={setSortBy}
           />
+
           <IssueCountBar total={filteredIssues.length} counts={counts} />
-          <IssueList
-            issues={filteredIssues}
-            selectedId={selectedIssueId}
-            onSelect={setSelectedIssueId}
-          />
+
+          {error ? (
+            <div className="m-3 rounded-md border border-red-600/20 bg-[var(--high-bg)] px-4 py-3 text-[13px] text-[var(--high-text)]">
+              {error}
+            </div>
+          ) : loadingScans || loadingIssues ? (
+            <div className="flex flex-1 items-center justify-center p-6 text-sm text-muted-foreground">
+              Loading saved issues...
+            </div>
+          ) : (
+            <IssueList
+              issues={filteredIssues}
+              selectedId={selectedIssueId}
+              onSelect={setSelectedIssueId}
+            />
+          )}
         </div>
 
-        {/* Right column — detail panel */}
         <div className="hidden md:flex md:flex-col md:overflow-hidden">
           <IssueDetailPanel issue={selectedIssue} />
         </div>
@@ -144,3 +308,20 @@ export default function IssuesPage() {
     </div>
   )
 }
+
+
+function formatScanTimestamp(iso: string): string {
+  const date = new Date(iso)
+  return date.toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+}
+
+function formatScanOption(scan: SavedScanListItem): string {
+  return `${scan.url} | ${formatScanTimestamp(scan.started_at)}`
+}
+

@@ -1,6 +1,8 @@
 import { API, severityBarClass } from "@/components/home/constants"
 import { formatRuleId } from "@/components/home/utils"
 import type { ScanResponse, ScanSummary } from "@/components/home/types"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
 
 type OverviewPanelsProps = {
   counts: ScanSummary
@@ -101,6 +103,15 @@ export function OverviewPanels({
                 </code>
               </span>
             </div>
+            {result.scan_id && (
+              <div className="mt-4 pt-2 border-t-[0.5px] border-border">
+                <Button asChild variant="outline" className="w-full text-xs h-8">
+                  <Link href={`/issues?scanId=${result.scan_id}`} target="_blank">
+                    View Detailed Report
+                  </Link>
+                </Button>
+              </div>
+            )}
           </>
         ) : (
           <div className="py-2 text-xs text-muted-foreground">

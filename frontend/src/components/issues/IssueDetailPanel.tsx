@@ -3,10 +3,10 @@
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge, type BadgeVariant } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import type { Issue } from "@/lib/mock-issues"
+import type { IssueListItem } from "@/lib/saved-scans"
 
 interface IssueDetailPanelProps {
-  issue: Issue | null
+  issue: IssueListItem | null
 }
 
 export function IssueDetailPanel({ issue }: IssueDetailPanelProps) {
@@ -64,11 +64,13 @@ export function IssueDetailPanel({ issue }: IssueDetailPanelProps) {
             <WcagRow label="Criterion" value={issue.wcag} />
             <WcagRow label="Level" value={issue.level} />
             <WcagRow label="Category" value={issue.category} />
+            <WcagRow label="Element" value={issue.element} mono />
             <WcagRow
               label="Selector"
               value={issue.selector}
               mono
             />
+            {issue.source && <WcagRow label="Source" value={issue.source} />}
           </div>
         </section>
 
@@ -79,6 +81,34 @@ export function IssueDetailPanel({ issue }: IssueDetailPanelProps) {
             <pre className="whitespace-pre-wrap break-all font-mono text-xs leading-relaxed text-foreground">
               <code>{issue.fix}</code>
             </pre>
+          </div>
+        </section>
+
+        <section>
+          <SectionLabel>Location hints</SectionLabel>
+          <div className="rounded-lg bg-muted p-3">
+            <WcagRow
+              label="Line"
+              value={issue.line != null ? String(issue.line) : "Not available"}
+            />
+            <WcagRow
+              label="Column"
+              value={issue.column != null ? String(issue.column) : "Not available"}
+            />
+            <WcagRow
+              label="DOM path"
+              value={issue.domPath ?? "Not available"}
+              mono
+            />
+            <WcagRow
+              label="Source hint"
+              value={issue.sourceHint ?? "Not available"}
+              mono
+            />
+            <WcagRow
+              label="Text preview"
+              value={issue.textPreview ?? "Not available"}
+            />
           </div>
         </section>
 
@@ -99,7 +129,9 @@ export function IssueDetailPanel({ issue }: IssueDetailPanelProps) {
         </section>
 
         {/* Action */}
-        <Button className="mt-1 w-full">Mark as resolved</Button>
+        <Button className="mt-1 w-full" disabled>
+          Mark as resolved
+        </Button>
       </div>
     </ScrollArea>
   )

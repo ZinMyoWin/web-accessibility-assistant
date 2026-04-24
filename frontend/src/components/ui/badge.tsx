@@ -6,6 +6,9 @@ type BadgeVariant =
   | "secondary"
   | "destructive"
   | "outline"
+  | "high"
+  | "medium"
+  | "low"
   | "critical"
   | "serious"
   | "moderate"
@@ -19,6 +22,10 @@ const variantStyles: Record<BadgeVariant, string> = {
   destructive:
     "border-transparent bg-destructive text-white",
   outline: "text-foreground",
+  high: "border-[var(--high-bg)] bg-[var(--high-bg)] text-[var(--high-text)]",
+  medium:
+    "border-[var(--medium-bg)] bg-[var(--medium-bg)] text-[var(--medium-text)]",
+  low: "border-[var(--low-bg)] bg-[var(--low-bg)] text-[var(--low-text)]",
   critical:
     "border-severity-critical-bg bg-severity-critical-bg text-severity-critical-text",
   serious:
