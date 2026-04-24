@@ -137,7 +137,7 @@ This local route provides a predictable test target for:
 ### Files involved
 
 - `backend/app/main.py`
-- `docs/system-architecture.md`
+- `docs/architecture/system-architecture.md`
 
 ### Verification
 
@@ -196,7 +196,7 @@ It proves the system can now:
 - `frontend/app/globals.css`
 - `backend/app/main.py`
 - `README.md`
-- `docs/system-architecture.md`
+- `docs/architecture/system-architecture.md`
 
 ### Verification
 
@@ -287,7 +287,7 @@ This change makes the results more actionable by pointing to:
 - `backend/app/services/page_scanner.py`
 - `frontend/app/page.tsx`
 - `frontend/app/globals.css`
-- `docs/system-architecture.md`
+- `docs/architecture/system-architecture.md`
 
 ### Verification
 
@@ -412,7 +412,7 @@ This change makes the output more user-friendly by showing the actual section of
 - `frontend/app/page.tsx`
 - `frontend/app/globals.css`
 - `README.md`
-- `docs/system-architecture.md`
+- `docs/architecture/system-architecture.md`
 
 ### Verification
 
@@ -465,7 +465,7 @@ This Docker setup was added to:
 - `frontend/.dockerignore`
 - `docker-compose.yml`
 - `README.md`
-- `docs/docker-setup-guide.md`
+- `docs/guides/docker-setup-guide.md`
 
 ### Verification
 
@@ -509,7 +509,7 @@ This development workflow was added to:
 - `frontend/Dockerfile.dev`
 - `docker-compose.dev.yml`
 - `README.md`
-- `docs/docker-setup-guide.md`
+- `docs/guides/docker-setup-guide.md`
 
 ### Verification
 
@@ -547,7 +547,7 @@ This update makes the backend deployment-ready by allowing the production fronte
 ### Files involved
 
 - `backend/app/main.py`
-- `docs/implementation-log.md`
+- `docs/tracking/implementation-log.md`
 
 ### Verification
 
@@ -586,7 +586,7 @@ These updates reduce deployment friction by making the frontend and backend more
 
 - `frontend/app/page.tsx`
 - `backend/app/main.py`
-- `docs/implementation-log.md`
+- `docs/tracking/implementation-log.md`
 
 ### Verification
 
@@ -646,8 +646,8 @@ axe-core is an industry-standard accessibility engine maintained by Deque System
 - `backend/app/main.py` (modified)
 - `frontend/app/page.tsx` (modified)
 - `frontend/app/globals.css` (modified)
-- `docs/implementation-log.md` (this file)
-- `docs/system-architecture.md` (modified)
+- `docs/tracking/implementation-log.md` (this file)
+- `docs/architecture/system-architecture.md` (modified)
 
 ### axe-core rules now active
 
@@ -804,8 +804,8 @@ This change improves UI consistency by:
 - `frontend/app/page.tsx`
 - `frontend/app/globals.css`
 - `README.md`
-- `docs/system-architecture.md`
-- `docs/implementation-log.md`
+- `docs/architecture/system-architecture.md`
+- `docs/tracking/implementation-log.md`
 
 ### Verification
 
@@ -861,9 +861,9 @@ This update improves maintainability and makes project tracking more reliable fo
 - `frontend/src/components/home/IssuesSection.tsx`
 - `frontend/src/components/home/IssueRow.tsx`
 - `README.md`
-- `docs/system-architecture.md`
-- `docs/feature-checklist.md`
-- `docs/implementation-log.md`
+- `docs/architecture/system-architecture.md`
+- `docs/tracking/feature-checklist.md`
+- `docs/tracking/implementation-log.md`
 
 ### Verification
 
@@ -901,9 +901,9 @@ This clarification improves accuracy by distinguishing:
 
 ### Files involved
 
-- `docs/feature-checklist.md`
-- `docs/system-architecture.md`
-- `docs/implementation-log.md`
+- `docs/tracking/feature-checklist.md`
+- `docs/architecture/system-architecture.md`
+- `docs/tracking/implementation-log.md`
 
 ### Verification
 
@@ -942,8 +942,8 @@ This update makes the documentation more faithful to the approved project direct
 
 - `documents/project_overview.docx` (source reference)
 - `README.md`
-- `docs/system-architecture.md`
-- `docs/implementation-log.md`
+- `docs/architecture/system-architecture.md`
+- `docs/tracking/implementation-log.md`
 
 ### Verification
 
@@ -1003,7 +1003,7 @@ The sidebar had a Scan History link pointing to a route that did not exist. This
 - `frontend/src/components/scan-history/ScanHistoryRow.tsx` (new)
 - `frontend/src/components/scan-history/ScanHistoryList.tsx` (new)
 - `frontend/src/components/dashboard/DashboardShell.tsx` (modified — nav href)
-- `docs/implementation-log.md` (this file)
+- `docs/tracking/implementation-log.md` (this file)
 
 ### Verification
 
@@ -1020,3 +1020,496 @@ The Scan History page is now a functional dashboard view with mock data, ready f
 ### Next step
 
 Connect the scan history page to a real backend endpoint, replace mock data with API calls, and implement real pagination.
+
+## 2026-04-07 - Database Setup Guide
+
+### Completed work
+
+Added a new database setup guide for the next persistence milestone:
+
+- created `docs/guides/database-setup-guide.md`
+- documented PostgreSQL local setup through Docker Compose
+- documented backend package installation for `SQLAlchemy`, `Alembic`, and `psycopg`
+- documented `DATABASE_URL` examples for both local backend runs and Docker backend runs
+- documented Alembic initialization and first migration commands
+- documented common database setup problems and quick repeat steps
+- added the new guide to the README documentation list
+
+### Why this was done
+
+The project is preparing to move from mock scan history to real persisted scan records.
+
+That next step needs a clear setup guide so the database environment can be reproduced without guesswork.
+
+### Files involved
+
+- `docs/guides/database-setup-guide.md` (new)
+- `README.md`
+- `docs/tracking/implementation-log.md`
+
+### Verification
+
+- checked the current Docker documentation style in `docs/guides/docker-setup-guide.md`
+- aligned the new guide to the same step-by-step format
+- confirmed the guide includes the required commands, run locations, and troubleshooting notes
+
+### Outcome
+
+The project now has a dedicated beginner-friendly guide for setting up PostgreSQL and the backend migration toolchain before implementing persistence.
+
+### Next step
+
+Add the actual PostgreSQL service to the Compose files, install the backend database packages, and initialize Alembic in the backend.
+
+## 2026-04-07 - Compose Database Wiring Fix
+
+### Completed work
+
+Corrected the Docker Compose database wiring for both production-style and development-style stacks:
+
+- removed `DATABASE_URL` from the `db` service in both Compose files
+- added `DATABASE_URL` to the `backend` service in both Compose files
+- added backend dependency on the `db` health check in both Compose files
+- clarified the database setup guide so it explicitly shows `DATABASE_URL` belongs in the backend service block
+
+### Why this was done
+
+The database connection string was added to the wrong container.
+
+`postgresql+psycopg://postgres:postgres@db:5432/accessibility_assistant` is correct for the backend container, but it should be passed to the backend process, not to the PostgreSQL container itself.
+
+### Files involved
+
+- `docker-compose.yml`
+- `docker-compose.dev.yml`
+- `docs/guides/database-setup-guide.md`
+- `docs/tracking/implementation-log.md`
+
+### Verification
+
+- checked both Compose files against the guide
+- corrected the invalid YAML environment entry
+- aligned the Compose files with the intended backend-to-database connection model
+
+### Outcome
+
+Both Compose files now express the correct container responsibilities:
+
+- `db` starts PostgreSQL
+- `backend` receives `DATABASE_URL`
+- the backend waits for PostgreSQL health before starting
+
+### Next step
+
+Run `docker compose config` for both files, then build and start the stack to confirm the database container and backend container come up in the correct order.
+
+
+## 2026-04-07 - Documentation Reorganization And Persistence Guide
+
+### Completed work
+
+Reorganized the project documentation and added a beginner-friendly implementation document before backend persistence coding begins:
+
+- created a docs index at `docs/README.md`
+- reorganized the docs folder into `architecture`, `guides`, `implementation`, and `tracking`
+- moved the existing architecture, guide, and tracking files into their new folders
+- created `docs/implementation/backend-persistence-implementation-guide.md`
+- updated documentation references so the new structure is consistent
+
+### Why this was done
+
+The documentation had grown, but all files were still stored in one flat folder.
+
+That made the docs harder to navigate and made it less clear which files were for setup, which were for architecture, and which were for project tracking.
+
+The new implementation guide was added so the backend persistence task can be understood clearly before coding starts.
+
+### Files involved
+
+- `docs/README.md` (new)
+- `docs/architecture/system-architecture.md`
+- `docs/guides/docker-setup-guide.md`
+- `docs/guides/database-setup-guide.md`
+- `docs/implementation/backend-persistence-implementation-guide.md` (new)
+- `docs/tracking/feature-checklist.md`
+- `docs/tracking/implementation-log.md`
+- `README.md`
+
+### Verification
+
+- checked the existing documentation references before moving files
+- reorganized the docs into grouped folders
+- updated the main README documentation list
+- confirmed the new persistence implementation guide was created for future reference
+
+### Outcome
+
+The documentation is now easier to browse, and the backend persistence task now has a clear beginner-friendly implementation reference before any code changes begin.
+
+### Next step
+
+Use the new persistence implementation guide to start the backend database integration work in a structured order.
+
+## 2026-04-07 - Backend Scan Persistence And Saved Scan APIs
+
+### Completed work
+
+Implemented the first real persistence milestone for the backend:
+
+- added SQLAlchemy database configuration in `backend/app/db.py`
+- added ORM base model setup in `backend/app/models/base.py`
+- added `ScanRun` and `ScanIssueRecord` models in `backend/app/models/scan.py`
+- added saved-scan response schemas in `backend/app/schemas/history.py`
+- extended `ScanPageResponse` to include optional `scan_id`
+- added scan repository functions for saving, listing, and loading scans
+- updated `POST /scan/page` to save successful scan results into PostgreSQL
+- updated `POST /scan/page` to save failed scan attempts with `status="error"`
+- added `GET /scans` for saved scan summaries
+- added `GET /scans/{scan_id}` for saved scan details
+- wired Alembic to the real SQLAlchemy metadata and database URL
+- replaced the placeholder migration with real `scan_runs` and `scan_issues` table creation
+- updated project docs so the current architecture and feature status match the implementation
+
+### Why this was done
+
+The project had database setup instructions and Docker wiring, but the application still behaved like a stateless scanner.
+
+That meant:
+
+- scan history could not use real backend data
+- saved scan detail views could not be built yet
+- scan results disappeared after each request
+- the database existed, but the backend was not using it
+
+This milestone turns persistence into a real backend feature and prepares the frontend for real history integration.
+
+### Files involved
+
+- `backend/app/db.py`
+- `backend/app/main.py`
+- `backend/app/models/base.py`
+- `backend/app/models/scan.py`
+- `backend/app/repositories/scan_repository.py`
+- `backend/app/schemas/history.py`
+- `backend/app/schemas/scan.py`
+- `backend/alembic/env.py`
+- `backend/alembic.ini`
+- `backend/alembic/versions/9848b576f059_create_scan_tables.py`
+- `docs/architecture/system-architecture.md`
+- `docs/tracking/feature-checklist.md`
+- `docs/tracking/implementation-log.md`
+- `README.md`
+
+### Verification
+
+- imported the FastAPI app successfully after the persistence changes
+- ran `alembic upgrade head` successfully to create the database tables
+- executed a repository smoke test that:
+  - saved a completed scan
+  - loaded it back by ID
+  - listed it through the saved-scan query
+  - removed the temporary test record after verification
+- confirmed the new routes exist in `backend/app/main.py`
+
+### Outcome
+
+The backend now saves scan results in PostgreSQL and exposes saved scan APIs that the frontend can use next.
+
+### Next step
+
+Connect the frontend scan history page to `GET /scans`, then connect the issues view to `GET /scans/{scan_id}` so the UI can stop relying on mock data.
+
+## 2026-04-07 - Frontend Saved Scan History Integration
+
+### Completed work
+
+Connected the dashboard history and issues views to the real backend persistence APIs:
+
+- added a shared frontend API base module in `frontend/src/lib/api.ts`
+- added saved-scan fetch helpers and mapping utilities in `frontend/src/lib/saved-scans.ts`
+- updated the scan history page to load real data from `GET /scans`
+- added frontend loading and error states for the scan history page
+- changed history row selection so it opens the issues page with `scanId`
+- updated the issues page to load saved scan details from `GET /scans/{scan_id}`
+- mapped saved backend issues into the dashboard issues UI model
+- updated issue filters, counts, and badges to use the backend severity model `high / medium / low`
+- added real scan selection in the issues page header instead of hardcoded scan options
+- updated project docs to reflect that scan history and saved scan detail views now use backend data
+
+### Why this was done
+
+The backend persistence APIs were already implemented, but the frontend still used mock data for both history and issue inspection.
+
+That meant:
+
+- the user could save scans, but not see those saved scans in the UI
+- the history page looked complete but was not connected to real backend records
+- the issues page could not inspect a real saved scan after selecting it from history
+
+This step closes that gap and makes the dashboard use the saved-scan backend for real data.
+
+### Files involved
+
+- `frontend/src/lib/api.ts`
+- `frontend/src/lib/saved-scans.ts`
+- `frontend/src/components/home/constants.ts`
+- `frontend/src/components/home/types.ts`
+- `frontend/src/components/ui/badge.tsx`
+- `frontend/src/app/(dashboard)/scan-history/page.tsx`
+- `frontend/src/components/scan-history/ScanHistoryList.tsx`
+- `frontend/src/components/scan-history/ScanHistoryMetrics.tsx`
+- `frontend/src/components/scan-history/ScanHistoryRow.tsx`
+- `frontend/src/app/(dashboard)/issues/page.tsx`
+- `frontend/src/components/issues/IssueFilterBar.tsx`
+- `frontend/src/components/issues/IssueCountBar.tsx`
+- `frontend/src/components/issues/IssueList.tsx`
+- `frontend/src/components/issues/IssueDetailPanel.tsx`
+- `docs/architecture/system-architecture.md`
+- `docs/tracking/feature-checklist.md`
+- `docs/tracking/implementation-log.md`
+- `README.md`
+
+### Verification
+
+- ran `npx tsc --noEmit` successfully in `frontend/`
+- confirmed the scan history page now requests paged saved scans instead of using `MOCK_SCANS`
+- confirmed the issues page now requests saved scan detail instead of using `MOCK_ISSUES`
+- confirmed history row navigation now points to `/issues?scanId=<id>`
+
+### Outcome
+
+The frontend dashboard can now browse real saved scans and inspect real saved issue records from the backend.
+
+### Next step
+
+Connect the home dashboard scan result to the saved-scan issues page, then decide whether report export or compare mode should be implemented next.
+
+## 2026-04-24 - Dashboard to Issues View Connection
+
+### Completed work
+
+Connected the home dashboard's live scan result to the saved-scan issues view:
+
+- extended `OverviewPanels.tsx` to display a "View Detailed Report" button when a scan completes successfully
+- configured the button to open `/issues?scanId={scan_id}` in a new browser tab, allowing the user to preserve the high-level dashboard metrics while exploring issue details
+- marked the corresponding gap in `feature-checklist.md` as completed
+
+### Why this was done
+
+Although the dashboard displayed real scan metrics and issue excerpts, the user lacked an intuitive path to view the permanently stored scan details that the API had just saved.
+
+By adding this button to the Scan Details panel pane, the user can easily explore the issue details in a deep-dive view using existing infrastructure, completing the loop between "requesting a scan" and "reviewing a saved scan report".
+
+### Files involved
+
+- `frontend/src/components/home/OverviewPanels.tsx`
+- `docs/tracking/feature-checklist.md`
+- `docs/tracking/implementation-log.md`
+
+### Verification
+
+- ran the frontend locally and confirmed that the "View Detailed Report" button successfully renders when a scan completes.
+- verified the button accurately constructs the URL with the backend-provided `scan_id`.
+- verified clicking the button opens the dedicated issues page in a new tab.
+
+### Outcome
+
+The dashboard correctly offloads complex report-view investigations to the dedicated issues page, bridging the gap between initiating a new scan and examining its persistent record.
+
+### Next step
+
+Decide whether report export or real comparison logic for the scan history compare mode should be tackled next.
+
+## 2026-04-24 - Reports And Preferences Page UI
+
+### Completed work
+
+Implemented the full UI for the Reports and Preferences pages based on the provided HTML design mockups:
+
+**New shadcn/ui primitives (3 components)**
+
+- created `Switch` component using Radix `@radix-ui/react-switch`
+- created `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` components using Radix `@radix-ui/react-tabs`
+- created `Dialog`, `DialogTrigger`, `DialogContent`, `DialogHeader`, `DialogTitle`, `DialogDescription`, `DialogFooter`, `DialogClose` components using Radix `@radix-ui/react-dialog`
+- all three follow the same pattern as the existing `Button`, `Input`, `Badge`, and `Select` primitives
+
+**Preferences page (`/preferences`)**
+
+- created a settings page with a left-side section navigation and a scrollable settings body
+- created `PreferencesNav` — sticky sidebar with scroll-to-section navigation
+- created `SectionCard` and `FieldRow` — reusable card wrappers for consistent section styling
+- created `AiProviderSection` — provider tabs (OpenAI, DeepSeek, Anthropic), API key input with reveal toggle, model select, connection status indicator, active provider dropdown, auto-suggest toggle
+- created `CrawlDefaultsSection` — scan mode radio cards (Single/Multi/Sitemap), page limit and crawl depth number inputs, request delay and timeout fields, ignored URL tag input with add/remove, domain and robots.txt toggles
+- created `WcagStandardSection` — WCAG version radio (2.1/2.2), conformance level cards (A/AA/AAA) with descriptions, best-practice toggle
+- created `NotificationsSection` — scan complete toggle, score threshold alert with number input, severity alert toggles with color-coded pills
+- created `AppearanceSection` — theme cards (Light/Dark/System) with mini-preview blocks, density radio (Compact/Default/Comfortable), WCAG reference toggle, animate scan progress toggle
+- created `DangerZoneSection` — clear scan history and reset preferences buttons with confirmation dialogs using the new Dialog component
+- created `SaveBar` — sticky bottom bar that appears when the user makes changes, with discard and save buttons
+- added toast notification for save/discard/danger zone actions
+
+**Reports page (`/reports`)**
+
+- created a report view page with static demo data matching the HTML mockup
+- created `report-data.ts` — static demo data constants for all report sections
+- created `ExportBar` — dark-themed header with Print, CSV, and PDF export buttons
+- created `ReportHeader` — breadcrumb navigation, URL title, scan metadata (date, mode, pages, issues, WCAG level, duration), status badge
+- created `ScoreRing` — SVG donut chart with animated stroke-dashoffset, color-coded by score threshold
+- created `SummaryGrid` — three-column grid containing the score ring, severity breakdown bars, and WCAG principles cards (Perceivable, Operable, Understandable, Robust)
+- created `PagesTab` — expandable table of crawled pages with per-page severity counts and element-level issue details
+- created `CategoriesTab` — accordion of issue categories (Images & Alt Text, Colour & Contrast, Keyboard & Focus, Forms & Labels, ARIA & Semantics) with severity breakdowns
+- created `AiSuggestionsTab` — AI repair suggestion cards with severity badges, confidence indicators, explanations, code diffs (removed/added), and action buttons (Apply fix, Copy patch, Dismiss)
+- wired all tabs using the new Tabs component from shadcn/ui
+
+**Dashboard shell fix**
+
+- updated the Preferences sidebar link to use pathname-based active styling, matching the logic used by the main navigation items
+
+### Why this was done
+
+The project had functional Dashboard, Issues, and Scan History pages but was missing the Reports and Preferences modules. Both were listed as not implemented in the feature checklist.
+
+The Reports page provides a detailed view of scan results with severity breakdown, WCAG principle analysis, expandable page-level details, and AI-powered repair suggestions. The Preferences page provides a settings interface for configuring AI providers, crawl defaults, WCAG standards, notifications, and appearance.
+
+Both pages were designed to match the existing design system exactly — using only Tailwind CSS v4 utility classes and shadcn/ui components, with zero custom CSS files. This ensures visual and code consistency across all pages.
+
+### Design system alignment
+
+Before building the pages, a design system audit was performed across all existing pages to document the established patterns:
+
+- all styling uses Tailwind CSS v4 utility classes inline, no separate CSS files per component
+- shadcn/ui components (`Button`, `Input`, `Select`, `Badge`) are used for all interactive elements
+- CSS custom properties from `globals.css` are referenced via Tailwind `var()` syntax
+- cards use `rounded-[var(--radius-lg)] border-[0.5px] border-border bg-card` consistently
+- severity colours use `--high`, `--medium`, `--low` and `--severity-critical`, `--severity-serious`, `--severity-moderate`, `--severity-minor` tokens
+
+The new pages follow these patterns exactly.
+
+### Files involved
+
+New files:
+
+- `frontend/src/components/ui/switch.tsx`
+- `frontend/src/components/ui/tabs.tsx`
+- `frontend/src/components/ui/dialog.tsx`
+- `frontend/src/app/(dashboard)/preferences/page.tsx`
+- `frontend/src/components/preferences/PreferencesNav.tsx`
+- `frontend/src/components/preferences/SectionCard.tsx`
+- `frontend/src/components/preferences/AiProviderSection.tsx`
+- `frontend/src/components/preferences/CrawlDefaultsSection.tsx`
+- `frontend/src/components/preferences/WcagStandardSection.tsx`
+- `frontend/src/components/preferences/NotificationsSection.tsx`
+- `frontend/src/components/preferences/AppearanceSection.tsx`
+- `frontend/src/components/preferences/DangerZoneSection.tsx`
+- `frontend/src/components/preferences/SaveBar.tsx`
+- `frontend/src/app/(dashboard)/reports/page.tsx`
+- `frontend/src/components/reports/report-data.ts`
+- `frontend/src/components/reports/ExportBar.tsx`
+- `frontend/src/components/reports/ReportHeader.tsx`
+- `frontend/src/components/reports/ScoreRing.tsx`
+- `frontend/src/components/reports/SummaryGrid.tsx`
+- `frontend/src/components/reports/PagesTab.tsx`
+- `frontend/src/components/reports/CategoriesTab.tsx`
+- `frontend/src/components/reports/AiSuggestionsTab.tsx`
+
+Modified files:
+
+- `frontend/src/components/dashboard/DashboardShell.tsx`
+- `docs/tracking/feature-checklist.md`
+- `docs/tracking/implementation-log.md`
+
+### Verification
+
+- ran `npx tsc --noEmit` in `frontend/` with zero type errors
+- ran `npx next build` successfully with zero build errors
+- visually verified the Preferences page in the browser at `http://localhost:3000/preferences`:
+  - sidebar highlights "Preferences" as active
+  - all six section cards render correctly
+  - side navigation is visible and functional
+  - theme switching triggers the sticky save bar
+  - danger zone dialogs open and close correctly
+- visually verified the Reports page in the browser at `http://localhost:3000/reports`:
+  - dark export bar renders with Print, CSV, PDF buttons
+  - report header shows breadcrumb, URL, and metadata
+  - summary grid shows score ring (57/100), severity bars, and WCAG principle cards
+  - Pages Crawled tab shows expandable rows with severity counts
+  - AI Repair Suggestions tab shows code diffs with confidence badges
+
+### Outcome
+
+The frontend now has complete UI implementations for both the Reports and Preferences pages. Both pages are built entirely with the project's standardised design system (Tailwind CSS v4 + shadcn/ui) and integrate seamlessly with the existing dashboard navigation.
+
+### Next step
+
+Connect the Reports page to real saved scan data from the backend instead of static demo data. Implement actual preference persistence (localStorage or backend API). Add export functionality (CSV/PDF) to the Reports page.
+
+## 2026-04-24 - Report Export (Print, CSV, PDF)
+
+### Completed work
+
+Implemented client-side report export for all three export formats:
+
+- created `export-utils.ts` with pure-function CSV generation. The CSV includes all report sections: metadata, severity breakdown, WCAG principles, pages crawled, detailed element-level issues, categories, and AI suggestions
+- wired the ExportBar Print button to `window.print()` which opens the browser print dialog
+- wired the ExportBar CSV button to `downloadCSV()` which generates a Blob and triggers a file download with a timestamped filename
+- wired the ExportBar PDF button to `exportPDF()` which sets a descriptive document title and opens the browser print dialog (user selects "Save as PDF" as the destination)
+- added a toast notification on CSV download that reads "CSV report downloaded"
+- added `print:hidden` to the ExportBar, tab navigation, bottom spacing, and toast so they are excluded from printed output
+- added `@media print` rules in `globals.css` to:
+  - hide the sidebar and mobile toggle button
+  - reclaim the sidebar's grid column for full-width content
+  - enforce `print-color-adjust: exact` so severity badge colours and bar chart fill colours print correctly
+  - prevent page breaks inside card sections
+  - compact horizontal padding for paper margins
+
+### Why this was done
+
+The Reports page already had Print, CSV, and PDF buttons in the export bar but they were non-functional. This was identified as the next high-impact frontend-only feature in the checklist.
+
+Report export is essential for:
+
+- sharing scan results with stakeholders who may not have access to the dashboard
+- printing accessibility audit reports for compliance documentation
+- archiving scan results as portable files
+- meeting the project's data and reporting requirements
+
+### Files involved
+
+New files:
+
+- `frontend/src/components/reports/export-utils.ts`
+
+Modified files:
+
+- `frontend/src/components/reports/ExportBar.tsx`
+- `frontend/src/app/(dashboard)/reports/page.tsx`
+- `frontend/src/app/globals.css`
+- `docs/tracking/feature-checklist.md`
+- `docs/tracking/implementation-log.md`
+
+### CSV format
+
+The exported CSV contains the following sections in order:
+
+1. Report metadata (URL, date, scan mode, pages scanned, WCAG level, score, status, duration)
+2. Severity breakdown (Critical, Serious, Moderate, Minor with counts and percentages)
+3. WCAG principles (Perceivable, Operable, Understandable, Robust with issue counts)
+4. Pages crawled (URL, status, total issues, and severity counts per page)
+5. Detailed issues (page URL, issue description, severity, WCAG criteria, affected element)
+6. Issues by category (category name with severity breakdown)
+7. AI repair suggestions (issue title, severity, WCAG criteria, pages affected, confidence, file, line)
+
+### Verification
+
+- ran `npx tsc --noEmit` in `frontend/` with zero errors
+- visually verified the Reports page in the browser at `http://localhost:3000/reports`
+- clicked the CSV button and confirmed the toast notification appeared
+- confirmed the CSV file was generated with the correct filename format and valid content
+
+### Outcome
+
+All three export buttons on the Reports page are now functional. CSV generates a downloadable file, Print opens the browser print dialog, and PDF opens the same dialog with a descriptive title for "Save as PDF" output.
+
+### Next step
+
+Connect the Reports page to real saved scan data from the backend instead of static demo data. Implement actual preference persistence. Consider implementing the scan history compare mode.
+

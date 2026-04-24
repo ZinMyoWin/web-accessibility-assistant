@@ -11,6 +11,8 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Health endpoint `GET /health`
 - [x] Local deterministic test page `GET /test/page-bad`
 - [x] Single-page scan endpoint `POST /scan/page`
+- [x] Saved scan list endpoint `GET /scans`
+- [x] Saved scan detail endpoint `GET /scans/{scan_id}`
 - [x] Public URL validation
 - [x] Raw HTML fetch for submitted pages
 - [x] Custom HTML-based accessibility checks
@@ -23,9 +25,13 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Deduplication of custom and axe-core findings
 - [x] WCAG criteria tagging in results
 - [x] CORS configuration for local and hosted frontends
+- [x] Database connection layer with SQLAlchemy sessions
+- [x] SQLAlchemy models for scan runs and scan issues
+- [x] Alembic migration setup for database schema changes
+- [x] Persist successful scan results to PostgreSQL
+- [x] Persist failed scan attempts to PostgreSQL
 - [ ] Full JavaScript page rendering for real SPA content before analysis
 - [ ] Multi-page site crawling
-- [ ] Persistence layer for scans and issues
 - [ ] Background jobs / queued scan processing
 - [ ] Automated backend test suite
 
@@ -46,14 +52,16 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Screenshot display per issue when available
 - [x] WCAG criteria tags in issue details
 - [x] shadcn/ui select component integration
+- [x] shadcn/ui Switch, Tabs, and Dialog component integration
 - [x] Dedicated issues view with filters and detail panel
 - [x] Home dashboard split into smaller reusable components and a scan hook
+- [x] Scan history page route and UI scaffold
+- [x] Real scan history in the UI
+- [x] Saved scan detail flow in the UI
 - [ ] Real data flow from home dashboard to issues page
-- [ ] Working `/history` page
-- [ ] Working `/reports` page
-- [ ] Working `/preferences` page
-- [ ] Real scan history in the UI
-- [ ] Report export from the frontend
+- [x] Working `/reports` page
+- [x] Working `/preferences` page
+- [x] Report export from the frontend (Print, CSV, PDF)
 - [ ] Multi-page scan UI
 - [ ] Automated frontend tests
 
@@ -71,12 +79,12 @@ Update this checklist whenever a feature is added, removed, or materially change
 
 ## Data And Reporting
 
-- [ ] Database schema and migrations
-- [ ] Stored scan sessions
-- [ ] Stored page-level issue records
+- [x] Database schema and migrations
+- [x] Stored scan sessions
+- [x] Stored page-level issue records
 - [ ] Historical comparison views
-- [ ] CSV export
-- [ ] PDF export
+- [x] CSV export
+- [x] PDF export (via browser print-to-PDF)
 
 ## DevOps And Project Support
 
@@ -91,7 +99,7 @@ Update this checklist whenever a feature is added, removed, or materially change
 
 ## Current Gaps Worth Addressing Next
 
-- [ ] Replace sidebar placeholder links with real routes or remove them until implemented
-- [ ] Connect the issues page to actual scan results instead of mock data
-- [ ] Decide whether scan history requires database persistence now or after multi-page crawl
+- [x] Connect the home dashboard scan result to the saved-scan issues view
+- [ ] Add real comparison logic for the scan history compare mode
+- [ ] Decide how reports should be generated from persisted scan records
 - [ ] Add at least a minimal automated smoke test path for backend and frontend
