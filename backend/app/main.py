@@ -1,9 +1,21 @@
 import os
+from datetime import UTC, datetime
+from uuid import UUID
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
+from sqlalchemy.orm import Session
 
+from app.db import get_db_session
+from app.repositories.scan_repository import (
+    get_saved_scan,
+    list_saved_scans,
+    save_completed_scan,
+    save_failed_scan,
+    to_saved_scan_response,
+)
+from app.schemas.history import SavedScanListResponse, SavedScanResponse
 from app.schemas.scan import ScanPageRequest, ScanPageResponse
 from app.services.page_scanner import ScanError, scan_page
 
@@ -58,9 +70,7 @@ app.add_middleware(
 
 @app.get("/")
 def read_root():
-    return {
-        "message": "Web Accessibility Assistant API is running"
-    }
+    return {"message": "Web Accessibility Assistant API is running"}
 
 
 @app.get("/health")
@@ -100,10 +110,60 @@ def test_bad_page():
 
 
 @app.post("/scan/page", response_model=ScanPageResponse)
-def scan_single_page(request: ScanPageRequest):
+def scan_single_page(request: ScanPageRequest, db: Session = Depends(get_db_session)):
+    requested_url = str(request.url)
+    started_at = datetime.now(UTC)
+
     try:
-        return scan_page(str(request.url))
+        result = scan_page(requested_url)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except ScanError as exc:
+        try:
+            save_failed_scan(
+                db,
+                requested_url=requested_url,
+                error_message=exc.message,
+                started_at=started_at,
+                completed_at=datetime.now(UTC),
+            )
+        except Exception:
+            db.rollback()
         raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+
+    completed_at = datetime.fromisoformat(result.scanned_at)
+
+    try:
+        saved_scan = save_completed_scan(
+            db,
+            requested_url=requested_url,
+            result=result,
+            started_at=started_at,
+            completed_at=completed_at,
+        )
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to save scan result") from exc
+
+    result.scan_id = str(saved_scan.id)
+    return result
+
+
+@app.get("/scans", response_model=SavedScanListResponse)
+def get_scans(
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    status: str | None = Query(default=None),
+    mode: str | None = Query(default=None),
+    q: str | None = Query(default=None),
+    db: Session = Depends(get_db_session),
+):
+    return list_saved_scans(db, limit=limit, offset=offset, status=status, mode=mode, q=q)
+
+
+@app.get("/scans/{scan_id}", response_model=SavedScanResponse)
+def get_scan(scan_id: UUID, db: Session = Depends(get_db_session)):
+    scan_run = get_saved_scan(db, scan_id)
+    if scan_run is None:
+        raise HTTPException(status_code=404, detail="Scan not found")
+    return to_saved_scan_response(scan_run)

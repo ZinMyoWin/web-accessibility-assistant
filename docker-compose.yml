@@ -1,5 +1,22 @@
 # Define the containers that make up the application stack.
 services:
+  db:
+    image: postgres:16
+    container_name: web-accessibility-db
+    environment:
+      POSTGRES_DB: accessibility_assistant
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d accessibility_assistant"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # FastAPI backend service.
   backend:
     build:
@@ -8,9 +25,14 @@ services:
       dockerfile: Dockerfile
     # Give the running backend container a fixed, readable name.
     container_name: web-accessibility-backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/accessibility_assistant
     ports:
       # Map host port 8000 to container port 8000.
       - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
     # Mark the backend healthy only after the /health endpoint responds.
     healthcheck:
       test:
@@ -43,3 +65,6 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+
+volumes:
+  postgres_data:

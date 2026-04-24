@@ -29,6 +29,7 @@ class ScanSummary(BaseModel):
 
 
 class ScanPageResponse(BaseModel):
+    scan_id: str | None = None
     url: str
     scanned_at: str
     summary: ScanSummary
