@@ -112,7 +112,12 @@ export function DashboardShell({ children }: DashboardShellProps) {
           </div>
           <Link
             href="/preferences"
-            className="flex items-center gap-2.5 border-l-2 border-l-transparent px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-background hover:text-foreground [&_svg]:opacity-65"
+            className={cn(
+              "flex items-center gap-2.5 border-l-2 px-4 py-2 text-sm transition-colors",
+              pathname === "/preferences"
+                ? "border-l-primary bg-secondary text-primary font-medium [&_svg]:opacity-100"
+                : "border-l-transparent text-muted-foreground hover:bg-background hover:text-foreground [&_svg]:opacity-65"
+            )}
           >
             <svg className={iconClass} viewBox="0 0 16 16" fill="none">
               <circle cx="8" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.5" />

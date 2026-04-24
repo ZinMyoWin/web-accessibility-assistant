@@ -104,3 +104,49 @@
   --font-sans: Inter, system-ui, sans-serif;
   --font-mono: "Fira Code", "Cascadia Code", "IBM Plex Mono", Consolas, monospace;
 }
+
+/* ── Print / PDF export styles ── */
+@media print {
+  /* Hide sidebar, mobile toggle, and dashboard chrome */
+  aside,
+  [data-slot="dialog-overlay"],
+  [data-slot="dialog-content"] {
+    display: none !important;
+  }
+
+  /* Make the grid single-column so sidebar space is reclaimed */
+  .grid.md\:grid-cols-\[var\(--width-sidebar\)_1fr\] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Hide the mobile sidebar toggle */
+  button[aria-label="Toggle sidebar"] {
+    display: none !important;
+  }
+
+  /* Reset page backgrounds for clean printing */
+  body,
+  html {
+    background: white !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Ensure badges and colored elements print correctly */
+  [data-slot="badge"] {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Prevent page breaks inside cards and sections */
+  .rounded-xl,
+  [data-slot="tabs-content"] {
+    break-inside: avoid;
+  }
+
+  /* Compact spacing for paper */
+  .px-6 {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+}
