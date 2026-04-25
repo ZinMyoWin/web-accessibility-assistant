@@ -1,13 +1,14 @@
 "use client"
 
-import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { SectionCard, FieldRow } from "@/components/preferences/SectionCard"
 import { cn } from "@/lib/utils"
+import type { AppPreferences } from "@/lib/contexts/PreferencesContext"
 
 interface CrawlDefaultsSectionProps {
-  onDirty: () => void
+  draft: AppPreferences
+  updateDraft: (update: Partial<AppPreferences>) => void
 }
 
 const scanModes = [
@@ -43,28 +44,24 @@ const scanModes = [
   },
 ]
 
-export function CrawlDefaultsSection({ onDirty }: CrawlDefaultsSectionProps) {
-  const [scanMode, setScanMode] = useState("multi")
-  const [tags, setTags] = useState(["/logout", "/admin", "*.pdf"])
-
+export function CrawlDefaultsSection({ draft, updateDraft }: CrawlDefaultsSectionProps) {
   function handleTagKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if ((e.key === "Enter" || e.key === ",") && e.currentTarget.value.trim()) {
       e.preventDefault()
       const val = e.currentTarget.value.trim().replace(/,/g, "")
       if (val) {
-        setTags((prev) => [...prev, val])
+        updateDraft({ ignored_url_patterns: [...draft.ignored_url_patterns, val] })
         e.currentTarget.value = ""
-        onDirty()
       }
     } else if (e.key === "Backspace" && !e.currentTarget.value) {
-      setTags((prev) => prev.slice(0, -1))
-      onDirty()
+      updateDraft({ ignored_url_patterns: draft.ignored_url_patterns.slice(0, -1) })
     }
   }
 
   function removeTag(index: number) {
-    setTags((prev) => prev.filter((_, i) => i !== index))
-    onDirty()
+    updateDraft({
+      ignored_url_patterns: draft.ignored_url_patterns.filter((_, i) => i !== index),
+    })
   }
 
   return (
@@ -85,17 +82,17 @@ export function CrawlDefaultsSection({ onDirty }: CrawlDefaultsSectionProps) {
           {scanModes.map((mode) => (
             <button
               key={mode.value}
-              onClick={() => { setScanMode(mode.value); onDirty() }}
+              onClick={() => updateDraft({ default_scan_mode: mode.value })}
               className={cn(
                 "flex flex-1 flex-col items-center gap-1 rounded-md border-[0.5px] p-3 text-center transition-all",
-                scanMode === mode.value
+                draft.default_scan_mode === mode.value
                   ? "border-primary bg-secondary shadow-[0_0_0_2px_rgba(29,158,117,0.1)]"
                   : "border-input bg-muted hover:border-primary/50"
               )}
             >
               <div className={cn(
                 "flex size-7 items-center justify-center rounded",
-                scanMode === mode.value ? "bg-primary text-white" : "bg-input text-muted-foreground"
+                draft.default_scan_mode === mode.value ? "bg-primary text-white" : "bg-input text-muted-foreground"
               )}>
                 {mode.icon}
               </div>
@@ -109,26 +106,50 @@ export function CrawlDefaultsSection({ onDirty }: CrawlDefaultsSectionProps) {
       {/* Number fields grid */}
       <div className="grid grid-cols-2 gap-4">
         <FieldRow label="Default page limit" hint="Max pages crawled per scan (1–500)">
-          <Input type="number" defaultValue={20} min={1} max={500} className="h-9 bg-muted text-xs" onChange={() => onDirty()} />
+          <Input 
+            type="number" 
+            value={draft.default_page_limit} 
+            min={1} max={500} 
+            className="h-9 bg-muted text-xs" 
+            onChange={(e) => updateDraft({ default_page_limit: Number(e.target.value) })} 
+          />
         </FieldRow>
         <FieldRow label="Crawl depth" hint="Link depth from starting URL (1–10)">
-          <Input type="number" defaultValue={3} min={1} max={10} className="h-9 bg-muted text-xs" onChange={() => onDirty()} />
+          <Input 
+            type="number" 
+            value={draft.crawl_depth} 
+            min={1} max={10} 
+            className="h-9 bg-muted text-xs" 
+            onChange={(e) => updateDraft({ crawl_depth: Number(e.target.value) })} 
+          />
         </FieldRow>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <FieldRow label="Request delay (ms)" hint="Pause between page requests">
-          <Input type="number" defaultValue={250} min={0} max={5000} className="h-9 bg-muted text-xs" onChange={() => onDirty()} />
+          <Input 
+            type="number" 
+            value={draft.request_delay_ms} 
+            min={0} max={5000} 
+            className="h-9 bg-muted text-xs" 
+            onChange={(e) => updateDraft({ request_delay_ms: Number(e.target.value) })} 
+          />
         </FieldRow>
         <FieldRow label="Page timeout (ms)" hint="Playwright navigation timeout">
-          <Input type="number" defaultValue={15000} min={1000} max={60000} className="h-9 bg-muted text-xs" onChange={() => onDirty()} />
+          <Input 
+            type="number" 
+            value={draft.page_timeout_ms} 
+            min={1000} max={60000} 
+            className="h-9 bg-muted text-xs" 
+            onChange={(e) => updateDraft({ page_timeout_ms: Number(e.target.value) })} 
+          />
         </FieldRow>
       </div>
 
       {/* Ignored URL patterns */}
       <FieldRow label="Ignored URL patterns" hint="URL substrings or glob patterns to skip during crawling">
         <div className="flex min-h-[42px] flex-wrap gap-1 rounded-md border border-input bg-muted px-3 py-2 transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-ring/20">
-          {tags.map((tag, i) => (
+          {draft.ignored_url_patterns.map((tag, i) => (
             <span key={i} className="inline-flex items-center gap-1 rounded-full bg-background px-2 py-0.5 font-mono text-[11px] text-foreground">
               {tag}
               <button onClick={() => removeTag(i)} className="text-muted-foreground hover:text-destructive">
@@ -149,11 +170,17 @@ export function CrawlDefaultsSection({ onDirty }: CrawlDefaultsSectionProps) {
 
       {/* Toggles */}
       <FieldRow label="Stay within same domain" hint="Do not follow links to external domains" horizontal>
-        <Switch defaultChecked onCheckedChange={() => onDirty()} />
+        <Switch 
+          checked={draft.stay_within_domain} 
+          onCheckedChange={(val) => updateDraft({ stay_within_domain: val })} 
+        />
       </FieldRow>
 
       <FieldRow label="Respect robots.txt" hint="Skip URLs disallowed by the site's robots.txt" horizontal>
-        <Switch defaultChecked onCheckedChange={() => onDirty()} />
+        <Switch 
+          checked={draft.respect_robots_txt} 
+          onCheckedChange={(val) => updateDraft({ respect_robots_txt: val })} 
+        />
       </FieldRow>
     </SectionCard>
   )

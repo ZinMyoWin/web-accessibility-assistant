@@ -17,7 +17,9 @@ from app.repositories.scan_repository import (
 )
 from app.schemas.history import SavedScanListResponse, SavedScanResponse
 from app.schemas.scan import ScanPageRequest, ScanPageResponse
+from app.schemas.preferences import AppPreferencesResponse, AppPreferencesUpdate
 from app.services.page_scanner import ScanError, scan_page
+from app.repositories.preferences_repository import get_preferences, update_preferences
 
 LOCAL_CORS_ORIGINS = [
     "http://localhost:3000",
@@ -167,3 +169,18 @@ def get_scan(scan_id: UUID, db: Session = Depends(get_db_session)):
     if scan_run is None:
         raise HTTPException(status_code=404, detail="Scan not found")
     return to_saved_scan_response(scan_run)
+
+
+@app.get("/preferences", response_model=AppPreferencesResponse)
+def get_app_preferences(db: Session = Depends(get_db_session)):
+    prefs = get_preferences(db)
+    # Expose if a key is stored, but do not expose the encrypted key itself
+    has_api_key = bool(prefs.encrypted_api_key)
+    return AppPreferencesResponse.model_validate(prefs).model_copy(update={"has_api_key": has_api_key})
+
+
+@app.put("/preferences", response_model=AppPreferencesResponse)
+def update_app_preferences(update_data: AppPreferencesUpdate, db: Session = Depends(get_db_session)):
+    prefs = update_preferences(db, update_data)
+    has_api_key = bool(prefs.encrypted_api_key)
+    return AppPreferencesResponse.model_validate(prefs).model_copy(update={"has_api_key": has_api_key})

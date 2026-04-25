@@ -1513,3 +1513,93 @@ All three export buttons on the Reports page are now functional. CSV generates a
 
 Connect the Reports page to real saved scan data from the backend instead of static demo data. Implement actual preference persistence. Consider implementing the scan history compare mode.
 
+## 2026-04-24 - Scan History Compare Mode
+
+### Completed work
+
+Implemented the full comparison view logic for the Scan History page:
+
+- created `ScanHistoryCompareView.tsx`, a dedicated UI component to display the delta between two selected scan runs
+- added `isComparing` state to `ScanHistoryPage` to swap out the history list for the comparison view when the "Compare" button is clicked
+- configured the compare view to fetch the complete issue list for both selected scans using `fetchSavedScan`
+- implemented delta calculations to determine "Resolved", "New", and "Persistent" issues by comparing `rule_id` and `element` combinations across the two runs
+- implemented differential metrics cards showing changes in Overall Score, Total Issues, and High Severity issues
+- verified UI states for loading and error conditions (e.g. if one of the scans fails to load)
+- updated `cancelCompare` to correctly reset all comparison state
+- updated the `feature-checklist.md` to mark historical comparison views as complete
+
+### Why this was done
+
+The Scan History page already allowed users to select exactly 2 scans via the `compareMode` toggle, but clicking the final "Compare" button did nothing. A core feature of an accessibility monitoring tool is tracking progress over time. The compare mode provides a quick way to see if issues were successfully resolved or if new regressions were introduced between two specific runs.
+
+### Files involved
+
+New files:
+
+- `frontend/src/components/scan-history/ScanHistoryCompareView.tsx`
+
+Modified files:
+
+- `frontend/src/app/(dashboard)/scan-history/page.tsx`
+- `docs/tracking/feature-checklist.md`
+- `docs/tracking/implementation-log.md`
+
+### Verification
+
+- ran `npx tsc --noEmit` in `frontend/` with zero errors
+- the UI cleanly transitions between the list and comparison view
+
+### Next step
+
+Decide whether to connect the Reports page to real backend data, implement actual LLM integration for AI repair suggestions, or build out multi-page/sitemap scanning options for the dashboard.
+
+## 2026-04-25 - Backend-Encrypted Preferences
+
+### Completed work
+
+Transitioned the Preferences page from a static, non-functional UI into a fully integrated feature by implementing backend-side storage and management:
+
+- created the AppPreferences SQLAlchemy model to store all user settings, including encryption-related fields
+- added an Alembic migration (9848b576f060) to add the pp_preferences table to the database
+- implemented a symmetric encryption utility (ackend/app/utils/encryption.py) using cryptography's Fernet for secure API key handling
+- added GET /preferences and PUT /preferences endpoints in main.py, ensuring API keys are never returned in plaintext to the frontend
+- created PreferencesContext.tsx to centralize settings management
+- integrated PreferencesProvider into the main application layout (layout.tsx)
+- updated rontend/src/app/(dashboard)/preferences/page.tsx to initialize a local "draft" state from the PreferencesContext
+- converted all preference section components (AiProviderSection, CrawlDefaultsSection, WcagStandardSection, NotificationsSection, AppearanceSection) to use controlled inputs linked to the draft state
+- wired the "Save" and "Discard" actions in the SaveBar to the context's updatePreferences function
+
+### Why this was done
+
+The Preferences page was a placeholder UI. For the application to support customizable behaviors like AI provider selection, crawl limits, and custom appearance themes, it required a functional persistence layer. A secure Backend-Encrypted approach was selected to ensure that sensitive API keys supplied by users are securely stored and never leaked back in plaintext to the frontend.
+
+### Files involved
+
+New files:
+- ackend/alembic/versions/9848b576f060_add_preferences_table.py
+- ackend/app/models/preferences.py
+- ackend/app/utils/encryption.py
+- rontend/src/lib/contexts/PreferencesContext.tsx
+
+Modified files:
+- ackend/app/main.py
+- rontend/src/app/layout.tsx
+- rontend/src/app/(dashboard)/preferences/page.tsx
+- rontend/src/components/preferences/AiProviderSection.tsx
+- rontend/src/components/preferences/CrawlDefaultsSection.tsx
+- rontend/src/components/preferences/WcagStandardSection.tsx
+- rontend/src/components/preferences/NotificationsSection.tsx
+- rontend/src/components/preferences/AppearanceSection.tsx
+- docs/tracking/feature-checklist.md
+- docs/tracking/implementation-log.md
+
+### Verification
+
+- Backend migrations ran successfully and the database table was created.
+- Endpoints successfully get and put preferences.
+- Frontend components correctly load and save draft preferences without throwing TypeScript errors.
+- API keys are submitted securely, encrypted at rest, and returned to the frontend simply as a boolean flag has_api_key.
+
+### Next step
+
+Ensure that other components in the application (like the Scan engine or the AI repair generation) now use the active preferences fetched from the database, or implement the next missing feature.

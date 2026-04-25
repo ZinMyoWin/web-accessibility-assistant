@@ -15,6 +15,7 @@ import { CompareBanner } from "@/components/scan-history/CompareBanner"
 import { ScanHistoryFilterBar } from "@/components/scan-history/ScanHistoryFilterBar"
 import { ScanHistoryList } from "@/components/scan-history/ScanHistoryList"
 import { ScanHistoryMetrics } from "@/components/scan-history/ScanHistoryMetrics"
+import { ScanHistoryCompareView } from "@/components/scan-history/ScanHistoryCompareView"
 import {
   fetchSavedScans,
   getSavedScanDomain,
@@ -36,6 +37,7 @@ export default function ScanHistoryPage() {
   const [sortBy, setSortBy] = useState<SortBy>("newest")
   const [selectedScanId, setSelectedScanId] = useState<string | null>(null)
   const [compareMode, setCompareMode] = useState(false)
+  const [isComparing, setIsComparing] = useState(false)
   const [compareIds, setCompareIds] = useState<string[]>([])
   const [currentPage, setCurrentPage] = useState(1)
   const [scans, setScans] = useState<SavedScanListItem[]>([])
@@ -162,6 +164,7 @@ export default function ScanHistoryPage() {
 
   const cancelCompare = () => {
     setCompareMode(false)
+    setIsComparing(false)
     setCompareIds([])
   }
 
@@ -284,17 +287,22 @@ export default function ScanHistoryPage() {
 
         <ScanHistoryMetrics scans={filteredScans} />
 
-        {compareMode && (
+        {compareMode && !isComparing && (
           <CompareBanner
             selectedCount={selectedCount}
-            onCompare={() => {
-              /* Comparison view is not implemented yet. */
-            }}
+            onCompare={() => setIsComparing(true)}
             onCancel={cancelCompare}
           />
         )}
 
-        <ScanHistoryFilterBar
+        {isComparing ? (
+          <ScanHistoryCompareView
+            compareIds={compareIds}
+            onBack={() => setIsComparing(false)}
+          />
+        ) : (
+          <>
+            <ScanHistoryFilterBar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           statusFilter={statusFilter}
@@ -351,6 +359,8 @@ export default function ScanHistoryPage() {
             </svg>
           </PaginationButton>
         </div>
+          </>
+        )}
       </div>
     </div>
   )

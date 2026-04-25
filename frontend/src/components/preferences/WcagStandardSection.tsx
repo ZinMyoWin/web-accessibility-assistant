@@ -1,17 +1,34 @@
 "use client"
 
-import { useState } from "react"
 import { Switch } from "@/components/ui/switch"
 import { SectionCard, FieldRow } from "@/components/preferences/SectionCard"
 import { cn } from "@/lib/utils"
+import type { AppPreferences } from "@/lib/contexts/PreferencesContext"
 
 interface WcagStandardSectionProps {
-  onDirty: () => void
+  draft: AppPreferences
+  updateDraft: (update: Partial<AppPreferences>) => void
 }
 
-export function WcagStandardSection({ onDirty }: WcagStandardSectionProps) {
-  const [wcagVersion, setWcagVersion] = useState("2.2")
-  const [wcagLevel, setWcagLevel] = useState("AA")
+export function WcagStandardSection({ draft, updateDraft }: WcagStandardSectionProps) {
+  // Parse wcag_standard (e.g., "wcag22aa" -> version "2.2", level "AA")
+  let wcagVersion = "2.2"
+  let wcagLevel = "AA"
+  
+  const standard = draft.wcag_standard || "wcag22aa"
+  if (standard.includes("21")) wcagVersion = "2.1"
+  if (standard.includes("22")) wcagVersion = "2.2"
+  if (standard.includes("2a") && !standard.includes("21") && !standard.includes("22")) wcagVersion = "2.0"
+  
+  if (standard.endsWith("aaa")) wcagLevel = "AAA"
+  else if (standard.endsWith("aa")) wcagLevel = "AA"
+  else if (standard.endsWith("a")) wcagLevel = "A"
+
+  function updateStandard(v: string, l: string) {
+    const versionStr = v.replace(".", "")
+    const levelStr = l.toLowerCase()
+    updateDraft({ wcag_standard: `wcag${versionStr}${levelStr}` })
+  }
 
   const levels = [
     { value: "A", label: "Minimum", desc: "Removes the most significant barriers. Required for basic accessibility." },
@@ -37,7 +54,7 @@ export function WcagStandardSection({ onDirty }: WcagStandardSectionProps) {
           {["2.1", "2.2"].map((v) => (
             <button
               key={v}
-              onClick={() => { setWcagVersion(v); onDirty() }}
+              onClick={() => updateStandard(v, wcagLevel)}
               className={cn(
                 "rounded-md border-[0.5px] px-4 py-2 text-xs font-medium transition-all",
                 wcagVersion === v
@@ -57,7 +74,7 @@ export function WcagStandardSection({ onDirty }: WcagStandardSectionProps) {
           {levels.map((level) => (
             <button
               key={level.value}
-              onClick={() => { setWcagLevel(level.value); onDirty() }}
+              onClick={() => updateStandard(wcagVersion, level.value)}
               className={cn(
                 "flex-1 rounded-md border-[0.5px] p-3 text-left transition-all",
                 wcagLevel === level.value
@@ -79,7 +96,10 @@ export function WcagStandardSection({ onDirty }: WcagStandardSectionProps) {
       </FieldRow>
 
       <FieldRow label="Include best-practice warnings" hint="Surface advisory checks beyond strict WCAG criteria" horizontal>
-        <Switch defaultChecked onCheckedChange={() => onDirty()} />
+        <Switch 
+          checked={draft.include_best_practices} 
+          onCheckedChange={(val) => updateDraft({ include_best_practices: val })} 
+        />
       </FieldRow>
     </SectionCard>
   )

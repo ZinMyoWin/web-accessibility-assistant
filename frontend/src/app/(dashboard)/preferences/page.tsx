@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { PreferencesNav } from "@/components/preferences/PreferencesNav"
 import { AiProviderSection } from "@/components/preferences/AiProviderSection"
 import { CrawlDefaultsSection } from "@/components/preferences/CrawlDefaultsSection"
@@ -9,14 +9,28 @@ import { NotificationsSection } from "@/components/preferences/NotificationsSect
 import { AppearanceSection } from "@/components/preferences/AppearanceSection"
 import { DangerZoneSection } from "@/components/preferences/DangerZoneSection"
 import { SaveBar } from "@/components/preferences/SaveBar"
+import { usePreferences, type AppPreferences } from "@/lib/contexts/PreferencesContext"
 
 export default function PreferencesPage() {
+  const { preferences, isLoading, updatePreferences } = usePreferences()
   const [activeSection, setActiveSection] = useState("sec-ai")
   const [dirty, setDirty] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const markDirty = useCallback(() => setDirty(true), [])
+  const [draft, setDraft] = useState<AppPreferences | null>(null)
+
+  // Initialize draft when preferences load or change
+  useEffect(() => {
+    if (!dirty && preferences) {
+      setDraft(preferences)
+    }
+  }, [preferences, dirty])
+
+  const updateDraft = useCallback((update: Partial<AppPreferences>) => {
+    setDraft((prev) => prev ? { ...prev, ...update } : null)
+    setDirty(true)
+  }, [])
 
   function scrollToSection(id: string) {
     setActiveSection(id)
@@ -29,13 +43,28 @@ export default function PreferencesPage() {
     toastTimer.current = setTimeout(() => setToast(null), 2800)
   }
 
-  function handleSave() {
-    setDirty(false)
-    showToast("Preferences saved")
+  async function handleSave() {
+    if (!draft) return
+    try {
+      await updatePreferences(draft)
+      setDirty(false)
+      showToast("Preferences saved")
+    } catch {
+      showToast("Failed to save preferences")
+    }
   }
 
   function handleDiscard() {
+    setDraft(preferences)
     setDirty(false)
+  }
+
+  if (isLoading || !draft) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-sm text-muted-foreground">Loading preferences...</p>
+      </div>
+    )
   }
 
   return (
@@ -52,11 +81,11 @@ export default function PreferencesPage() {
         {/* Settings body */}
         <div className="flex flex-1 flex-col overflow-y-auto">
           <div className="mx-auto flex w-full max-w-[680px] flex-col gap-5 p-6">
-            <AiProviderSection onDirty={markDirty} />
-            <CrawlDefaultsSection onDirty={markDirty} />
-            <WcagStandardSection onDirty={markDirty} />
-            <NotificationsSection onDirty={markDirty} />
-            <AppearanceSection onDirty={markDirty} />
+            <AiProviderSection draft={draft} updateDraft={updateDraft} />
+            <CrawlDefaultsSection draft={draft} updateDraft={updateDraft} />
+            <WcagStandardSection draft={draft} updateDraft={updateDraft} />
+            <NotificationsSection draft={draft} updateDraft={updateDraft} />
+            <AppearanceSection draft={draft} updateDraft={updateDraft} />
             <DangerZoneSection onToast={showToast} />
           </div>
 

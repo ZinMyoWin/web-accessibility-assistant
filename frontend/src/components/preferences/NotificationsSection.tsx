@@ -5,16 +5,18 @@ import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { SectionCard, FieldRow } from "@/components/preferences/SectionCard"
 import { cn } from "@/lib/utils"
+import type { AppPreferences } from "@/lib/contexts/PreferencesContext"
 
 interface NotificationsSectionProps {
-  onDirty: () => void
+  draft: AppPreferences
+  updateDraft: (update: Partial<AppPreferences>) => void
 }
 
 const severities = [
-  { key: "critical", label: "Critical", defaultChecked: true },
-  { key: "serious", label: "Serious", defaultChecked: true },
-  { key: "moderate", label: "Moderate", defaultChecked: false },
-  { key: "minor", label: "Minor", defaultChecked: false },
+  { key: "critical", label: "Critical" },
+  { key: "serious", label: "Serious" },
+  { key: "moderate", label: "Moderate" },
+  { key: "minor", label: "Minor" },
 ] as const
 
 const sevColorMap: Record<string, { bg: string; border: string; text: string; dot: string }> = {
@@ -24,7 +26,8 @@ const sevColorMap: Record<string, { bg: string; border: string; text: string; do
   minor: { bg: "bg-severity-minor-bg", border: "border-severity-minor-text", text: "text-severity-minor-text", dot: "bg-severity-minor-text" },
 }
 
-export function NotificationsSection({ onDirty }: NotificationsSectionProps) {
+export function NotificationsSection({ draft, updateDraft }: NotificationsSectionProps) {
+  // Temporary local state for UI elements that are not yet in the backend schema
   const [scoreAlertEnabled, setScoreAlertEnabled] = useState(true)
   const [threshold, setThreshold] = useState(70)
   const [sevChecked, setSevChecked] = useState<Record<string, boolean>>({
@@ -44,11 +47,21 @@ export function NotificationsSection({ onDirty }: NotificationsSectionProps) {
       }
     >
       <FieldRow label="Notify on scan complete" hint="Show a toast notification when a scan finishes" horizontal>
-        <Switch defaultChecked onCheckedChange={() => onDirty()} />
+        <Switch 
+          checked={draft.notify_on_scan_complete} 
+          onCheckedChange={(val) => updateDraft({ notify_on_scan_complete: val })} 
+        />
+      </FieldRow>
+      
+      <FieldRow label="Notify on scan failed" hint="Show an alert when a scan encounters a fatal error" horizontal>
+        <Switch 
+          checked={draft.notify_on_scan_failed} 
+          onCheckedChange={(val) => updateDraft({ notify_on_scan_failed: val })} 
+        />
       </FieldRow>
 
       <FieldRow label="Alert on score below threshold" hint="Highlight scans that fall below a target accessibility score" horizontal>
-        <Switch checked={scoreAlertEnabled} onCheckedChange={(v) => { setScoreAlertEnabled(v); onDirty() }} />
+        <Switch checked={scoreAlertEnabled} onCheckedChange={(v) => { setScoreAlertEnabled(v) }} />
       </FieldRow>
 
       {/* Score threshold */}
@@ -64,7 +77,7 @@ export function NotificationsSection({ onDirty }: NotificationsSectionProps) {
             min={0}
             max={100}
             className="h-9 w-20 bg-muted text-xs"
-            onChange={(e) => { setThreshold(Number(e.target.value)); onDirty() }}
+            onChange={(e) => { setThreshold(Number(e.target.value)) }}
           />
           <span className="text-[11px] text-muted-foreground">
             Scans scoring below <strong className="text-foreground">{threshold}</strong> / 100 will be flagged
@@ -79,7 +92,11 @@ export function NotificationsSection({ onDirty }: NotificationsSectionProps) {
         <div className="flex gap-2">
           {severities.map((sev) => {
             const colors = sevColorMap[sev.key]
-            const checked = sevChecked[sev.key]
+            
+            // Map the "critical" toggle to the global "notify_on_high_severity" schema field for now
+            const isCritical = sev.key === "critical" || sev.key === "serious"
+            const checked = isCritical ? draft.notify_on_high_severity : sevChecked[sev.key]
+            
             return (
               <label
                 key={sev.key}
@@ -95,8 +112,11 @@ export function NotificationsSection({ onDirty }: NotificationsSectionProps) {
                   className="hidden"
                   checked={checked}
                   onChange={() => {
-                    setSevChecked((prev) => ({ ...prev, [sev.key]: !prev[sev.key] }))
-                    onDirty()
+                    if (isCritical) {
+                      updateDraft({ notify_on_high_severity: !draft.notify_on_high_severity })
+                    } else {
+                      setSevChecked((prev) => ({ ...prev, [sev.key]: !prev[sev.key] }))
+                    }
                   }}
                 />
                 <span className={cn("size-1.5 rounded-full", colors.dot)} />

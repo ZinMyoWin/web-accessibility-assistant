@@ -10,6 +10,8 @@ export const metadata: Metadata = {
     "Scan webpages and review accessibility issues with repair guidance.",
 };
 
+import { PreferencesProvider } from "@/lib/contexts/PreferencesContext";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -20,7 +22,9 @@ export default function RootLayout({
       <body
         className={`${inter.className} bg-background text-foreground antialiased`}
       >
-        {children}
+        <PreferencesProvider>
+          {children}
+        </PreferencesProvider>
       </body>
     </html>
   );

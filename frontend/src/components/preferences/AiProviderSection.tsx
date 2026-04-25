@@ -13,6 +13,7 @@ import {
 import { Switch } from "@/components/ui/switch"
 import { SectionCard, FieldRow } from "@/components/preferences/SectionCard"
 import { cn } from "@/lib/utils"
+import type { AppPreferences } from "@/lib/contexts/PreferencesContext"
 
 const providers = ["openai", "deepseek", "anthropic"] as const
 type Provider = (typeof providers)[number]
@@ -30,12 +31,17 @@ const providerModels: Record<Provider, string[]> = {
 }
 
 interface AiProviderSectionProps {
-  onDirty: () => void
+  draft: AppPreferences
+  updateDraft: (update: Partial<AppPreferences>) => void
 }
 
-export function AiProviderSection({ onDirty }: AiProviderSectionProps) {
-  const [activeProvider, setActiveProvider] = useState<Provider>("openai")
-  const [connectedProvider] = useState<Provider | null>("openai")
+export function AiProviderSection({ draft, updateDraft }: AiProviderSectionProps) {
+  const [activeProvider, setActiveProvider] = useState<Provider>(
+    (draft.ai_provider as Provider) || "openai"
+  )
+  
+  // We can consider the active suggestion provider as "connected" for the UI purpose
+  const connectedProvider = draft.active_suggestion_provider as Provider
 
   return (
     <SectionCard
@@ -54,7 +60,10 @@ export function AiProviderSection({ onDirty }: AiProviderSectionProps) {
         {providers.map((p) => (
           <button
             key={p}
-            onClick={() => setActiveProvider(p)}
+            onClick={() => {
+              setActiveProvider(p)
+              updateDraft({ ai_provider: p, ai_model: providerModels[p][0] })
+            }}
             className={cn(
               "flex items-center gap-2 rounded-md border-[0.5px] px-3 py-2 text-xs font-medium transition-all",
               activeProvider === p
@@ -81,10 +90,10 @@ export function AiProviderSection({ onDirty }: AiProviderSectionProps) {
               <div className="relative flex items-center">
                 <Input
                   type="password"
-                  defaultValue={p === "openai" ? "sk-••••••••••••••••••••••••••••••••••••••••jK9p" : ""}
-                  placeholder={`sk-••••••••••••••••••••••••••`}
+                  value={draft.api_key ?? (draft.has_api_key ? "sk-••••••••••••••••••••••••••••••••••••••••jK9p" : "")}
+                  placeholder="Enter API Key"
                   className="h-9 pr-20 font-mono text-xs"
-                  onChange={onDirty}
+                  onChange={(e) => updateDraft({ api_key: e.target.value })}
                 />
                 <div className="absolute right-2 flex items-center gap-1.5">
                   <Button variant="ghost" size="icon" className="size-7 text-muted-foreground hover:text-foreground">
@@ -101,17 +110,17 @@ export function AiProviderSection({ onDirty }: AiProviderSectionProps) {
               {/* Connection status */}
               <div className={cn(
                 "flex items-center gap-2 rounded-md px-3 py-2.5 text-[11px]",
-                p === "openai"
+                draft.has_api_key || draft.api_key
                   ? "bg-secondary text-accent-foreground"
                   : "bg-muted text-muted-foreground"
               )}>
-                <span className={cn("size-[7px] rounded-full", p === "openai" ? "bg-primary" : "bg-muted-foreground")} />
-                {p === "openai" ? "Connected · Last verified 2 hours ago" : "Not configured"}
+                <span className={cn("size-[7px] rounded-full", draft.has_api_key || draft.api_key ? "bg-primary" : "bg-muted-foreground")} />
+                {draft.has_api_key || draft.api_key ? "Configured" : "Not configured"}
               </div>
             </FieldRow>
 
             <FieldRow label="Model" hint="Used for repair suggestion generation and natural language explanations.">
-              <Select defaultValue={providerModels[p][0]} onValueChange={() => onDirty()}>
+              <Select value={draft.ai_model} onValueChange={(val) => updateDraft({ ai_model: val })}>
                 <SelectTrigger className="h-9 border-input bg-muted text-xs">
                   <SelectValue />
                 </SelectTrigger>
@@ -130,20 +139,23 @@ export function AiProviderSection({ onDirty }: AiProviderSectionProps) {
 
       {/* Active provider */}
       <FieldRow label="Active provider for suggestions" hint="Which provider is used when generating repair suggestions" horizontal>
-        <Select defaultValue="OpenAI" onValueChange={() => onDirty()}>
+        <Select value={draft.active_suggestion_provider} onValueChange={(val) => updateDraft({ active_suggestion_provider: val })}>
           <SelectTrigger className="h-9 w-40 border-input bg-muted text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {providers.map((p) => (
-              <SelectItem key={p} value={providerLabels[p]}>{providerLabels[p]}</SelectItem>
+              <SelectItem key={p} value={p}>{providerLabels[p]}</SelectItem>
             ))}
           </SelectContent>
         </Select>
       </FieldRow>
 
       <FieldRow label="Generate suggestions automatically" hint="Run AI suggestions immediately after each scan completes" horizontal>
-        <Switch defaultChecked onCheckedChange={() => onDirty()} />
+        <Switch 
+          checked={draft.auto_generate_suggestions} 
+          onCheckedChange={(val) => updateDraft({ auto_generate_suggestions: val })} 
+        />
       </FieldRow>
     </SectionCard>
   )

@@ -4,9 +4,11 @@ import { useState } from "react"
 import { Switch } from "@/components/ui/switch"
 import { SectionCard, FieldRow } from "@/components/preferences/SectionCard"
 import { cn } from "@/lib/utils"
+import type { AppPreferences } from "@/lib/contexts/PreferencesContext"
 
 interface AppearanceSectionProps {
-  onDirty: () => void
+  draft: AppPreferences
+  updateDraft: (update: Partial<AppPreferences>) => void
 }
 
 const themes = [
@@ -17,9 +19,20 @@ const themes = [
 
 const densities = ["Compact", "Default", "Comfortable"]
 
-export function AppearanceSection({ onDirty }: AppearanceSectionProps) {
-  const [theme, setTheme] = useState("light")
-  const [density, setDensity] = useState("Default")
+export function AppearanceSection({ draft, updateDraft }: AppearanceSectionProps) {
+  // Map "density" schema to UI densities (comfortable/compact)
+  // Schema defines "comfortable" vs "compact"
+  const densityMap: Record<string, string> = {
+    comfortable: "Comfortable",
+    default: "Default",
+    compact: "Compact"
+  }
+  
+  const currentDensityLabel = densityMap[draft.density?.toLowerCase()] || "Default"
+
+  // Local states for UI options not in schema
+  const [showReferences, setShowReferences] = useState(true)
+  const [animateProgress, setAnimateProgress] = useState(true)
 
   return (
     <SectionCard
@@ -39,10 +52,10 @@ export function AppearanceSection({ onDirty }: AppearanceSectionProps) {
           {themes.map((t) => (
             <button
               key={t.value}
-              onClick={() => { setTheme(t.value); onDirty() }}
+              onClick={() => updateDraft({ theme: t.value })}
               className={cn(
                 "flex flex-1 flex-col overflow-hidden rounded-md border-[0.5px] transition-all",
-                theme === t.value
+                draft.theme === t.value
                   ? "border-primary shadow-[0_0_0_2px_rgba(29,158,117,0.1)]"
                   : "border-input hover:border-primary/50"
               )}
@@ -58,14 +71,14 @@ export function AppearanceSection({ onDirty }: AppearanceSectionProps) {
               </div>
               {/* Label */}
               <div className="flex items-center px-3 py-2.5">
-                <span className={cn("text-xs font-medium", theme === t.value ? "text-accent-foreground" : "text-foreground")}>
+                <span className={cn("text-xs font-medium", draft.theme === t.value ? "text-accent-foreground" : "text-foreground")}>
                   {t.label}
                 </span>
                 <div className={cn(
                   "ml-auto flex size-3.5 items-center justify-center rounded-full border-[0.5px]",
-                  theme === t.value ? "border-primary bg-primary" : "border-input bg-muted"
+                  draft.theme === t.value ? "border-primary bg-primary" : "border-input bg-muted"
                 )}>
-                  {theme === t.value && <div className="size-1.5 rounded-full bg-white" />}
+                  {draft.theme === t.value && <div className="size-1.5 rounded-full bg-white" />}
                 </div>
               </div>
             </button>
@@ -79,10 +92,10 @@ export function AppearanceSection({ onDirty }: AppearanceSectionProps) {
           {densities.map((d) => (
             <button
               key={d}
-              onClick={() => { setDensity(d); onDirty() }}
+              onClick={() => updateDraft({ density: d.toLowerCase() })}
               className={cn(
                 "flex-1 rounded-md border-[0.5px] px-3 py-2 text-center text-xs font-medium transition-all",
-                density === d
+                currentDensityLabel === d
                   ? "border-primary bg-card text-accent-foreground"
                   : "border-input bg-muted text-muted-foreground hover:border-primary/50"
               )}
@@ -94,11 +107,17 @@ export function AppearanceSection({ onDirty }: AppearanceSectionProps) {
       </FieldRow>
 
       <FieldRow label="Show WCAG criterion references" hint='Display criterion codes (e.g. 1.1.1) alongside issue titles' horizontal>
-        <Switch defaultChecked onCheckedChange={() => onDirty()} />
+        <Switch checked={showReferences} onCheckedChange={setShowReferences} />
       </FieldRow>
 
       <FieldRow label="Animate scan progress" hint="Show live progress bar animation during active scans" horizontal>
-        <Switch defaultChecked onCheckedChange={() => onDirty()} />
+        <Switch 
+          checked={!draft.reduced_motion && animateProgress} 
+          onCheckedChange={(val) => {
+            setAnimateProgress(val)
+            updateDraft({ reduced_motion: !val })
+          }} 
+        />
       </FieldRow>
     </SectionCard>
   )

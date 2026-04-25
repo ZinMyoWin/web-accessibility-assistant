@@ -10,6 +10,7 @@ from alembic import context
 from app.db import get_database_url
 from app.models.base import Base
 import app.models.scan  # noqa: F401
+import app.models.preferences  # noqa: F401
 
 config = context.config
 

@@ -13,6 +13,7 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Single-page scan endpoint `POST /scan/page`
 - [x] Saved scan list endpoint `GET /scans`
 - [x] Saved scan detail endpoint `GET /scans/{scan_id}`
+- [x] Preferences endpoints `GET /preferences` and `PUT /preferences`
 - [x] Public URL validation
 - [x] Raw HTML fetch for submitted pages
 - [x] Custom HTML-based accessibility checks
@@ -82,7 +83,7 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Database schema and migrations
 - [x] Stored scan sessions
 - [x] Stored page-level issue records
-- [ ] Historical comparison views
+- [x] Historical comparison views
 - [x] CSV export
 - [x] PDF export (via browser print-to-PDF)
 
@@ -100,6 +101,6 @@ Update this checklist whenever a feature is added, removed, or materially change
 ## Current Gaps Worth Addressing Next
 
 - [x] Connect the home dashboard scan result to the saved-scan issues view
-- [ ] Add real comparison logic for the scan history compare mode
+- [x] Add real comparison logic for the scan history compare mode
 - [ ] Decide how reports should be generated from persisted scan records
 - [ ] Add at least a minimal automated smoke test path for backend and frontend
