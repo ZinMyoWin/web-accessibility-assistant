@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { DashboardShell } from "@/components/dashboard/DashboardShell"
 import { EMPTY_SUMMARY } from "@/components/home/constants"
 import { IssuesSection } from "@/components/home/IssuesSection"
@@ -11,6 +11,7 @@ import { ScanToolbar } from "@/components/home/ScanToolbar"
 import type { IssueSeverity } from "@/components/home/types"
 import { getTopRuleCounts } from "@/components/home/utils"
 import { useDashboardScan } from "@/hooks/useDashboardScan"
+import { usePreferences } from "@/lib/contexts/PreferencesContext"
 
 type SeverityFilter = "all" | IssueSeverity
 type ScanMode = "single" | "multi"
@@ -31,6 +32,12 @@ export default function DashboardPage() {
 
   const [filter, setFilter] = useState<SeverityFilter>("all")
   const [scanMode, setScanMode] = useState<ScanMode>("single")
+  const { preferences } = usePreferences()
+
+  useEffect(() => {
+    const preferredMode = preferences.default_scan_mode === "multi" ? "multi" : "single"
+    setScanMode(preferredMode)
+  }, [preferences.default_scan_mode])
 
   const counts = result?.summary ?? EMPTY_SUMMARY
   const maxSeverityCount = Math.max(counts.high, counts.medium, counts.low, 1)

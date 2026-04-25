@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class AppPreferencesBase(BaseModel):
@@ -34,11 +34,11 @@ class AppPreferencesBase(BaseModel):
 
 
 class AppPreferencesUpdate(AppPreferencesBase):
-    api_key: str | None = None  # Received from frontend, encrypted and stored
+    api_key: str | None = None
+    clear_api_key: bool = False
 
 
 class AppPreferencesResponse(AppPreferencesBase):
     has_api_key: bool = False  # Tells frontend if a key is currently configured
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

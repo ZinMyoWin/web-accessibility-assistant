@@ -155,6 +155,12 @@ def get_saved_scan(session: Session, scan_id: UUID) -> ScanRun | None:
     return session.scalar(statement)
 
 
+def clear_saved_scans(session: Session) -> int:
+    deleted_count = session.query(ScanRun).delete(synchronize_session=False)
+    session.commit()
+    return int(deleted_count or 0)
+
+
 def to_saved_scan_list_item(scan_run: ScanRun) -> SavedScanListItem:
     return SavedScanListItem(
         id=str(scan_run.id),

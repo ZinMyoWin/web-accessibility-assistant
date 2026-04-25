@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db_session
 from app.repositories.scan_repository import (
+    clear_saved_scans,
     get_saved_scan,
     list_saved_scans,
     save_completed_scan,
@@ -19,7 +20,11 @@ from app.schemas.history import SavedScanListResponse, SavedScanResponse
 from app.schemas.scan import ScanPageRequest, ScanPageResponse
 from app.schemas.preferences import AppPreferencesResponse, AppPreferencesUpdate
 from app.services.page_scanner import ScanError, scan_page
-from app.repositories.preferences_repository import get_preferences, update_preferences
+from app.repositories.preferences_repository import (
+    get_preferences,
+    reset_preferences,
+    update_preferences,
+)
 
 LOCAL_CORS_ORIGINS = [
     "http://localhost:3000",
@@ -171,6 +176,12 @@ def get_scan(scan_id: UUID, db: Session = Depends(get_db_session)):
     return to_saved_scan_response(scan_run)
 
 
+@app.delete("/scans")
+def delete_scans(db: Session = Depends(get_db_session)):
+    deleted = clear_saved_scans(db)
+    return {"deleted_scan_runs": deleted}
+
+
 @app.get("/preferences", response_model=AppPreferencesResponse)
 def get_app_preferences(db: Session = Depends(get_db_session)):
     prefs = get_preferences(db)
@@ -182,5 +193,12 @@ def get_app_preferences(db: Session = Depends(get_db_session)):
 @app.put("/preferences", response_model=AppPreferencesResponse)
 def update_app_preferences(update_data: AppPreferencesUpdate, db: Session = Depends(get_db_session)):
     prefs = update_preferences(db, update_data)
+    has_api_key = bool(prefs.encrypted_api_key)
+    return AppPreferencesResponse.model_validate(prefs).model_copy(update={"has_api_key": has_api_key})
+
+
+@app.post("/preferences/reset", response_model=AppPreferencesResponse)
+def reset_app_preferences(db: Session = Depends(get_db_session)):
+    prefs = reset_preferences(db)
     has_api_key = bool(prefs.encrypted_api_key)
     return AppPreferencesResponse.model_validate(prefs).model_copy(update={"has_api_key": has_api_key})

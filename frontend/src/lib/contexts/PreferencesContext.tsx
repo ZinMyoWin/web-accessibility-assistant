@@ -33,9 +33,10 @@ export interface AppPreferences {
   reduced_motion: boolean
   high_contrast: boolean
   density: string
-  
+
   has_api_key?: boolean
   api_key?: string | null
+  clear_api_key?: boolean
 }
 
 const defaultPreferences: AppPreferences = {
@@ -43,7 +44,7 @@ const defaultPreferences: AppPreferences = {
   ai_model: "gpt-4o",
   active_suggestion_provider: "openai",
   auto_generate_suggestions: true,
-  
+
   default_scan_mode: "multi",
   default_page_limit: 20,
   crawl_depth: 3,
@@ -52,18 +53,18 @@ const defaultPreferences: AppPreferences = {
   ignored_url_patterns: ["/logout", "/admin", "*.pdf"],
   stay_within_domain: true,
   respect_robots_txt: true,
-  
+
   wcag_standard: "wcag2aa",
   include_best_practices: true,
   fail_on_experimental: false,
-  
+
   email_notifications: false,
   email_address: null,
   notify_on_scan_complete: true,
   notify_on_scan_failed: true,
   notify_on_high_severity: false,
   weekly_summary: false,
-  
+
   theme: "light",
   reduced_motion: false,
   high_contrast: false,
@@ -75,6 +76,8 @@ interface PreferencesContextValue {
   isLoading: boolean
   error: string | null
   updatePreferences: (newPrefs: Partial<AppPreferences>) => Promise<void>
+  clearScanHistory: () => Promise<void>
+  resetPreferences: () => Promise<void>
 }
 
 const PreferencesContext = createContext<PreferencesContextValue | undefined>(undefined)
@@ -88,23 +91,34 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
     async function fetchPreferences() {
       try {
         const response = await fetch(`${API_BASE_URL}/preferences`)
-        if (response.ok) {
-          const data = await response.json()
-          setPreferences(data)
+        if (!response.ok) {
+          throw new Error("Failed to load preferences.")
         }
+
+        const data = (await response.json()) as AppPreferences
+        setPreferences(data)
       } catch (err) {
-        console.error("Failed to fetch preferences:", err)
-        setError("Failed to load preferences.")
+        setError(err instanceof Error ? err.message : "Failed to load preferences.")
       } finally {
         setIsLoading(false)
       }
     }
-    fetchPreferences()
+    void fetchPreferences()
   }, [])
 
   async function updatePreferences(newPrefs: Partial<AppPreferences>) {
+    const payload = { ...newPrefs } as Partial<AppPreferences> & {
+      clear_api_key?: boolean
+    }
+
+    if ("api_key" in payload && payload.api_key !== undefined) {
+      const apiKey = payload.api_key ?? ""
+      if (!apiKey.trim() && !payload.clear_api_key) {
+        delete payload.api_key
+      }
+    }
+
     try {
-      const payload = { ...preferences, ...newPrefs }
       const response = await fetch(`${API_BASE_URL}/preferences`, {
         method: "PUT",
         headers: {
@@ -112,21 +126,46 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
         },
         body: JSON.stringify(payload),
       })
-      
+
       if (!response.ok) {
         throw new Error("Failed to save preferences.")
       }
-      
-      const updated = await response.json()
+
+      const updated = (await response.json()) as AppPreferences
       setPreferences(updated)
     } catch (err) {
-      console.error(err)
-      throw err
+      throw err instanceof Error ? err : new Error("Failed to save preferences.")
     }
   }
 
+  async function clearScanHistory() {
+    const response = await fetch(`${API_BASE_URL}/scans`, { method: "DELETE" })
+    if (!response.ok) {
+      throw new Error("Failed to clear scan history.")
+    }
+  }
+
+  async function resetPreferences() {
+    const response = await fetch(`${API_BASE_URL}/preferences/reset`, { method: "POST" })
+    if (!response.ok) {
+      throw new Error("Failed to reset preferences.")
+    }
+
+    const updated = (await response.json()) as AppPreferences
+    setPreferences(updated)
+  }
+
   return (
-    <PreferencesContext.Provider value={{ preferences, isLoading, error, updatePreferences }}>
+    <PreferencesContext.Provider
+      value={{
+        preferences,
+        isLoading,
+        error,
+        updatePreferences,
+        clearScanHistory,
+        resetPreferences,
+      }}
+    >
       {children}
     </PreferencesContext.Provider>
   )

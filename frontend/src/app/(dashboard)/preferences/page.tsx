@@ -12,7 +12,7 @@ import { SaveBar } from "@/components/preferences/SaveBar"
 import { usePreferences, type AppPreferences } from "@/lib/contexts/PreferencesContext"
 
 export default function PreferencesPage() {
-  const { preferences, isLoading, updatePreferences } = usePreferences()
+  const { preferences, isLoading, updatePreferences, clearScanHistory, resetPreferences } = usePreferences()
   const [activeSection, setActiveSection] = useState("sec-ai")
   const [dirty, setDirty] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
@@ -86,7 +86,16 @@ export default function PreferencesPage() {
             <WcagStandardSection draft={draft} updateDraft={updateDraft} />
             <NotificationsSection draft={draft} updateDraft={updateDraft} />
             <AppearanceSection draft={draft} updateDraft={updateDraft} />
-            <DangerZoneSection onToast={showToast} />
+            <DangerZoneSection
+              onToast={showToast}
+              onClearHistory={async () => {
+                await clearScanHistory()
+              }}
+              onResetPreferences={async () => {
+                await resetPreferences()
+                setDirty(false)
+              }}
+            />
           </div>
 
           <SaveBar dirty={dirty} onSave={handleSave} onDiscard={handleDiscard} />

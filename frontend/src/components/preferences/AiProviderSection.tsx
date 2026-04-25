@@ -39,8 +39,7 @@ export function AiProviderSection({ draft, updateDraft }: AiProviderSectionProps
   const [activeProvider, setActiveProvider] = useState<Provider>(
     (draft.ai_provider as Provider) || "openai"
   )
-  
-  // We can consider the active suggestion provider as "connected" for the UI purpose
+
   const connectedProvider = draft.active_suggestion_provider as Provider
 
   return (
@@ -55,7 +54,6 @@ export function AiProviderSection({ draft, updateDraft }: AiProviderSectionProps
         </svg>
       }
     >
-      {/* Provider tabs */}
       <div className="flex gap-2">
         {providers.map((p) => (
           <button
@@ -82,7 +80,6 @@ export function AiProviderSection({ draft, updateDraft }: AiProviderSectionProps
         ))}
       </div>
 
-      {/* Provider panel */}
       {providers.map((p) =>
         activeProvider !== p ? null : (
           <div key={p} className="flex flex-col gap-4">
@@ -90,24 +87,24 @@ export function AiProviderSection({ draft, updateDraft }: AiProviderSectionProps
               <div className="relative flex items-center">
                 <Input
                   type="password"
-                  value={draft.api_key ?? (draft.has_api_key ? "sk-••••••••••••••••••••••••••••••••••••••••jK9p" : "")}
-                  placeholder="Enter API Key"
+                  value={draft.api_key ?? ""}
+                  placeholder={draft.has_api_key ? "API key stored. Enter a new key to replace." : "Enter API key"}
                   className="h-9 pr-20 font-mono text-xs"
-                  onChange={(e) => updateDraft({ api_key: e.target.value })}
+                  onChange={(e) =>
+                    updateDraft({ api_key: e.target.value, clear_api_key: false })
+                  }
                 />
                 <div className="absolute right-2 flex items-center gap-1.5">
-                  <Button variant="ghost" size="icon" className="size-7 text-muted-foreground hover:text-foreground">
-                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-3.5">
-                      <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
-                      <circle cx="8" cy="8" r="2" />
-                    </svg>
-                  </Button>
-                  <Button variant="outline" size="sm" className="h-6 gap-1 px-2 text-[10px]">
-                    Test
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-6 gap-1 px-2 text-[10px]"
+                    onClick={() => updateDraft({ api_key: "", clear_api_key: true })}
+                  >
+                    Clear
                   </Button>
                 </div>
               </div>
-              {/* Connection status */}
               <div className={cn(
                 "flex items-center gap-2 rounded-md px-3 py-2.5 text-[11px]",
                 draft.has_api_key || draft.api_key
@@ -137,7 +134,6 @@ export function AiProviderSection({ draft, updateDraft }: AiProviderSectionProps
 
       <div className="h-px bg-border" />
 
-      {/* Active provider */}
       <FieldRow label="Active provider for suggestions" hint="Which provider is used when generating repair suggestions" horizontal>
         <Select value={draft.active_suggestion_provider} onValueChange={(val) => updateDraft({ active_suggestion_provider: val })}>
           <SelectTrigger className="h-9 w-40 border-input bg-muted text-xs">
@@ -152,9 +148,9 @@ export function AiProviderSection({ draft, updateDraft }: AiProviderSectionProps
       </FieldRow>
 
       <FieldRow label="Generate suggestions automatically" hint="Run AI suggestions immediately after each scan completes" horizontal>
-        <Switch 
-          checked={draft.auto_generate_suggestions} 
-          onCheckedChange={(val) => updateDraft({ auto_generate_suggestions: val })} 
+        <Switch
+          checked={draft.auto_generate_suggestions}
+          onCheckedChange={(val) => updateDraft({ auto_generate_suggestions: val })}
         />
       </FieldRow>
     </SectionCard>
