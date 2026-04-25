@@ -162,6 +162,10 @@ export default function ScanHistoryPage() {
     router.push(`/issues?scanId=${id}`)
   }
 
+  const handleViewReport = (id: string) => {
+    router.push(`/reports?scanId=${id}`)
+  }
+
   const cancelCompare = () => {
     setCompareMode(false)
     setIsComparing(false)
@@ -340,6 +344,7 @@ export default function ScanHistoryPage() {
             compareIds={compareIds}
             onSelect={handleSelect}
             onCompareToggle={handleCompareToggle}
+            onViewReport={handleViewReport}
           />
         )}
 

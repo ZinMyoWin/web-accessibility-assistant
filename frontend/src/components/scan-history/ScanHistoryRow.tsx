@@ -11,6 +11,7 @@ export interface ScanHistoryRowProps {
   isCompareSelected: boolean
   onSelect: (id: string) => void
   onCompareToggle: (id: string) => void
+  onViewReport: (id: string) => void
 }
 
 function formatDuration(seconds: number): string {
@@ -64,6 +65,7 @@ export function ScanHistoryRow({
   isCompareSelected,
   onSelect,
   onCompareToggle,
+  onViewReport,
 }: ScanHistoryRowProps) {
   const handleClick = () => {
     if (compareMode) {
@@ -214,7 +216,10 @@ export function ScanHistoryRow({
               </IconButton>
               <IconButton
                 tooltip="View report"
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onViewReport(scan.id)
+                }}
               >
                 <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <path d="M11 2l3 3-8 8H3v-3L11 2z" strokeLinejoin="round" />

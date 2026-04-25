@@ -265,6 +265,15 @@ function IssuesPageContent() {
             </svg>
             Export
           </Button>
+          <Button
+            variant="default"
+            size="sm"
+            className="gap-1.5 text-xs"
+            disabled={!activeScanId}
+            onClick={() => activeScanId && router.push(`/reports?scanId=${activeScanId}`)}
+          >
+            View Report
+          </Button>
         </div>
       </header>
 

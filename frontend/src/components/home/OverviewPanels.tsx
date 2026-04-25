@@ -104,10 +104,15 @@ export function OverviewPanels({
               </span>
             </div>
             {result.scan_id && (
-              <div className="mt-4 pt-2 border-t-[0.5px] border-border">
-                <Button asChild variant="outline" className="w-full text-xs h-8">
+              <div className="mt-4 flex gap-2 border-t-[0.5px] border-border pt-2">
+                <Button asChild variant="outline" className="h-8 flex-1 text-xs">
                   <Link href={`/issues?scanId=${result.scan_id}`} target="_blank">
-                    View Detailed Report
+                    View Detailed Issues
+                  </Link>
+                </Button>
+                <Button asChild className="h-8 flex-1 text-xs">
+                  <Link href={`/reports?scanId=${result.scan_id}`}>
+                    Open Report
                   </Link>
                 </Button>
               </div>

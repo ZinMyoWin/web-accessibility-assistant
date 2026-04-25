@@ -11,6 +11,7 @@ interface ScanHistoryListProps {
   compareIds: string[]
   onSelect: (id: string) => void
   onCompareToggle: (id: string) => void
+  onViewReport: (id: string) => void
 }
 
 export function ScanHistoryList({
@@ -20,6 +21,7 @@ export function ScanHistoryList({
   compareIds,
   onSelect,
   onCompareToggle,
+  onViewReport,
 }: ScanHistoryListProps) {
   if (scans.length === 0) {
     return (
@@ -56,6 +58,7 @@ export function ScanHistoryList({
             isCompareSelected={compareIds.includes(scan.id)}
             onSelect={onSelect}
             onCompareToggle={onCompareToggle}
+            onViewReport={onViewReport}
           />
         ))}
       </div>

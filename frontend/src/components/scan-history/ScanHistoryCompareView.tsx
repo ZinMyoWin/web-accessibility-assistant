@@ -21,7 +21,12 @@ function formatDate(iso: string) {
 }
 
 function getIssueKey(issue: SavedScanIssue) {
-  return `${issue.rule_id}-${issue.element}`
+  const locator =
+    issue.dom_path?.trim() ||
+    issue.source_hint?.trim() ||
+    issue.element.trim()
+  const text = issue.text_preview?.trim() || ""
+  return `${issue.rule_id}::${locator}::${text}`
 }
 
 export function ScanHistoryCompareView({ compareIds, onBack }: ScanHistoryCompareViewProps) {
@@ -109,7 +114,9 @@ export function ScanHistoryCompareView({ compareIds, onBack }: ScanHistoryCompar
     }
   }
 
-  const scoreDiff = (newScan.score || 0) - (oldScan.score || 0)
+  const oldScore = oldScan.score
+  const newScore = newScan.score
+  const scoreDiff = oldScore != null && newScore != null ? newScore - oldScore : 0
   const totalDiff = newScan.summary.total_issues - oldScan.summary.total_issues
   const highDiff = newScan.summary.high - oldScan.summary.high
 
@@ -136,8 +143,8 @@ export function ScanHistoryCompareView({ compareIds, onBack }: ScanHistoryCompar
       <div className="grid grid-cols-3 gap-4">
         <DiffCard
           title="Score"
-          oldValue={oldScan.score || 0}
-          newValue={newScan.score || 0}
+          oldValue={oldScore}
+          newValue={newScore}
           diff={scoreDiff}
           invertColors // Positive diff is good
         />
@@ -205,7 +212,16 @@ export function ScanHistoryCompareView({ compareIds, onBack }: ScanHistoryCompar
   )
 }
 
-function DiffCard({ title, oldValue, newValue, diff, invertColors = false }: { title: string, oldValue: number, newValue: number, diff: number, invertColors?: boolean }) {
+function DiffCard({ title, oldValue, newValue, diff, invertColors = false }: { title: string, oldValue: number | null, newValue: number | null, diff: number, invertColors?: boolean }) {
+  if (oldValue == null || newValue == null) {
+    return (
+      <div className="rounded-xl border-[0.5px] border-border bg-card p-4">
+        <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
+        <div className="mt-2 text-sm text-muted-foreground">Not available</div>
+      </div>
+    )
+  }
+
   const isPositive = diff > 0
   const isZero = diff === 0
 
