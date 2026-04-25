@@ -77,7 +77,8 @@ Current status:
 - issues page loads real saved scan details from the backend
 - scan history page loads real saved scan summaries from the backend
 - shared dashboard shell with sidebar is implemented
-- reports and preferences pages are not implemented yet
+- reports page loads persisted scan data using `scanId`
+- preferences page persists settings through backend APIs
 
 ### `backend/`
 
@@ -136,6 +137,10 @@ Current routes:
 - `POST /scan/page`
 - `GET /scans`
 - `GET /scans/{scan_id}`
+- `DELETE /scans`
+- `GET /preferences`
+- `PUT /preferences`
+- `POST /preferences/reset`
 
 ### `backend/app/schemas/scan.py`
 
@@ -474,10 +479,9 @@ Implemented intelligent-analysis features:
 
 Not built yet:
 
-- home dashboard navigation into saved scan detail pages
 - full JavaScript rendering for single-page apps before analysis
 - multi-page crawl
-- reporting exports
+- background jobs / queued scan processing
 - formal test suite
 - generative AI / LLM-based repair suggestions
 

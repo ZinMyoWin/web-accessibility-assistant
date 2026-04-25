@@ -1,5 +1,7 @@
 # Database Setup Guide
 
+> Historical/setup note: this guide documents the original persistence bootstrap sequence. Some references to mock-era UI behavior are kept for historical context and may no longer reflect current UI integration status.
+
 ## Purpose
 
 This document explains how to prepare the project for PostgreSQL-backed scan history.

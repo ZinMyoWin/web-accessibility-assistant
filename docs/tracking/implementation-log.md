@@ -1560,12 +1560,12 @@ Decide whether to connect the Reports page to real backend data, implement actua
 Transitioned the Preferences page from a static, non-functional UI into a fully integrated feature by implementing backend-side storage and management:
 
 - created the AppPreferences SQLAlchemy model to store all user settings, including encryption-related fields
-- added an Alembic migration (9848b576f060) to add the pp_preferences table to the database
-- implemented a symmetric encryption utility (ackend/app/utils/encryption.py) using cryptography's Fernet for secure API key handling
+- added an Alembic migration (`9848b576f060_create_preferences_table.py`) to create the `app_preferences` table
+- implemented a symmetric encryption utility (`backend/app/utils/encryption.py`) using cryptography's Fernet for secure API key handling
 - added GET /preferences and PUT /preferences endpoints in main.py, ensuring API keys are never returned in plaintext to the frontend
 - created PreferencesContext.tsx to centralize settings management
 - integrated PreferencesProvider into the main application layout (layout.tsx)
-- updated rontend/src/app/(dashboard)/preferences/page.tsx to initialize a local "draft" state from the PreferencesContext
+- updated `frontend/src/app/(dashboard)/preferences/page.tsx` to initialize a local draft state from the PreferencesContext
 - converted all preference section components (AiProviderSection, CrawlDefaultsSection, WcagStandardSection, NotificationsSection, AppearanceSection) to use controlled inputs linked to the draft state
 - wired the "Save" and "Discard" actions in the SaveBar to the context's updatePreferences function
 
@@ -1576,22 +1576,22 @@ The Preferences page was a placeholder UI. For the application to support custom
 ### Files involved
 
 New files:
-- ackend/alembic/versions/9848b576f060_add_preferences_table.py
-- ackend/app/models/preferences.py
-- ackend/app/utils/encryption.py
-- rontend/src/lib/contexts/PreferencesContext.tsx
+- `backend/alembic/versions/9848b576f060_create_preferences_table.py`
+- `backend/app/models/preferences.py`
+- `backend/app/utils/encryption.py`
+- `frontend/src/lib/contexts/PreferencesContext.tsx`
 
 Modified files:
-- ackend/app/main.py
-- rontend/src/app/layout.tsx
-- rontend/src/app/(dashboard)/preferences/page.tsx
-- rontend/src/components/preferences/AiProviderSection.tsx
-- rontend/src/components/preferences/CrawlDefaultsSection.tsx
-- rontend/src/components/preferences/WcagStandardSection.tsx
-- rontend/src/components/preferences/NotificationsSection.tsx
-- rontend/src/components/preferences/AppearanceSection.tsx
-- docs/tracking/feature-checklist.md
-- docs/tracking/implementation-log.md
+- `backend/app/main.py`
+- `frontend/src/app/layout.tsx`
+- `frontend/src/app/(dashboard)/preferences/page.tsx`
+- `frontend/src/components/preferences/AiProviderSection.tsx`
+- `frontend/src/components/preferences/CrawlDefaultsSection.tsx`
+- `frontend/src/components/preferences/WcagStandardSection.tsx`
+- `frontend/src/components/preferences/NotificationsSection.tsx`
+- `frontend/src/components/preferences/AppearanceSection.tsx`
+- `docs/tracking/feature-checklist.md`
+- `docs/tracking/implementation-log.md`
 
 ### Verification
 
@@ -1603,3 +1603,82 @@ Modified files:
 ### Next step
 
 Ensure that other components in the application (like the Scan engine or the AI repair generation) now use the active preferences fetched from the database, or implement the next missing feature.
+
+## 2026-04-25 - Stabilization And Real Data Integration
+
+### Completed work
+
+Implemented the next-phase stabilization and integration tasks:
+
+- connected `/reports` to persisted scan data using `scanId` query parameter with fallback to latest saved scan
+- replaced static report rendering with mapped saved-scan data for metadata, severity breakdown, WCAG principles, pages, and categories
+- updated report export utilities (CSV/PDF/Print) to export live mapped report data instead of hardcoded mock data
+- added report navigation links from dashboard, issues, and scan-history views
+- improved scan-history compare identity matching from `rule_id + element` to a richer key including locator context (`dom_path`/`source_hint`) and `text_preview`
+- hardened score display logic in compare and reports when score is missing
+- added backend danger-zone APIs:
+  - `DELETE /scans` to clear saved scan history
+  - `POST /preferences/reset` to reset app preferences
+- removed brittle masked API-key sentinel behavior and switched to explicit preference update semantics with `clear_api_key`
+- wired Preferences danger-zone UI to real backend actions
+- added minimal automated quality gates:
+  - backend pytest smoke tests (`backend/tests/test_api_smoke.py`)
+  - GitHub Actions workflow for frontend typecheck + backend compile/smoke tests
+- synchronized feature/docs status in README, architecture, checklist, and implementation log
+
+### Why this was done
+
+The project had strong scanning and persistence foundations but still had key gaps between implemented capabilities and user-facing behavior/documentation:
+
+- reports were still driven by static mock data
+- danger-zone actions were UI-only
+- compare matching could misclassify changed issues
+- documentation overstated/understated several features
+- there was no baseline CI quality gate
+
+This update closes those gaps and creates a clearer path for multi-page crawl, LLM suggestions, and deeper test coverage.
+
+### Files involved
+
+Key backend updates:
+
+- `backend/app/main.py`
+- `backend/app/repositories/scan_repository.py`
+- `backend/app/repositories/preferences_repository.py`
+- `backend/app/schemas/preferences.py`
+- `backend/tests/test_api_smoke.py`
+
+Key frontend updates:
+
+- `frontend/src/lib/saved-scans.ts`
+- `frontend/src/app/(dashboard)/reports/page.tsx`
+- `frontend/src/components/reports/*`
+- `frontend/src/components/home/OverviewPanels.tsx`
+- `frontend/src/app/(dashboard)/issues/page.tsx`
+- `frontend/src/app/(dashboard)/scan-history/page.tsx`
+- `frontend/src/components/scan-history/ScanHistoryRow.tsx`
+- `frontend/src/components/scan-history/ScanHistoryList.tsx`
+- `frontend/src/components/scan-history/ScanHistoryCompareView.tsx`
+- `frontend/src/lib/contexts/PreferencesContext.tsx`
+- `frontend/src/components/preferences/AiProviderSection.tsx`
+- `frontend/src/components/preferences/DangerZoneSection.tsx`
+- `frontend/src/app/page.tsx`
+
+CI and docs:
+
+- `.github/workflows/quality-gate.yml`
+- `README.md`
+- `docs/architecture/system-architecture.md`
+- `docs/tracking/feature-checklist.md`
+- `docs/tracking/implementation-log.md`
+
+### Verification
+
+- frontend typecheck command runs successfully (`npx tsc --noEmit`)
+- backend compile check succeeds (`python -m compileall app`)
+- backend smoke tests added for `/health`, `/scans` delete action, and `/preferences/reset`
+- report page now fetches persisted scan detail and renders mapped sections from live data
+
+### Next step
+
+Implement multi-page crawling and queued scan execution so scan mode and crawl defaults can drive actual crawl behavior, then add a fuller backend/frontend automated test suite.

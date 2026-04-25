@@ -14,6 +14,8 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Saved scan list endpoint `GET /scans`
 - [x] Saved scan detail endpoint `GET /scans/{scan_id}`
 - [x] Preferences endpoints `GET /preferences` and `PUT /preferences`
+- [x] Clear scan history endpoint `DELETE /scans`
+- [x] Reset preferences endpoint `POST /preferences/reset`
 - [x] Public URL validation
 - [x] Raw HTML fetch for submitted pages
 - [x] Custom HTML-based accessibility checks
@@ -34,7 +36,8 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [ ] Full JavaScript page rendering for real SPA content before analysis
 - [ ] Multi-page site crawling
 - [ ] Background jobs / queued scan processing
-- [ ] Automated backend test suite
+- [ ] Full automated backend test suite
+- [x] Minimal backend API smoke tests
 
 ## Frontend
 
@@ -59,12 +62,17 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Scan history page route and UI scaffold
 - [x] Real scan history in the UI
 - [x] Saved scan detail flow in the UI
-- [ ] Real data flow from home dashboard to issues page
+- [x] Real data flow from home dashboard to issues page
 - [x] Working `/reports` page
 - [x] Working `/preferences` page
 - [x] Report export from the frontend (Print, CSV, PDF)
+- [x] Reports backed by persisted scan records
+- [x] Report route accepts `scanId` query parameter
+- [x] Preferences applied to dashboard scan defaults
+- [x] Danger-zone actions wired to backend APIs
 - [ ] Multi-page scan UI
-- [ ] Automated frontend tests
+- [ ] Full automated frontend test suite
+- [x] Minimal frontend smoke check via TypeScript gate
 
 ## AI / Intelligent Analysis
 
@@ -84,8 +92,10 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Stored scan sessions
 - [x] Stored page-level issue records
 - [x] Historical comparison views
+- [x] Compare identity uses rule plus locator context
 - [x] CSV export
 - [x] PDF export (via browser print-to-PDF)
+- [x] Score display hidden when score is unavailable
 
 ## DevOps And Project Support
 
@@ -95,12 +105,13 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] System architecture document
 - [x] Implementation log
 - [ ] Formal deployment verification evidence for hosted frontend and backend
-- [ ] CI pipeline
-- [ ] Lint/test/build quality gate automation
+- [x] CI pipeline
+- [x] Lint/test/build quality gate automation
 
 ## Current Gaps Worth Addressing Next
 
 - [x] Connect the home dashboard scan result to the saved-scan issues view
 - [x] Add real comparison logic for the scan history compare mode
-- [ ] Decide how reports should be generated from persisted scan records
-- [ ] Add at least a minimal automated smoke test path for backend and frontend
+- [x] Decide how reports should be generated from persisted scan records
+- [x] Add at least a minimal automated smoke test path for backend and frontend
+- [ ] Implement multi-page crawling and queue/background processing

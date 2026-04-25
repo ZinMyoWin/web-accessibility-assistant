@@ -147,6 +147,11 @@ Implemented today:
 - dashboard home scan UI
 - dedicated issues screen backed by saved scan data
 - scan history screen backed by saved scan data
+- compare mode with real issue-delta analysis
+- reports page backed by persisted scan records via `scanId`
+- preferences persistence with backend encryption for API keys
+- danger-zone actions backed by API (`DELETE /scans`, `POST /preferences/reset`)
+- minimal automated smoke checks (frontend typecheck + backend pytest smoke tests)
 - Docker setup for production-style and development workflows
 
 Planned target from the project overview:
@@ -154,15 +159,15 @@ Planned target from the project overview:
 - multi-page domain-limited crawling
 - AI-generated repair guidance
 - corrected code examples for detected issues
-- real frontend scan history integration
-- PDF and CSV report export
+- AI-generated repair guidance and code suggestions
 
 Not implemented yet:
 
-- home dashboard navigation into saved scan detail pages
-- report export
 - multi-page crawling
-- automated test suites
+- full JavaScript rendering for real SPA content before analysis
+- background jobs / queued scan processing
+- full automated frontend/backend test suites
+- generative AI / LLM-based repair suggestions
 
 ## Run With Docker
 

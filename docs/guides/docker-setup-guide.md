@@ -1,5 +1,7 @@
 # Docker Setup Guide
 
+> Historical/setup note: this document focuses on environment setup workflows and may reference implementation phases that have since progressed.
+
 ## Purpose
 
 This document explains the Docker setup for the project in a step-by-step way so it can be repeated later without guesswork.
