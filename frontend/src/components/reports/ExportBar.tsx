@@ -2,12 +2,14 @@
 
 import { Button } from "@/components/ui/button"
 import { downloadCSV, printReport, exportPDF } from "@/components/reports/export-utils"
+import type { ReportViewData } from "@/lib/saved-scans"
 
 interface ExportBarProps {
+  report: ReportViewData
   onToast?: (msg: string) => void
 }
 
-export function ExportBar({ onToast }: ExportBarProps) {
+export function ExportBar({ report, onToast }: ExportBarProps) {
   const actions = [
     {
       label: "Print",
@@ -18,14 +20,14 @@ export function ExportBar({ onToast }: ExportBarProps) {
       label: "CSV",
       icon: <path d="M3 8h10M3 5h4M3 11h7" strokeLinecap="round" />,
       onClick: () => {
-        downloadCSV()
+        downloadCSV(report)
         onToast?.("CSV report downloaded")
       },
     },
     {
       label: "PDF",
       icon: <path d="M4 1h5l4 4v10H4V1zM9 1v4h4" />,
-      onClick: () => exportPDF(),
+      onClick: () => exportPDF(report),
     },
   ]
 

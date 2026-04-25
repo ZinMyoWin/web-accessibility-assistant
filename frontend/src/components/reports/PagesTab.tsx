@@ -2,13 +2,12 @@
 
 import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
-import { pagesData, type PageRow } from "@/components/reports/report-data"
 import { cn } from "@/lib/utils"
+import type { ReportPageRow } from "@/lib/saved-scans"
 
-export function PagesTab() {
+export function PagesTab({ pagesData }: { pagesData: ReportPageRow[] }) {
   return (
     <div className="flex flex-col">
-      {/* Header */}
       <div className="grid grid-cols-[1fr_80px_60px_60px_60px_60px] gap-2 border-b border-border px-5 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
         <span>Page URL</span>
         <span className="text-center">Status</span>
@@ -25,7 +24,7 @@ export function PagesTab() {
   )
 }
 
-function PageRowItem({ page }: { page: PageRow }) {
+function PageRowItem({ page }: { page: ReportPageRow }) {
   const [expanded, setExpanded] = useState(false)
 
   return (
@@ -65,7 +64,6 @@ function PageRowItem({ page }: { page: PageRow }) {
         <SevCount count={page.minor} variant="minor" />
       </button>
 
-      {/* Expanded element details */}
       {expanded && page.elements.length > 0 && (
         <div className="border-t-[0.5px] border-border bg-muted/30 px-10 py-3">
           <div className="flex flex-col gap-2">
@@ -93,9 +91,15 @@ function PageRowItem({ page }: { page: PageRow }) {
   )
 }
 
-function SevCount({ count, variant }: { count: number; variant: "critical" | "serious" | "moderate" | "minor" }) {
+function SevCount({
+  count,
+  variant,
+}: {
+  count: number
+  variant: "critical" | "serious" | "moderate" | "minor"
+}) {
   if (count === 0) {
-    return <span className="text-center text-xs text-muted-foreground">—</span>
+    return <span className="text-center text-xs text-muted-foreground">-</span>
   }
   return (
     <span className="flex justify-center">

@@ -2,10 +2,10 @@
 
 import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
-import { categoriesData } from "@/components/reports/report-data"
 import { cn } from "@/lib/utils"
+import type { ReportCategoryGroup } from "@/lib/saved-scans"
 
-export function CategoriesTab() {
+export function CategoriesTab({ categoriesData }: { categoriesData: ReportCategoryGroup[] }) {
   return (
     <div className="flex flex-col gap-2 p-5">
       {categoriesData.map((cat) => (
@@ -15,7 +15,7 @@ export function CategoriesTab() {
   )
 }
 
-function CategoryGroup({ category }: { category: typeof categoriesData[0] }) {
+function CategoryGroup({ category }: { category: ReportCategoryGroup }) {
   const [expanded, setExpanded] = useState(false)
 
   return (
@@ -45,7 +45,7 @@ function CategoryGroup({ category }: { category: typeof categoriesData[0] }) {
       {expanded && (
         <div className="border-t-[0.5px] border-border bg-muted/30 px-4 py-3">
           <div className="text-xs text-muted-foreground">
-            Detailed issue breakdown for <strong className="text-foreground">{category.name}</strong> would be displayed here when connected to real scan data.
+            Category summary generated from this saved scan.
           </div>
         </div>
       )}

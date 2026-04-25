@@ -1,8 +1,8 @@
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
-import { reportMeta } from "@/components/reports/report-data"
+import type { ReportMeta } from "@/lib/saved-scans"
 
-export function ReportHeader() {
+export function ReportHeader({ reportMeta }: { reportMeta: ReportMeta }) {
   return (
     <div className="px-6 py-5">
       {/* Breadcrumb */}
