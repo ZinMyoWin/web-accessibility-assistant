@@ -4,11 +4,16 @@ import base64
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from fnmatch import fnmatch
 from html import escape
 from html.parser import HTMLParser
 import re
+from time import sleep
+from typing import Callable
 from urllib.error import HTTPError, URLError
+from urllib.parse import urldefrag, urljoin, urlparse
 from urllib.request import Request, urlopen
+from urllib.robotparser import RobotFileParser
 
 from app.schemas.scan import ScanIssue, ScanPageResponse, ScanSummary
 from app.utils.url_utils import validate_public_http_url
@@ -32,6 +37,31 @@ VOID_ELEMENTS = {
     "wbr",
 }
 PATH_NOISE_TAGS = {"meta", "link", "script", "style", "br"}
+SKIPPED_CRAWL_EXTENSIONS = {
+    ".7z",
+    ".avi",
+    ".css",
+    ".csv",
+    ".doc",
+    ".docx",
+    ".gif",
+    ".gz",
+    ".ico",
+    ".jpeg",
+    ".jpg",
+    ".js",
+    ".json",
+    ".mov",
+    ".mp3",
+    ".mp4",
+    ".pdf",
+    ".png",
+    ".svg",
+    ".webp",
+    ".xls",
+    ".xlsx",
+    ".zip",
+}
 
 
 class ScanError(Exception):
@@ -59,6 +89,42 @@ class ParsedPageData:
     ids: list[dict[str, str]] = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class ScanOptions:
+    mode: str = "single"
+    page_limit: int = 5
+    crawl_depth: int = 3
+    request_delay_ms: int = 250
+    page_timeout_ms: int = 15000
+    ignored_url_patterns: tuple[str, ...] = ()
+    stay_within_domain: bool = True
+    respect_robots_txt: bool = True
+    skip_previously_scanned_pages: bool = True
+    previously_scanned_urls: frozenset[str] = frozenset()
+    run_browser_analysis_for_multi: bool = False
+
+
+@dataclass(frozen=True)
+class CrawlQueueState:
+    current_page_url: str | None
+    queued_page_urls: list[str]
+    scanned_page_urls: list[str]
+    skipped_page_urls: list[str]
+
+
+@dataclass(frozen=True)
+class CrawlQueueControl:
+    publish: Callable[[CrawlQueueState], None] | None = None
+    refresh: Callable[[], tuple[list[str], set[str]]] | None = None
+
+
+@dataclass
+class PageScanResult:
+    final_url: str
+    page_data: ParsedPageData
+    issues: list[ScanIssue]
+
+
 class AccessibilityHTMLParser(HTMLParser):
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
@@ -68,13 +134,16 @@ class AccessibilityHTMLParser(HTMLParser):
         self._active_link: dict[str, str] | None = None
         self._active_heading: dict[str, str] | None = None
         self._tag_stack: list[str] = []
+        self._child_counts_stack: list[Counter[str]] = [Counter()]
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attrs_map = {key: value or "" for key, value in attrs}
         line, column = self.getpos()
         position = SourcePosition(line=line, column=column + 1)
         source_hint = _build_source_hint(tag, attrs_map)
-        current_descriptor = _build_tag_descriptor(tag, attrs_map)
+        current_counter = self._child_counts_stack[-1]
+        current_counter[tag] += 1
+        current_descriptor = _build_tag_descriptor(tag, attrs_map, current_counter[tag])
         dom_path = _build_dom_path(self._tag_stack, current_descriptor)
 
         if tag == "html":
@@ -131,6 +200,7 @@ class AccessibilityHTMLParser(HTMLParser):
 
         if tag not in VOID_ELEMENTS:
             self._tag_stack.append(current_descriptor)
+            self._child_counts_stack.append(Counter())
 
     def handle_endtag(self, tag: str) -> None:
         if tag == "title":
@@ -148,6 +218,8 @@ class AccessibilityHTMLParser(HTMLParser):
 
         if tag not in VOID_ELEMENTS and self._tag_stack:
             self._tag_stack.pop()
+            if len(self._child_counts_stack) > 1:
+                self._child_counts_stack.pop()
 
     def handle_data(self, data: str) -> None:
         if self._in_title:
@@ -164,11 +236,239 @@ class AccessibilityHTMLParser(HTMLParser):
         return self.data
 
 
-def scan_page(url: str) -> ScanPageResponse:
+def scan_page(
+    url: str,
+    options: ScanOptions | None = None,
+    queue_control: CrawlQueueControl | None = None,
+) -> ScanPageResponse:
     validate_public_http_url(url)
+    resolved_options = options or ScanOptions(mode="single", page_limit=1, crawl_depth=1)
+
+    if resolved_options.mode == "multi":
+        return _scan_multiple_pages(url, resolved_options, queue_control)
+    return _scan_single_page(url, resolved_options)
+
+
+def _scan_single_page(url: str, options: ScanOptions) -> ScanPageResponse:
+    page_result = _scan_one_page(
+        url,
+        options,
+        run_browser_analysis=True,
+        capture_screenshots=True,
+    )
+    summary = _build_summary(page_result.issues)
+
+    return ScanPageResponse(
+        url=page_result.final_url,
+        scanned_at=datetime.now(UTC).isoformat(),
+        mode="single",
+        pages_scanned=1,
+        pages_skipped=0,
+        scanned_page_urls=[page_result.final_url],
+        skipped_page_urls=[],
+        summary=summary,
+        issues=page_result.issues,
+    )
+
+
+def _scan_multiple_pages(
+    url: str,
+    options: ScanOptions,
+    queue_control: CrawlQueueControl | None = None,
+) -> ScanPageResponse:
+    _publish_queue_state(
+        queue_control,
+        current_page_url=url,
+        queued_pages=[],
+        scanned_pages=[],
+        skipped_urls=set(),
+    )
+    root_result = _scan_one_page(
+        url,
+        options,
+        run_browser_analysis=options.run_browser_analysis_for_multi,
+        capture_screenshots=False,
+    )
+    scanned_pages = [root_result]
+    queued_pages: list[tuple[str, int]] = []
+    visited_urls = {
+        _normalize_url(url),
+        _normalize_url(root_result.final_url),
+    }
+    robots_cache: dict[str, RobotFileParser | None] = {}
+    root_host = urlparse(root_result.final_url).hostname
+    skipped_urls: set[str] = set()
+
+    if options.crawl_depth > 1:
+        next_queue, _ = _build_next_page_queue(
+            page_data=root_result.page_data,
+            base_url=root_result.final_url,
+            next_depth=1,
+            root_host=root_host,
+            visited_urls=visited_urls,
+            skipped_urls=skipped_urls,
+            options=options,
+        )
+        queued_pages.extend(next_queue)
+        queued_pages = _apply_queue_control(queued_pages, queue_control)
+        _publish_queue_state(
+            queue_control,
+            current_page_url=None,
+            queued_pages=queued_pages,
+            scanned_pages=scanned_pages,
+            skipped_urls=skipped_urls,
+        )
+
+    while queued_pages and len(scanned_pages) < options.page_limit:
+        queued_pages = _apply_queue_control(queued_pages, queue_control)
+        if not queued_pages:
+            break
+
+        candidate_url, depth = queued_pages.pop(0)
+        normalized_candidate = _normalize_url(candidate_url)
+        if normalized_candidate in visited_urls:
+            continue
+
+        _publish_queue_state(
+            queue_control,
+            current_page_url=candidate_url,
+            queued_pages=queued_pages,
+            scanned_pages=scanned_pages,
+            skipped_urls=skipped_urls,
+        )
+
+        if options.request_delay_ms > 0:
+            sleep(options.request_delay_ms / 1000)
+
+        if options.respect_robots_txt and not _is_allowed_by_robots(candidate_url, robots_cache):
+            visited_urls.add(normalized_candidate)
+            continue
+
+        try:
+            page_result = _scan_one_page(
+                candidate_url,
+                options,
+                run_browser_analysis=options.run_browser_analysis_for_multi,
+                capture_screenshots=False,
+            )
+        except ScanError:
+            visited_urls.add(normalized_candidate)
+            continue
+
+        visited_urls.add(normalized_candidate)
+        visited_urls.add(_normalize_url(page_result.final_url))
+        scanned_pages.append(page_result)
+        _publish_queue_state(
+            queue_control,
+            current_page_url=None,
+            queued_pages=queued_pages,
+            scanned_pages=scanned_pages,
+            skipped_urls=skipped_urls,
+        )
+
+        if depth + 1 >= options.crawl_depth or len(scanned_pages) >= options.page_limit:
+            continue
+
+        next_queue, _ = _build_next_page_queue(
+            page_data=page_result.page_data,
+            base_url=page_result.final_url,
+            next_depth=depth + 1,
+            root_host=root_host,
+            visited_urls=visited_urls,
+            skipped_urls=skipped_urls,
+            options=options,
+        )
+        queued_pages.extend(next_queue)
+        queued_pages = _apply_queue_control(queued_pages, queue_control)
+        _publish_queue_state(
+            queue_control,
+            current_page_url=None,
+            queued_pages=queued_pages,
+            scanned_pages=scanned_pages,
+            skipped_urls=skipped_urls,
+        )
+
+    all_issues = [issue for page in scanned_pages for issue in page.issues]
+    summary = _build_summary(all_issues)
+
+    return ScanPageResponse(
+        url=root_result.final_url,
+        scanned_at=datetime.now(UTC).isoformat(),
+        mode="multi",
+        pages_scanned=len(scanned_pages),
+        pages_skipped=len(skipped_urls),
+        scanned_page_urls=[page.final_url for page in scanned_pages],
+        skipped_page_urls=sorted(skipped_urls),
+        queued_page_urls=[],
+        current_page_url=None,
+        summary=summary,
+        issues=all_issues,
+    )
+
+
+def _publish_queue_state(
+    queue_control: CrawlQueueControl | None,
+    *,
+    current_page_url: str | None,
+    queued_pages: list[tuple[str, int]],
+    scanned_pages: list[PageScanResult],
+    skipped_urls: set[str],
+) -> None:
+    if queue_control is None or queue_control.publish is None:
+        return
+    queue_control.publish(
+        CrawlQueueState(
+            current_page_url=current_page_url,
+            queued_page_urls=[url for url, _depth in queued_pages],
+            scanned_page_urls=[page.final_url for page in scanned_pages],
+            skipped_page_urls=sorted(skipped_urls),
+        )
+    )
+
+
+def _apply_queue_control(
+    queued_pages: list[tuple[str, int]],
+    queue_control: CrawlQueueControl | None,
+) -> list[tuple[str, int]]:
+    if queue_control is None or queue_control.refresh is None:
+        return queued_pages
+
+    requested_order, excluded_urls = queue_control.refresh()
+    excluded_normalized = {_normalize_url(url) for url in excluded_urls}
+    filtered_pages = [
+        (url, depth)
+        for url, depth in queued_pages
+        if _normalize_url(url) not in excluded_normalized
+    ]
+
+    if not requested_order:
+        return filtered_pages
+
+    order_index = {_normalize_url(url): index for index, url in enumerate(requested_order)}
+    return sorted(
+        filtered_pages,
+        key=lambda item: order_index.get(_normalize_url(item[0]), len(order_index)),
+    )
+
+
+def _scan_one_page(
+    url: str,
+    options: ScanOptions,
+    *,
+    run_browser_analysis: bool,
+    capture_screenshots: bool,
+) -> PageScanResult:
+    if run_browser_analysis:
+        rendered_result = _scan_rendered_page(
+            url,
+            options,
+            capture_screenshots=capture_screenshots,
+        )
+        if rendered_result is not None:
+            return rendered_result
 
     try:
-        html, final_url = _fetch_page_html(url)
+        html, final_url = _fetch_page_html(url, timeout_seconds=_timeout_seconds(options.page_timeout_ms))
     except HTTPError as exc:
         raise ScanError(
             message=f"Failed to fetch URL. HTTP {exc.code}",
@@ -182,22 +482,100 @@ def scan_page(url: str) -> ScanPageResponse:
     except TimeoutError as exc:
         raise ScanError("Request timed out while fetching URL", status_code=504) from exc
 
-    parser = AccessibilityHTMLParser()
-    parser.feed(html)
-    page_data = parser.finalize()
+    page_data = _parse_page_html(html)
     custom_issues = _build_issues(page_data)
-    issues = _run_playwright_analysis(final_url, html, custom_issues)
-    summary = _build_summary(issues)
+    if run_browser_analysis:
+        issues = _run_playwright_analysis(
+            final_url,
+            html,
+            custom_issues,
+            page_timeout_ms=options.page_timeout_ms,
+            capture_screenshots=capture_screenshots,
+        )
+    else:
+        issues = custom_issues
+    _assign_issue_page_url(issues, final_url)
+    return PageScanResult(final_url=final_url, page_data=page_data, issues=issues)
 
-    return ScanPageResponse(
-        url=final_url,
-        scanned_at=datetime.now(UTC).isoformat(),
-        summary=summary,
-        issues=issues,
-    )
+
+def _scan_rendered_page(
+    url: str,
+    options: ScanOptions,
+    *,
+    capture_screenshots: bool,
+) -> PageScanResult | None:
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        return None
+
+    try:
+        from app.services.axe_scanner import merge_issues, run_axe_core
+    except ImportError:
+        merge_issues = None
+        run_axe_core = None
+
+    try:
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(
+                headless=True,
+                args=[
+                    "--disable-blink-features=AutomationControlled",
+                    "--disable-dev-shm-usage",
+                ],
+            )
+            context = None
+            try:
+                context = _new_browser_context(browser)
+                page = context.new_page()
+                page.set_default_timeout(options.page_timeout_ms)
+                response = page.goto(
+                    url,
+                    wait_until="domcontentloaded",
+                    timeout=options.page_timeout_ms,
+                )
+                if response and response.status >= 400:
+                    raise ScanError(
+                        message=f"Failed to fetch URL. HTTP {response.status}",
+                        status_code=response.status,
+                    )
+
+                _wait_for_rendered_content(page, options.page_timeout_ms)
+                html = page.content()
+                final_url = page.url
+                page_data = _parse_page_html(html)
+                custom_issues = _build_issues(page_data)
+
+                if run_axe_core is not None and merge_issues is not None:
+                    try:
+                        axe_issues = run_axe_core(page)
+                        issues = merge_issues(custom_issues, axe_issues)
+                    except Exception:
+                        issues = _mark_custom_issues(custom_issues)
+                else:
+                    issues = _mark_custom_issues(custom_issues)
+
+                if capture_screenshots:
+                    for issue in issues:
+                        issue.screenshot_data_url = _capture_issue_screenshot(page, issue)
+
+                _assign_issue_page_url(issues, final_url)
+                return PageScanResult(
+                    final_url=final_url,
+                    page_data=page_data,
+                    issues=issues,
+                )
+            finally:
+                if context is not None:
+                    context.close()
+                browser.close()
+    except ScanError:
+        raise
+    except Exception:
+        return None
 
 
-def _fetch_page_html(url: str) -> tuple[str, str]:
+def _fetch_page_html(url: str, timeout_seconds: float) -> tuple[str, str]:
     request = Request(
         url,
         headers={
@@ -206,7 +584,7 @@ def _fetch_page_html(url: str) -> tuple[str, str]:
             )
         },
     )
-    with urlopen(request, timeout=20) as response:
+    with urlopen(request, timeout=timeout_seconds) as response:
         payload = response.read()
         content_type = response.headers.get("Content-Type", "")
         charset = "utf-8"
@@ -214,6 +592,12 @@ def _fetch_page_html(url: str) -> tuple[str, str]:
             charset = content_type.split("charset=", maxsplit=1)[-1].split(";")[0].strip()
         html = payload.decode(charset or "utf-8", errors="replace")
         return html, response.geturl()
+
+
+def _parse_page_html(html: str) -> ParsedPageData:
+    parser = AccessibilityHTMLParser()
+    parser.feed(html)
+    return parser.finalize()
 
 
 def _build_issues(page: ParsedPageData) -> list[ScanIssue]:
@@ -330,7 +714,12 @@ def _build_issues(page: ParsedPageData) -> list[ScanIssue]:
 
 
 def _run_playwright_analysis(
-    url: str, html: str, custom_issues: list[ScanIssue]
+    url: str,
+    html: str,
+    custom_issues: list[ScanIssue],
+    *,
+    page_timeout_ms: int,
+    capture_screenshots: bool,
 ) -> list[ScanIssue]:
     """Run axe-core analysis and capture screenshots in a single Playwright session."""
     try:
@@ -356,17 +745,9 @@ def _run_playwright_analysis(
                     "--disable-dev-shm-usage",
                 ],
             )
-            context = browser.new_context(
-                viewport={"width": 1440, "height": 960},
-                locale="en-US",
-                color_scheme="light",
-                user_agent=(
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/133.0.0.0 Safari/537.36"
-                ),
-            )
+            context = _new_browser_context(browser)
             page = context.new_page()
+            page.set_default_timeout(page_timeout_ms)
             page.set_content(
                 _prepare_html_for_screenshot(html, url),
                 wait_until="domcontentloaded",
@@ -382,17 +763,45 @@ def _run_playwright_analysis(
                 for issue in all_issues:
                     issue.source = issue.source or "custom"
 
-            # Capture screenshots for all merged issues
-            for issue in all_issues:
-                issue.screenshot_data_url = _capture_issue_screenshot(page, issue)
+            if capture_screenshots:
+                for issue in all_issues:
+                    issue.screenshot_data_url = _capture_issue_screenshot(page, issue)
 
             context.close()
             browser.close()
             return all_issues
     except Exception:
-        for issue in custom_issues:
-            issue.source = "custom"
-        return custom_issues
+        return _mark_custom_issues(custom_issues)
+
+
+def _new_browser_context(browser):
+    return browser.new_context(
+        viewport={"width": 1440, "height": 960},
+        locale="en-US",
+        color_scheme="light",
+        user_agent=(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/133.0.0.0 Safari/537.36"
+        ),
+    )
+
+
+def _wait_for_rendered_content(page, page_timeout_ms: int) -> None:
+    try:
+        page.wait_for_load_state(
+            "networkidle",
+            timeout=min(max(page_timeout_ms // 3, 1000), 5000),
+        )
+    except Exception:
+        pass
+    page.wait_for_timeout(min(max(page_timeout_ms // 20, 500), 1500))
+
+
+def _mark_custom_issues(custom_issues: list[ScanIssue]) -> list[ScanIssue]:
+    for issue in custom_issues:
+        issue.source = issue.source or "custom"
+    return custom_issues
 
 
 def _capture_issue_screenshot(page, issue: ScanIssue) -> str | None:
@@ -538,16 +947,154 @@ def _build_summary(issues: list[ScanIssue]) -> ScanSummary:
     )
 
 
-def _build_tag_descriptor(tag: str, attrs_map: dict[str, str]) -> str:
+def _timeout_seconds(page_timeout_ms: int) -> float:
+    return max(page_timeout_ms / 1000, 1.0)
+
+
+def _assign_issue_page_url(issues: list[ScanIssue], page_url: str) -> None:
+    for issue in issues:
+        issue.page_url = page_url
+        issue.source = issue.source or "custom"
+
+
+def _build_next_page_queue(
+    *,
+    page_data: ParsedPageData,
+    base_url: str,
+    next_depth: int,
+    root_host: str | None,
+    visited_urls: set[str],
+    skipped_urls: set[str],
+    options: ScanOptions,
+) -> tuple[list[tuple[str, int]], int]:
+    queued: list[tuple[str, int]] = []
+    skipped_before = len(skipped_urls)
+
+    for link in page_data.links:
+        normalized = _normalize_discovered_url(base_url, link.get("href", ""))
+        if not normalized:
+            continue
+        if normalized in visited_urls:
+            continue
+        if _matches_ignored_pattern(normalized, options.ignored_url_patterns):
+            continue
+        if options.stay_within_domain and root_host and not _is_same_host(normalized, root_host):
+            continue
+        if (
+            options.skip_previously_scanned_pages
+            and root_host
+            and _is_same_host(normalized, root_host)
+            and normalized in options.previously_scanned_urls
+        ):
+            skipped_urls.add(normalized)
+            continue
+        queued.append((normalized, next_depth))
+
+    return queued, len(skipped_urls) - skipped_before
+
+
+def _normalize_discovered_url(base_url: str, href: str) -> str | None:
+    trimmed_href = href.strip()
+    if not trimmed_href:
+        return None
+    if trimmed_href.startswith(("mailto:", "tel:", "javascript:")):
+        return None
+
+    absolute_url = urljoin(base_url, trimmed_href)
+    absolute_url, _ = urldefrag(absolute_url)
+    if not absolute_url.startswith(("http://", "https://")):
+        return None
+
+    if _has_skipped_crawl_extension(absolute_url):
+        return None
+
+    try:
+        validate_public_http_url(absolute_url)
+    except ValueError:
+        return None
+
+    return _normalize_url(absolute_url)
+
+
+def _normalize_url(url: str) -> str:
+    normalized, _ = urldefrag(url.strip())
+    parsed = urlparse(normalized)
+    path = parsed.path.rstrip("/")
+    if not path:
+        path = "/"
+    rebuilt = parsed._replace(
+        scheme=parsed.scheme.lower(),
+        netloc=parsed.netloc.lower(),
+        path=path,
+        fragment="",
+    )
+    normalized_url = rebuilt.geturl()
+    return normalized_url.rstrip("/") or normalized_url
+
+
+def _matches_ignored_pattern(url: str, patterns: tuple[str, ...]) -> bool:
+    parsed = urlparse(url)
+    candidates = [url, parsed.path or "/"]
+
+    for raw_pattern in patterns:
+        pattern = raw_pattern.strip()
+        if not pattern:
+            continue
+
+        if any(token in pattern for token in "*?[]"):
+            if any(fnmatch(candidate, pattern) for candidate in candidates):
+                return True
+            continue
+
+        if any(pattern in candidate for candidate in candidates):
+            return True
+
+    return False
+
+
+def _is_same_host(url: str, host: str) -> bool:
+    return (urlparse(url).hostname or "").lower() == host.lower()
+
+
+def _has_skipped_crawl_extension(url: str) -> bool:
+    path = urlparse(url).path.lower()
+    return any(path.endswith(extension) for extension in SKIPPED_CRAWL_EXTENSIONS)
+
+
+def _is_allowed_by_robots(
+    url: str, robots_cache: dict[str, RobotFileParser | None]
+) -> bool:
+    parsed = urlparse(url)
+    origin = f"{parsed.scheme}://{parsed.netloc}"
+
+    if origin not in robots_cache:
+        robots_url = f"{origin}/robots.txt"
+        parser = RobotFileParser()
+        parser.set_url(robots_url)
+        try:
+            with urlopen(robots_url, timeout=3) as response:
+                lines = response.read().decode("utf-8", errors="replace").splitlines()
+            parser.parse(lines)
+            robots_cache[origin] = parser
+        except Exception:
+            robots_cache[origin] = None
+
+    parser = robots_cache[origin]
+    return True if parser is None else parser.can_fetch("*", url)
+
+
+def _build_tag_descriptor(tag: str, attrs_map: dict[str, str], occurrence: int) -> str:
     element_id = attrs_map.get("id", "").strip()
     if element_id:
         return f"{tag}#{element_id}"
 
     class_names = [name for name in attrs_map.get("class", "").split() if name]
     if class_names:
-        return f"{tag}." + ".".join(class_names[:2])
+        descriptor = f"{tag}." + ".".join(class_names[:2])
+    else:
+        descriptor = tag
 
-    return tag
+    return f"{descriptor}:nth-of-type({occurrence})"
 
 
 def _build_source_hint(tag: str, attrs_map: dict[str, str]) -> str:
@@ -570,15 +1117,27 @@ def _build_source_hint(tag: str, attrs_map: dict[str, str]) -> str:
 
 
 def _build_dom_path(stack: list[str], current_descriptor: str) -> str:
-    parts = [part for part in [*stack, current_descriptor] if part.split(".", 1)[0] not in PATH_NOISE_TAGS]
+    parts = [
+        part
+        for part in [*stack, current_descriptor]
+        if _descriptor_tag(part) not in PATH_NOISE_TAGS
+    ]
 
-    if "body" in parts:
-        parts = parts[parts.index("body") :]
+    body_index = next(
+        (index for index, part in enumerate(parts) if _descriptor_tag(part) == "body"),
+        None,
+    )
+    if body_index is not None:
+        parts = parts[body_index:]
 
     if len(parts) > 8:
         parts = parts[-8:]
 
     return " > ".join(parts)
+
+
+def _descriptor_tag(descriptor: str) -> str:
+    return descriptor.split(".", 1)[0].split("#", 1)[0].split(":", 1)[0]
 
 
 def _shorten_value(value: str, max_length: int) -> str:

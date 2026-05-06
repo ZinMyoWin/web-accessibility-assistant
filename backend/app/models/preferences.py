@@ -21,13 +21,14 @@ class AppPreferences(Base):
 
     # Crawl Defaults
     default_scan_mode = Column(String, default="multi")
-    default_page_limit = Column(Integer, default=20)
+    default_page_limit = Column(Integer, default=5)
     crawl_depth = Column(Integer, default=3)
     request_delay_ms = Column(Integer, default=250)
     page_timeout_ms = Column(Integer, default=15000)
     ignored_url_patterns = Column(JSONB, default=["/logout", "/admin", "*.pdf"])
     stay_within_domain = Column(Boolean, default=True)
     respect_robots_txt = Column(Boolean, default=True)
+    skip_previously_scanned_pages = Column(Boolean, default=True)
 
     # WCAG Standard
     wcag_standard = Column(String, default="wcag2aa")

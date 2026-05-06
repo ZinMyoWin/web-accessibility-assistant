@@ -8,13 +8,14 @@ class AppPreferencesBase(BaseModel):
     auto_generate_suggestions: bool = True
     
     default_scan_mode: str = "multi"
-    default_page_limit: int = Field(default=20, ge=1, le=500)
+    default_page_limit: int = Field(default=5, ge=1, le=500)
     crawl_depth: int = Field(default=3, ge=1, le=10)
     request_delay_ms: int = Field(default=250, ge=0, le=5000)
     page_timeout_ms: int = Field(default=15000, ge=1000, le=60000)
     ignored_url_patterns: list[str] = ["/logout", "/admin", "*.pdf"]
     stay_within_domain: bool = True
     respect_robots_txt: bool = True
+    skip_previously_scanned_pages: bool = True
     
     wcag_standard: str = "wcag2aa"
     include_best_practices: bool = True

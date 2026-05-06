@@ -19,6 +19,19 @@ class ScanRun(Base):
     mode: Mapped[str] = mapped_column(sa.String(32), default="single")
     page_limit: Mapped[int | None] = mapped_column(sa.Integer, nullable=True)
     pages_scanned: Mapped[int] = mapped_column(sa.Integer, default=0)
+    pages_skipped: Mapped[int] = mapped_column(sa.Integer, default=0)
+    scanned_page_urls: Mapped[list[str] | None] = mapped_column(sa.JSON, nullable=True)
+    skipped_page_urls: Mapped[list[str] | None] = mapped_column(sa.JSON, nullable=True)
+    queued_page_urls: Mapped[list[str] | None] = mapped_column(sa.JSON, nullable=True)
+    excluded_page_urls: Mapped[list[str] | None] = mapped_column(sa.JSON, nullable=True)
+    current_page_url: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    scan_options: Mapped[dict[str, object] | None] = mapped_column(sa.JSON, nullable=True)
+    worker_attempts: Mapped[int] = mapped_column(sa.Integer, default=0)
+    max_worker_attempts: Mapped[int] = mapped_column(sa.Integer, default=3)
+    worker_id: Mapped[str | None] = mapped_column(sa.String(128), nullable=True)
+    locked_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
+    heartbeat_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
+    last_error: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
     started_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(
         sa.DateTime(timezone=True), nullable=True
@@ -56,6 +69,7 @@ class ScanIssueRecord(Base):
     source_hint: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
     dom_path: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
     text_preview: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    page_url: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
     wcag_criteria: Mapped[list[str] | None] = mapped_column(sa.JSON, nullable=True)
     source: Mapped[str | None] = mapped_column(sa.String(32), nullable=True)
 

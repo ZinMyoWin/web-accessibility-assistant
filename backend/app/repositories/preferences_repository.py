@@ -12,6 +12,10 @@ def get_preferences(db: Session) -> AppPreferences:
         db.add(prefs)
         db.commit()
         db.refresh(prefs)
+    elif prefs.skip_previously_scanned_pages is None:
+        prefs.skip_previously_scanned_pages = True
+        db.commit()
+        db.refresh(prefs)
     return prefs
 
 
