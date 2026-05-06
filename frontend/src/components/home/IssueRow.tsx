@@ -116,6 +116,23 @@ export function IssueRow({ issue }: IssueRowProps) {
               </div>
             )}
 
+            {issue.page_url && (
+              <div className="col-span-full flex flex-col gap-1">
+                <span className="text-xs font-medium uppercase tracking-[0.03em] text-muted-foreground">
+                  Affected page
+                </span>
+                <a
+                  className="break-all text-xs leading-relaxed text-primary underline underline-offset-2"
+                  href={issue.page_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  {issue.page_url}
+                </a>
+              </div>
+            )}
+
             {issue.source_hint && (
               <div className="col-span-full flex flex-col gap-1">
                 <span className="text-xs font-medium uppercase tracking-[0.03em] text-muted-foreground">

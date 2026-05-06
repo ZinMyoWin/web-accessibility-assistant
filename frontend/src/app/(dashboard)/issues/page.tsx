@@ -46,6 +46,7 @@ function IssuesPageContent() {
   const [activeScanId, setActiveScanId] = useState<string | null>(requestedScanId)
   const [activeScan, setActiveScan] = useState<SavedScanDetail | null>(null)
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null)
+  const [pageFilter, setPageFilter] = useState("all")
   const [severityFilter, setSeverityFilter] = useState("all")
   const [categoryFilter, setCategoryFilter] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
@@ -158,12 +159,30 @@ function IssuesPageContent() {
     return Array.from(new Set(issues.map((issue) => issue.category))).sort()
   }, [issues])
 
+  const pageOptions = useMemo(() => {
+    const issueCountByPage = new Map<string, number>()
+
+    issues.forEach((issue) => {
+      issueCountByPage.set(issue.pageUrl, (issueCountByPage.get(issue.pageUrl) ?? 0) + 1)
+    })
+
+    const scannedPageUrls = activeScan?.scanned_page_urls ?? []
+    const issuePageUrls = issues.map((issue) => issue.pageUrl)
+
+    return uniqueUrls([...scannedPageUrls, ...issuePageUrls]).map((url) => ({
+      url,
+      label: formatPageOption(url),
+      issueCount: issueCountByPage.get(url) ?? 0,
+    }))
+  }, [activeScan?.scanned_page_urls, issues])
+
   const filteredIssues = useMemo(() => {
     const result = [...issues]
 
     const normalizedSearch = searchQuery.trim().toLowerCase()
 
     const visibleIssues = result.filter((issue) => {
+      const matchesPage = pageFilter === "all" || issue.pageUrl === pageFilter
       const matchesSeverity =
         severityFilter === "all" || issue.severity === severityFilter
       const matchesCategory =
@@ -175,7 +194,7 @@ function IssuesPageContent() {
         issue.selector.toLowerCase().includes(normalizedSearch) ||
         issue.wcag.toLowerCase().includes(normalizedSearch)
 
-      return matchesSeverity && matchesCategory && matchesSearch
+      return matchesPage && matchesSeverity && matchesCategory && matchesSearch
     })
 
     if (sortBy === "severity") {
@@ -189,7 +208,20 @@ function IssuesPageContent() {
     }
 
     return visibleIssues
-  }, [categoryFilter, issues, searchQuery, severityFilter, sortBy])
+  }, [categoryFilter, issues, pageFilter, searchQuery, severityFilter, sortBy])
+
+  useEffect(() => {
+    setPageFilter("all")
+  }, [activeScanId])
+
+  useEffect(() => {
+    if (
+      pageFilter !== "all" &&
+      !pageOptions.some((page) => page.url === pageFilter)
+    ) {
+      setPageFilter("all")
+    }
+  }, [pageFilter, pageOptions])
 
   useEffect(() => {
     setSelectedIssueId((current) => {
@@ -224,8 +256,8 @@ function IssuesPageContent() {
     : "Select a saved scan to inspect its issues."
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="flex items-center justify-between gap-3 border-b border-border bg-card px-5 py-3.5">
+    <div className="flex h-screen min-h-0 flex-col overflow-hidden">
+      <header className="shrink-0 flex items-center justify-between gap-3 border-b border-border bg-card px-5 py-3.5">
         <div>
           <h1 className="text-base font-medium text-foreground">Issues</h1>
           <p className="mt-0.5 text-xs text-muted-foreground">{headerSubtitle}</p>
@@ -277,11 +309,14 @@ function IssuesPageContent() {
         </div>
       </header>
 
-      <div className="grid flex-1 grid-cols-1 overflow-hidden md:grid-cols-[1fr_var(--width-detail-panel)]">
-        <div className="flex flex-col overflow-hidden border-r border-border">
+      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[1fr_var(--width-detail-panel)]">
+        <div className="flex min-h-0 flex-col overflow-hidden border-r border-border">
           <IssueFilterBar
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
+            pageFilter={pageFilter}
+            onPageChange={setPageFilter}
+            pageOptions={pageOptions}
             severityFilter={severityFilter}
             onSeverityChange={setSeverityFilter}
             categoryFilter={categoryFilter}
@@ -306,11 +341,16 @@ function IssuesPageContent() {
               issues={filteredIssues}
               selectedId={selectedIssueId}
               onSelect={setSelectedIssueId}
+              emptyMessage={
+                pageFilter === "all"
+                  ? "No issues match your filters."
+                  : "No issues found for this scanned page."
+              }
             />
           )}
         </div>
 
-        <div className="hidden md:flex md:flex-col md:overflow-hidden">
+        <div className="hidden min-h-0 md:flex md:flex-col md:overflow-hidden">
           <IssueDetailPanel issue={selectedIssue} />
         </div>
       </div>
@@ -332,5 +372,19 @@ function formatScanTimestamp(iso: string): string {
 
 function formatScanOption(scan: SavedScanListItem): string {
   return `${scan.url} | ${formatScanTimestamp(scan.started_at)}`
+}
+
+function uniqueUrls(urls: string[]): string[] {
+  return Array.from(new Set(urls.filter(Boolean)))
+}
+
+function formatPageOption(url: string): string {
+  try {
+    const parsed = new URL(url)
+    const path = `${parsed.pathname}${parsed.search}` || "/"
+    return path === "/" ? parsed.host : path
+  } catch {
+    return url
+  }
 }
 

@@ -9,19 +9,25 @@ interface IssueListProps {
   issues: IssueListItem[]
   selectedId: string | null
   onSelect: (id: string) => void
+  emptyMessage?: string
 }
 
-export function IssueList({ issues, selectedId, onSelect }: IssueListProps) {
+export function IssueList({
+  issues,
+  selectedId,
+  onSelect,
+  emptyMessage = "No issues match your filters.",
+}: IssueListProps) {
   if (issues.length === 0) {
     return (
       <div className="flex flex-1 items-center justify-center p-6 text-sm text-muted-foreground">
-        No issues match your filters.
+        {emptyMessage}
       </div>
     )
   }
 
   return (
-    <ScrollArea className="flex-1">
+    <ScrollArea className="min-h-0 flex-1">
       <div className="flex flex-col">
         {issues.map((issue) => (
           <button
@@ -52,12 +58,24 @@ export function IssueList({ issues, selectedId, onSelect }: IssueListProps) {
                 <span>{issue.wcag}</span>
               </div>
             </div>
-            <span className="shrink-0 whitespace-nowrap text-xs text-muted-foreground">
-              {issue.pages.length} page{issue.pages.length !== 1 ? "s" : ""}
+            <span
+              className="max-w-40 shrink-0 truncate text-xs text-muted-foreground"
+              title={issue.pageUrl}
+            >
+              {formatIssuePage(issue.pageUrl)}
             </span>
           </button>
         ))}
       </div>
     </ScrollArea>
   )
+}
+
+function formatIssuePage(url: string): string {
+  try {
+    const parsed = new URL(url)
+    return parsed.pathname && parsed.pathname !== "/" ? parsed.pathname : parsed.host
+  } catch {
+    return url
+  }
 }

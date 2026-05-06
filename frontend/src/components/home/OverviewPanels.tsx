@@ -79,6 +79,9 @@ export function OverviewPanels({
           <>
             {[
               ["URL", result.url],
+              ["Mode", result.mode === "multi" ? "Multi-page" : "Single page"],
+              ["Pages scanned", String(result.pages_scanned)],
+              ["Pages skipped", String(result.pages_skipped)],
               ["Scanned at", new Date(result.scanned_at).toLocaleString()],
               ["Total issues", String(result.summary.total_issues)],
               ["High", String(result.summary.high)],
@@ -103,6 +106,23 @@ export function OverviewPanels({
                 </code>
               </span>
             </div>
+            {(result.scanned_page_urls.length > 0 || result.skipped_page_urls.length > 0) && (
+              <div className="mt-3 rounded-md border-[0.5px] border-border bg-muted/40 p-3">
+                <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Page coverage
+                </div>
+                <CoverageList
+                  label="Scanned pages"
+                  emptyLabel="No scanned pages reported yet."
+                  urls={result.scanned_page_urls}
+                />
+                <CoverageList
+                  label="Skipped pages"
+                  emptyLabel="No pages were skipped in this run."
+                  urls={result.skipped_page_urls}
+                />
+              </div>
+            )}
             {result.scan_id && (
               <div className="mt-4 flex gap-2 border-t-[0.5px] border-border pt-2">
                 <Button asChild variant="outline" className="h-8 flex-1 text-xs">
@@ -124,6 +144,44 @@ export function OverviewPanels({
           </div>
         )}
       </section>
+    </div>
+  )
+}
+
+function CoverageList({
+  label,
+  emptyLabel,
+  urls,
+}: {
+  label: string
+  emptyLabel: string
+  urls: string[]
+}) {
+  return (
+    <div className="mb-3 last:mb-0">
+      <div className="mb-1 flex items-center justify-between gap-2 text-[11px] font-medium text-foreground">
+        <span>{label}</span>
+        <span className="text-[10px] font-normal text-muted-foreground">
+          {urls.length}
+        </span>
+      </div>
+      {urls.length > 0 ? (
+        <div className="flex max-h-24 flex-col gap-1 overflow-y-auto rounded-sm bg-background/50 p-2">
+          {urls.map((pageUrl) => (
+            <span
+              key={`${label}-${pageUrl}`}
+              className="truncate font-mono text-[10px] text-muted-foreground"
+              title={pageUrl}
+            >
+              {pageUrl}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-sm bg-background/50 px-2 py-1.5 text-[10px] text-muted-foreground">
+          {emptyLabel}
+        </div>
+      )}
     </div>
   )
 }

@@ -11,6 +11,7 @@ export const metadata: Metadata = {
 };
 
 import { PreferencesProvider } from "@/lib/contexts/PreferencesContext";
+import { AuthProvider } from "@/lib/contexts/AuthContext";
 
 export default function RootLayout({
   children,
@@ -22,9 +23,11 @@ export default function RootLayout({
       <body
         className={`${inter.className} bg-background text-foreground antialiased`}
       >
-        <PreferencesProvider>
-          {children}
-        </PreferencesProvider>
+        <AuthProvider>
+          <PreferencesProvider>
+            {children}
+          </PreferencesProvider>
+        </AuthProvider>
       </body>
     </html>
   );

@@ -18,6 +18,7 @@ function buildCSV(report: ReportViewData): string {
   lines.push(`Date,${escapeCSV(meta.scanDate)}`)
   lines.push(`Scan Mode,${escapeCSV(meta.scanMode)}`)
   lines.push(`Pages Scanned,${meta.pagesScanned}`)
+  lines.push(`Pages Skipped,${meta.pagesSkipped}`)
   lines.push(`WCAG Level,${escapeCSV(meta.wcagLevel)}`)
   lines.push(`Accessibility Score,${meta.score == null ? "N/A" : `${meta.score}/100`}`)
   lines.push(`Total Issues,${meta.totalIssues}`)

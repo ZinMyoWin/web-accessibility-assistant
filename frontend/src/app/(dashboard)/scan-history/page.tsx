@@ -23,7 +23,7 @@ import {
   type SavedScanListItem,
 } from "@/lib/saved-scans"
 
-type StatusFilter = "all" | "complete" | "error"
+type StatusFilter = "all" | "queued" | "running" | "complete" | "error"
 type ModeFilter = "all" | "single" | "multi"
 type SortBy = "newest" | "oldest" | "most" | "fewest"
 

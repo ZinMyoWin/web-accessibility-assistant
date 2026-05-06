@@ -1,6 +1,6 @@
 import { API_BASE_URL } from "@/lib/api"
 
-export type SavedScanStatus = "complete" | "error"
+export type SavedScanStatus = "queued" | "running" | "complete" | "error"
 export type SavedScanMode = "single" | "multi"
 export type IssueSeverity = "high" | "medium" | "low"
 
@@ -20,6 +20,15 @@ export type SavedScanListItem = {
   mode: SavedScanMode
   page_limit: number | null
   pages_scanned: number
+  pages_skipped: number
+  scanned_page_urls: string[]
+  skipped_page_urls: string[]
+  queued_page_urls: string[]
+  excluded_page_urls: string[]
+  current_page_url: string | null
+  worker_attempts: number
+  max_worker_attempts: number
+  last_error: string | null
   started_at: string
   completed_at: string | null
   duration_seconds: number | null
@@ -48,6 +57,7 @@ export type SavedScanIssue = {
   text_preview: string | null
   wcag_criteria: string[] | null
   source: string | null
+  page_url: string | null
 }
 
 export type SavedScanDetail = SavedScanListItem & {
@@ -84,6 +94,8 @@ export type IssueListItem = {
   sourceHint: string | null
   domPath: string | null
   textPreview: string | null
+  pageUrl: string
+  finderHint: string
 }
 
 export type ReportSeverityKey = "critical" | "serious" | "moderate" | "minor"
@@ -97,6 +109,7 @@ export type ReportMeta = {
   status: string
   score: number | null
   pagesScanned: number
+  pagesSkipped: number
   scanDuration: string
   breadcrumb: { label: string; href: string }[]
 }
@@ -119,11 +132,18 @@ export type ReportPageIssue = {
   issue: string
   severity: ReportSeverityKey
   wcag: string
+  selector: string
+  line: number | null
+  column: number | null
+  sourceHint: string | null
+  domPath: string | null
+  textPreview: string | null
+  finderHint: string
 }
 
 export type ReportPageRow = {
   url: string
-  status: "pass" | "fail"
+  status: "pass" | "issues" | "skipped"
   issues: number
   critical: number
   serious: number
@@ -230,6 +250,7 @@ export function mapSavedScanToIssueList(scan: SavedScanDetail): IssueListItem[] 
   const pageUrl = scan.final_url || scan.requested_url
 
   return scan.issues.map((issue, index) => {
+    const issuePageUrl = issue.page_url || pageUrl
     const selector = issue.dom_path || issue.source_hint || issue.element
     const wcagList = issue.wcag_criteria ?? []
 
@@ -239,7 +260,7 @@ export function mapSavedScanToIssueList(scan: SavedScanDetail): IssueListItem[] 
       category: deriveIssueCategory(issue),
       title: issue.message,
       selector,
-      pages: [pageUrl],
+      pages: [issuePageUrl],
       wcag: getIssueWcagReference(wcagList),
       level: getIssueWcagLevel(wcagList),
       impact: issue.message,
@@ -251,13 +272,48 @@ export function mapSavedScanToIssueList(scan: SavedScanDetail): IssueListItem[] 
       sourceHint: issue.source_hint,
       domPath: issue.dom_path,
       textPreview: issue.text_preview,
+      pageUrl: issuePageUrl,
+      finderHint: buildFinderHint(issue, issuePageUrl),
     }
   })
+}
+
+export async function removeScanQueuePage(
+  scanId: string,
+  pageUrl: string
+): Promise<SavedScanDetail> {
+  return updateScanQueue(scanId, "remove", pageUrl)
+}
+
+export async function prioritizeScanQueuePage(
+  scanId: string,
+  pageUrl: string
+): Promise<SavedScanDetail> {
+  return updateScanQueue(scanId, "prioritize", pageUrl)
+}
+
+async function updateScanQueue(
+  scanId: string,
+  action: "remove" | "prioritize",
+  pageUrl: string
+): Promise<SavedScanDetail> {
+  const response = await fetch(`${API_BASE_URL}/scans/${scanId}/queue/${action}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url: pageUrl }),
+  })
+
+  if (!response.ok) {
+    throw new Error(await getApiErrorMessage(response))
+  }
+
+  return (await response.json()) as SavedScanDetail
 }
 
 export function mapSavedScanToReportData(scan: SavedScanDetail): ReportViewData {
   const pageUrl = scan.final_url || scan.requested_url
   const total = scan.summary.total_issues
+  const score = scan.score ?? calculateAccessibilityScore(scan)
 
   const criticalCount = scan.summary.high
   const seriousCount = scan.summary.medium
@@ -291,24 +347,63 @@ export function mapSavedScanToReportData(scan: SavedScanDetail): ReportViewData 
     },
   ]
 
-  const pageIssues: ReportPageIssue[] = scan.issues.map((issue) => ({
-    element: issue.element,
-    issue: issue.message,
-    severity: toReportSeverity(issue.severity),
-    wcag: getIssueWcagReference(issue.wcag_criteria ?? []),
-  }))
+  const issuesByPage = new Map<string, typeof scan.issues>()
+  for (const issue of scan.issues) {
+    const issuePageUrl = issue.page_url || pageUrl
+    const existingIssues = issuesByPage.get(issuePageUrl) ?? []
+    existingIssues.push(issue)
+    issuesByPage.set(issuePageUrl, existingIssues)
+  }
+
+  const scannedPageUrls = uniqueUrls(
+    (scan.scanned_page_urls?.length ? scan.scanned_page_urls : [pageUrl]).concat(
+      Array.from(issuesByPage.keys())
+    )
+  )
+  const skippedPageUrls = uniqueUrls(scan.skipped_page_urls ?? []).filter(
+    (url) => !scannedPageUrls.includes(url)
+  )
 
   const pagesData: ReportPageRow[] = [
-    {
-      url: pageUrl,
-      status: total === 0 ? "pass" : "fail",
-      issues: total,
-      critical: criticalCount,
-      serious: seriousCount,
-      moderate: moderateCount,
-      minor: minorCount,
-      elements: pageIssues,
-    },
+    ...scannedPageUrls.map((issuePageUrl) => {
+      const pageIssues = issuesByPage.get(issuePageUrl) ?? []
+      const pageCritical = pageIssues.filter((issue) => issue.severity === "high").length
+      const pageSerious = pageIssues.filter((issue) => issue.severity === "medium").length
+      const pageMinor = pageIssues.filter((issue) => issue.severity === "low").length
+
+      return {
+        url: issuePageUrl,
+        status: pageIssues.length === 0 ? ("pass" as const) : ("issues" as const),
+        issues: pageIssues.length,
+        critical: pageCritical,
+        serious: pageSerious,
+        moderate: 0,
+        minor: pageMinor,
+        elements: pageIssues.map((issue) => ({
+          element: issue.element,
+          issue: issue.message,
+          severity: toReportSeverity(issue.severity),
+          wcag: getIssueWcagReference(issue.wcag_criteria ?? []),
+          selector: issue.dom_path || issue.source_hint || issue.element,
+          line: issue.line,
+          column: issue.column,
+          sourceHint: issue.source_hint,
+          domPath: issue.dom_path,
+          textPreview: issue.text_preview,
+          finderHint: buildFinderHint(issue, issuePageUrl),
+        })),
+      }
+    }),
+    ...skippedPageUrls.map((skippedUrl) => ({
+      url: skippedUrl,
+      status: "skipped" as const,
+      issues: 0,
+      critical: 0,
+      serious: 0,
+      moderate: 0,
+      minor: 0,
+      elements: [],
+    })),
   ]
 
   const wcagPrinciples = buildWcagPrinciples(scan.issues)
@@ -322,8 +417,9 @@ export function mapSavedScanToReportData(scan: SavedScanDetail): ReportViewData 
       totalIssues: total,
       wcagLevel: "WCAG 2.1 AA",
       status: scan.status === "error" ? "Scan failed" : total > 0 ? "Action needed" : "Pass",
-      score: scan.score,
+      score,
       pagesScanned: scan.pages_scanned,
+      pagesSkipped: scan.pages_skipped,
       scanDuration: formatDuration(scan.duration_seconds),
       breadcrumb: [
         { label: "Dashboard", href: "/" },
@@ -337,6 +433,30 @@ export function mapSavedScanToReportData(scan: SavedScanDetail): ReportViewData 
     categoriesData,
     aiSuggestions: [],
   }
+}
+
+function calculateAccessibilityScore(scan: SavedScanDetail): number | null {
+  if (scan.status === "error") {
+    return null
+  }
+
+  const pagesScanned = Math.max(scan.pages_scanned, 1)
+  const issuePenalty =
+    scan.summary.high * 12 + scan.summary.medium * 4 + scan.summary.low * 1
+  const normalizedPenalty = issuePenalty / pagesScanned
+
+  return Math.max(0, Math.min(100, Math.round(100 - normalizedPenalty)))
+}
+
+function uniqueUrls(urls: string[]): string[] {
+  const seen = new Set<string>()
+  return urls.filter((url) => {
+    if (!url || seen.has(url)) {
+      return false
+    }
+    seen.add(url)
+    return true
+  })
 }
 
 function deriveIssueCategory(issue: SavedScanIssue): string {
@@ -371,6 +491,33 @@ function getIssueWcagReference(criteria: string[]): string {
   )
 
   return numberedCriterion ?? "Not specified"
+}
+
+function buildFinderHint(issue: SavedScanIssue, pageUrl: string): string {
+  const location =
+    issue.line != null
+      ? `line ${issue.line}${issue.column != null ? `, column ${issue.column}` : ""}`
+      : null
+
+  if (issue.rule_id === "link-name") {
+    const searchText = issue.text_preview || issue.source_hint || issue.element
+    return `Open ${pageUrl}, then search for the link text or href: ${searchText}. ${location ? `Source location: ${location}.` : ""}`
+  }
+
+  if (issue.rule_id === "image-alt") {
+    const searchText = issue.text_preview || issue.source_hint || issue.element
+    return `Open ${pageUrl}, then search for the image filename, src, or nearby image element: ${searchText}. ${location ? `Source location: ${location}.` : ""}`
+  }
+
+  if (issue.dom_path) {
+    return `Open ${pageUrl}, inspect the page, and use this DOM path: ${issue.dom_path}. ${location ? `Source location: ${location}.` : ""}`
+  }
+
+  if (location) {
+    return `Open ${pageUrl}, then check the fetched HTML around ${location}.`
+  }
+
+  return `Open ${pageUrl}, then search for ${issue.text_preview || issue.source_hint || issue.element}.`
 }
 
 function getIssueWcagLevel(criteria: string[]): string {

@@ -32,7 +32,7 @@ export function IssueDetailPanel({ issue }: IssueDetailPanelProps) {
   }
 
   return (
-    <ScrollArea className="h-full">
+    <ScrollArea className="h-full min-h-0">
       <div className="flex flex-col gap-4 p-5">
         {/* Header */}
         <div className="flex items-start gap-2.5">
@@ -85,8 +85,21 @@ export function IssueDetailPanel({ issue }: IssueDetailPanelProps) {
         </section>
 
         <section>
-          <SectionLabel>Location hints</SectionLabel>
+          <SectionLabel>Find this on the page</SectionLabel>
           <div className="rounded-lg bg-muted p-3">
+            <div className="mb-3 rounded-md border border-border bg-card p-3">
+              <p className="text-xs leading-relaxed text-foreground/80">
+                {issue.finderHint}
+              </p>
+              <a
+                className="mt-2 inline-flex text-xs font-medium text-primary underline underline-offset-2"
+                href={issue.pageUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Open affected page
+              </a>
+            </div>
             <WcagRow
               label="Line"
               value={issue.line != null ? String(issue.line) : "Not available"}

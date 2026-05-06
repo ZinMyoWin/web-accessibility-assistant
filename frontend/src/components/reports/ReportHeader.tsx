@@ -38,6 +38,12 @@ export function ReportHeader({ reportMeta }: { reportMeta: ReportMeta }) {
             <span>{reportMeta.scanMode}</span>
             <span>|</span>
             <span>{reportMeta.pagesScanned} pages</span>
+            {reportMeta.pagesSkipped > 0 && (
+              <>
+                <span>|</span>
+                <span>{reportMeta.pagesSkipped} skipped</span>
+              </>
+            )}
             <span>|</span>
             <span>{reportMeta.totalIssues} issues</span>
             <span>|</span>

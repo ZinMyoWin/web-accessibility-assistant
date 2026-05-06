@@ -16,6 +16,7 @@ export type ScanIssue = {
   screenshot_data_url: string | null
   wcag_criteria: string[] | null
   source: string | null
+  page_url: string | null
 }
 
 export type ScanSummary = {
@@ -27,8 +28,20 @@ export type ScanSummary = {
 
 export type ScanResponse = {
   scan_id?: string | null
+  status?: "queued" | "running" | "complete" | "error"
   url: string
   scanned_at: string
+  mode: "single" | "multi"
+  pages_scanned: number
+  pages_skipped: number
+  scanned_page_urls: string[]
+  skipped_page_urls: string[]
+  queued_page_urls: string[]
+  excluded_page_urls: string[]
+  current_page_url: string | null
+  worker_attempts: number
+  max_worker_attempts: number
+  last_error: string | null
   summary: ScanSummary
   issues: ScanIssue[]
 }

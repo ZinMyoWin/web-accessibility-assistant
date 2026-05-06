@@ -105,7 +105,7 @@ function ReportsPageContent() {
   }
 
   const totalCriticalSerious =
-    report.severityBreakdown.find((item) => item.key === "critical")?.count ?? 0 +
+    (report.severityBreakdown.find((item) => item.key === "critical")?.count ?? 0) +
     (report.severityBreakdown.find((item) => item.key === "serious")?.count ?? 0)
 
   return (

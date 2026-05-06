@@ -1,9 +1,11 @@
 "use client"
 
 import * as React from "react"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { useAuth } from "@/lib/contexts/AuthContext"
 
 const iconClass = "w-4 h-4 shrink-0"
 
@@ -56,7 +58,32 @@ interface DashboardShellProps {
 
 export function DashboardShell({ children }: DashboardShellProps) {
   const pathname = usePathname()
+  const router = useRouter()
+  const { status, user, signOut } = useAuth()
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
+
+  React.useEffect(() => {
+    if (status === "anonymous") {
+      router.replace("/login")
+    }
+  }, [router, status])
+
+  async function handleSignOut() {
+    await signOut()
+    router.replace("/login")
+  }
+
+  if (status === "loading") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
+        Checking your session...
+      </div>
+    )
+  }
+
+  if (status === "anonymous") {
+    return null
+  }
 
   return (
     <>
@@ -125,6 +152,25 @@ export function DashboardShell({ children }: DashboardShellProps) {
             </svg>
             Preferences
           </Link>
+
+          <div className="mt-auto border-t border-border p-4">
+            <div className="mb-3 min-w-0">
+              <div className="truncate text-xs font-semibold text-foreground">
+                {user?.name}
+              </div>
+              <div className="truncate text-[11px] text-muted-foreground">
+                {user?.email}
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-8 w-full text-xs"
+              onClick={handleSignOut}
+            >
+              Log out
+            </Button>
+          </div>
         </aside>
 
         {/* Main content area */}

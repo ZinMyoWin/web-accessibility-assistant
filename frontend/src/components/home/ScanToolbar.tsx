@@ -45,9 +45,7 @@ export function ScanToolbar({
           </SelectTrigger>
           <SelectContent className="border-[0.5px] p-1">
             <SelectItem value="single">Single page</SelectItem>
-            <SelectItem value="multi" disabled>
-              Multi-page (soon)
-            </SelectItem>
+            <SelectItem value="multi">Multi-page crawl</SelectItem>
           </SelectContent>
         </Select>
       </div>

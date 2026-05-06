@@ -7,6 +7,7 @@ import { IssuesSection } from "@/components/home/IssuesSection"
 import { MetricsGrid } from "@/components/home/MetricsGrid"
 import { OverviewPanels } from "@/components/home/OverviewPanels"
 import { ProgressPanel } from "@/components/home/ProgressPanel"
+import { QueuePanel } from "@/components/home/QueuePanel"
 import { ScanToolbar } from "@/components/home/ScanToolbar"
 import type { IssueSeverity } from "@/components/home/types"
 import { getTopRuleCounts } from "@/components/home/utils"
@@ -27,7 +28,11 @@ export default function DashboardPage() {
     progress,
     progressText,
     progressState,
+    activeScan,
+    queueActionUrl,
     handleScan,
+    removeQueuedPage,
+    prioritizeQueuedPage,
   } = useDashboardScan()
 
   const [filter, setFilter] = useState<SeverityFilter>("all")
@@ -60,7 +65,7 @@ export default function DashboardPage() {
           onUrlChange={setUrl}
           onScanModeChange={setScanMode}
           onUseTestPage={setTestUrl}
-          onScan={handleScan}
+          onScan={() => handleScan(scanMode, preferences)}
         />
 
         <main className="flex flex-1 flex-col gap-4 overflow-y-auto p-4 md:p-6">
@@ -74,6 +79,13 @@ export default function DashboardPage() {
             progress={progress}
             progressText={progressText}
             progressState={progressState}
+          />
+
+          <QueuePanel
+            activeScan={activeScan}
+            queueActionUrl={queueActionUrl}
+            onRemovePage={removeQueuedPage}
+            onPrioritizePage={prioritizeQueuedPage}
           />
 
           <MetricsGrid counts={counts} />

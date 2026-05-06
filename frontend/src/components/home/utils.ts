@@ -5,20 +5,26 @@ export function formatRuleId(id: string) {
 }
 
 export function getBestLocator(issue: ScanIssue): string | null {
+  const pagePrefix = issue.page_url ? `Open ${issue.page_url}, then ` : ""
+  const sourceLocation =
+    issue.line != null
+      ? ` Source location: line ${issue.line}${issue.column != null ? `, column ${issue.column}` : ""}.`
+      : ""
+
   if (issue.rule_id === "heading-order" && issue.text_preview) {
-    return `Search for heading text "${issue.text_preview}" in the Elements panel.`
+    return `${pagePrefix}search for heading text "${issue.text_preview}" in the page or Elements panel.${sourceLocation}`
   }
   if (issue.rule_id === "duplicate-id") {
-    return `Search in DevTools Elements for ${issue.element}.`
+    return `${pagePrefix}search in DevTools Elements for ${issue.element}.${sourceLocation}`
   }
   if (issue.rule_id === "image-alt" && issue.text_preview) {
-    return `Search for image source or label "${issue.text_preview}".`
+    return `${pagePrefix}search for image filename, src, or label "${issue.text_preview}".${sourceLocation}`
   }
   if (issue.rule_id === "link-name" && issue.text_preview) {
-    return `Search for link text "${issue.text_preview}".`
+    return `${pagePrefix}search for link text or href "${issue.text_preview}".${sourceLocation}`
   }
   if (issue.dom_path) {
-    return `Follow the DOM path ending in ${issue.dom_path.split(" > ").at(-1)}.`
+    return `${pagePrefix}inspect the DOM path ending in ${issue.dom_path.split(" > ").at(-1)}.${sourceLocation}`
   }
   return null
 }

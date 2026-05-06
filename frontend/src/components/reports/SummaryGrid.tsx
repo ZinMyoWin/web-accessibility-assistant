@@ -35,6 +35,7 @@ export function SummaryGrid({
         <div className="mb-1 text-xs font-medium text-foreground">Issues by Severity</div>
         <div className="mb-3 text-[10px] text-muted-foreground">
           {reportMeta.totalIssues} total - {reportMeta.pagesScanned} pages scanned
+          {reportMeta.pagesSkipped > 0 ? ` - ${reportMeta.pagesSkipped} skipped` : ""}
         </div>
         <div className="flex flex-col gap-3">
           {severityBreakdown.map((s) => (

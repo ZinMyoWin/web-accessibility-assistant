@@ -17,6 +17,7 @@ export interface AppPreferences {
   ignored_url_patterns: string[]
   stay_within_domain: boolean
   respect_robots_txt: boolean
+  skip_previously_scanned_pages: boolean
 
   wcag_standard: string
   include_best_practices: boolean
@@ -46,13 +47,14 @@ const defaultPreferences: AppPreferences = {
   auto_generate_suggestions: true,
 
   default_scan_mode: "multi",
-  default_page_limit: 20,
+  default_page_limit: 5,
   crawl_depth: 3,
   request_delay_ms: 250,
   page_timeout_ms: 15000,
   ignored_url_patterns: ["/logout", "/admin", "*.pdf"],
   stay_within_domain: true,
   respect_robots_txt: true,
+  skip_previously_scanned_pages: true,
 
   wcag_standard: "wcag2aa",
   include_best_practices: true,

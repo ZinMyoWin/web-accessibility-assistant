@@ -114,6 +114,8 @@ export function ScanHistoryRow({
             <div
               className={cn(
                 "size-2 rounded-full",
+                scan.status === "queued" && "bg-muted-foreground",
+                scan.status === "running" && "animate-pulse bg-severity-serious-text",
                 scan.status === "complete" && "bg-primary",
                 scan.status === "error" && "bg-severity-critical-text",
               )}
@@ -127,7 +129,17 @@ export function ScanHistoryRow({
             {scan.url}
           </div>
           <div className="mt-0.5 flex flex-wrap items-center gap-3">
-            {scan.status === "error" ? (
+            {scan.status === "queued" ? (
+              <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                {clockIcon}
+                Queued for scan worker
+              </span>
+            ) : scan.status === "running" ? (
+              <span className="flex items-center gap-1 text-[11px] text-severity-serious-text">
+                {clockIcon}
+                Running full multi-page axe scan
+              </span>
+            ) : scan.status === "error" ? (
               <span className="flex items-center gap-1 text-[11px] text-severity-critical-text">
                 <svg className="size-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <circle cx="8" cy="8" r="5.5" />
@@ -149,6 +161,11 @@ export function ScanHistoryRow({
                   {pageIcon}
                   {modeLabel}
                 </span>
+                {scan.pages_skipped > 0 && (
+                  <span className="text-[11px] text-muted-foreground">
+                    {scan.pages_skipped} skipped
+                  </span>
+                )}
               </>
             )}
             {scan.status === "error" && (
@@ -183,6 +200,11 @@ export function ScanHistoryRow({
               No results &mdash; scan failed
             </span>
           )}
+          {(scan.status === "queued" || scan.status === "running") && (
+            <span className="text-[11px] text-muted-foreground">
+              Results pending
+            </span>
+          )}
         </div>
 
         {/* Score */}
@@ -194,7 +216,7 @@ export function ScanHistoryRow({
               </div>
               <div className="text-[11px] text-muted-foreground">/ 100</div>
             </>
-          ) : scan.status === "error" ? (
+          ) : scan.status === "error" || scan.status === "queued" || scan.status === "running" ? (
             <>
               <div className="text-lg font-semibold text-muted-foreground">&mdash;</div>
               <div className="text-[11px] text-muted-foreground">/ 100</div>

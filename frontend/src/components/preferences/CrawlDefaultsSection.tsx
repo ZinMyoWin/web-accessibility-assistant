@@ -105,13 +105,13 @@ export function CrawlDefaultsSection({ draft, updateDraft }: CrawlDefaultsSectio
 
       {/* Number fields grid */}
       <div className="grid grid-cols-2 gap-4">
-        <FieldRow label="Default page limit" hint="Max pages crawled per scan (1–500)">
+        <FieldRow label="Default page limit" hint="Max pages crawled per dashboard scan (1-5)">
           <Input 
             type="number" 
             value={draft.default_page_limit} 
-            min={1} max={500} 
+            min={1} max={5} 
             className="h-9 bg-muted text-xs" 
-            onChange={(e) => updateDraft({ default_page_limit: Number(e.target.value) })} 
+            onChange={(e) => updateDraft({ default_page_limit: Math.min(Number(e.target.value), 5) })} 
           />
         </FieldRow>
         <FieldRow label="Crawl depth" hint="Link depth from starting URL (1–10)">
@@ -180,6 +180,17 @@ export function CrawlDefaultsSection({ draft, updateDraft }: CrawlDefaultsSectio
         <Switch 
           checked={draft.respect_robots_txt} 
           onCheckedChange={(val) => updateDraft({ respect_robots_txt: val })} 
+        />
+      </FieldRow>
+
+      <FieldRow
+        label="Skip pages already scanned on the same domain"
+        hint="Use the crawl budget for new internal pages during repeat multi-page scans"
+        horizontal
+      >
+        <Switch
+          checked={draft.skip_previously_scanned_pages}
+          onCheckedChange={(val) => updateDraft({ skip_previously_scanned_pages: val })}
         />
       </FieldRow>
     </SectionCard>

@@ -10,9 +10,18 @@ import {
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 
+type IssuePageOption = {
+  url: string
+  label: string
+  issueCount: number
+}
+
 interface IssueFilterBarProps {
   searchQuery: string
   onSearchChange: (query: string) => void
+  pageFilter: string
+  onPageChange: (pageUrl: string) => void
+  pageOptions: IssuePageOption[]
   severityFilter: string
   onSeverityChange: (severity: string) => void
   categoryFilter: string
@@ -25,6 +34,9 @@ interface IssueFilterBarProps {
 export function IssueFilterBar({
   searchQuery,
   onSearchChange,
+  pageFilter,
+  onPageChange,
+  pageOptions,
   severityFilter,
   onSeverityChange,
   categoryFilter,
@@ -52,11 +64,39 @@ export function IssueFilterBar({
         </svg>
         <Input
           type="text"
-          placeholder="Search issues\u2026"
+          placeholder="Search issues..."
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           className="h-8 pl-8 text-xs"
         />
+      </div>
+
+      {/* Scanned page selector */}
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="shrink-0 text-xs text-muted-foreground">Page</span>
+        <Select
+          value={pageFilter}
+          onValueChange={onPageChange}
+          disabled={pageOptions.length === 0}
+        >
+          <SelectTrigger
+            size="sm"
+            className="h-8 min-w-0 flex-1 border bg-muted text-xs shadow-none"
+          >
+            <SelectValue placeholder="All scanned pages" />
+          </SelectTrigger>
+          <SelectContent className="max-w-[min(760px,calc(100vw-2rem))]">
+            <SelectItem value="all">
+              All scanned pages ({pageOptions.length})
+            </SelectItem>
+            {pageOptions.map((page) => (
+              <SelectItem key={page.url} value={page.url}>
+                {page.label} · {page.issueCount} issue
+                {page.issueCount !== 1 ? "s" : ""}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Severity pills */}
