@@ -19,9 +19,13 @@ RUN pip install --no-cache-dir --upgrade pip \
 
 # Copy the FastAPI application source into the container.
 COPY app ./app
+COPY alembic ./alembic
+COPY alembic.ini ./alembic.ini
+COPY start.sh ./
+RUN chmod +x /app/start.sh
 
 # Document that the container listens on port 8000.
 EXPOSE 8000
 
 # Start the FastAPI app with Uvicorn when the container launches.
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/app/start.sh"]

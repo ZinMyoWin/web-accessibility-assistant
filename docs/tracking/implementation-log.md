@@ -1669,6 +1669,7 @@ CI and docs:
 - `.github/workflows/quality-gate.yml`
 - `README.md`
 - `docs/architecture/system-architecture.md`
+- `docs/guides/docker-setup-guide.md`
 - `docs/tracking/feature-checklist.md`
 - `docs/tracking/implementation-log.md`
 
@@ -1682,3 +1683,617 @@ CI and docs:
 ### Next step
 
 Implement multi-page crawling and queued scan execution so scan mode and crawl defaults can drive actual crawl behavior, then add a fuller backend/frontend automated test suite.
+
+## 2026-04-26 - Multi-Page Crawl Enablement
+
+### Completed work
+
+Implemented the next feature slice for real multi-page scans:
+
+- extended `POST /scan/page` to accept crawl options such as `mode`, `page_limit`, `crawl_depth`, request delay, timeout, ignore patterns, and robots/domain controls
+- added synchronous bounded multi-page crawling that follows discovered internal links with depth and page-count limits
+- persisted the actual scan mode and `pages_scanned` count for completed runs
+- added per-issue `page_url` attribution so saved scans, issues, and reports can represent findings from more than one page
+- enabled the dashboard multi-page mode selector and wired it to saved crawl preferences
+- updated report page grouping so the pages tab breaks findings out by page URL instead of collapsing everything onto the root page
+- added backend smoke coverage for the new multi-page request shape
+- optimized synchronous multi-page mode to use fast custom HTML checks without per-issue screenshots or axe-core browser analysis
+
+### Why this was done
+
+The project already stored crawl defaults and scan mode metadata, but the core scan path was still effectively single-page. This update closes that gap and makes the existing preferences, history, issues, and reports flow reflect real multi-page crawl behavior while keeping synchronous crawls fast enough for the dashboard.
+
+### Files involved
+
+- `backend/app/main.py`
+- `backend/app/models/scan.py`
+- `backend/app/repositories/scan_repository.py`
+- `backend/app/schemas/scan.py`
+- `backend/app/services/page_scanner.py`
+- `backend/alembic/versions/9848b576f061_add_page_url_to_scan_issues.py`
+- `backend/tests/test_api_smoke.py`
+- `frontend/src/app/page.tsx`
+- `frontend/src/components/home/OverviewPanels.tsx`
+- `frontend/src/components/home/ScanToolbar.tsx`
+- `frontend/src/components/home/types.ts`
+- `frontend/src/hooks/useDashboardScan.ts`
+- `frontend/src/lib/saved-scans.ts`
+
+### Verification
+
+- frontend typecheck command runs successfully (`npx tsc --noEmit`)
+- backend compile check succeeds (`python -m compileall app`)
+- backend smoke tests pass (`venv\Scripts\python.exe -m pytest -q tests/test_api_smoke.py`)
+- live `https://www.bbc.com/news` multi-page request with a 2-page cap completes in under 1 second after the fast-crawl optimization
+
+### Next step
+
+Move full axe-core multi-page execution off the request thread into queued/background processing, then expand test coverage around crawl discovery, filtering, and persistence.
+
+## 2026-04-26 - Scan Report Reliability And Issue Locator Guidance
+
+### Completed work
+
+Improved scan result accuracy, report wording, and issue findability:
+
+- enforced a 5-page maximum for synchronous multi-page dashboard scans in both backend and frontend request handling
+- clamped saved crawl preferences so existing values above 5 do not trigger unexpectedly large synchronous crawls
+- optimized multi-page scanning to use fast custom HTML checks only, keeping full axe-core and screenshot analysis for single-page scans until background processing exists
+- persisted and derived accessibility scores so saved reports no longer show `score pending` when enough issue data exists
+- replaced misleading page-row `Fail` wording with `Issues found` for pages that completed but contain findings
+- added report issue-card locator guidance with affected page, source position, search text, DOM path, source snippet, and text preview
+- added stronger issue detail locator guidance with an affected-page link
+- added affected-page locator guidance to expanded dashboard issue rows
+- improved new custom-scan DOM paths for repeated elements by adding `:nth-of-type()` descriptors where useful
+
+### Why this was done
+
+The previous report UI could be misleading or too vague:
+
+- pages with accessibility findings were labeled as failed even when the scan completed
+- some reports showed no accessibility score because older backend persistence did not save one
+- multi-page scans could crawl more pages than intended from stale preferences
+- issue details often did not give the user enough information to find the exact affected link, image, or section on the original webpage
+
+This update makes reports more accurate and makes findings more actionable for users who need to locate and fix specific elements.
+
+### Files involved
+
+Backend:
+
+- `backend/app/main.py`
+- `backend/app/repositories/scan_repository.py`
+- `backend/app/services/page_scanner.py`
+- `backend/alembic/versions/9848b576f061_add_page_url_to_scan_issues.py`
+
+Frontend:
+
+- `frontend/src/hooks/useDashboardScan.ts`
+- `frontend/src/lib/saved-scans.ts`
+- `frontend/src/components/preferences/CrawlDefaultsSection.tsx`
+- `frontend/src/app/(dashboard)/reports/page.tsx`
+- `frontend/src/components/reports/PagesTab.tsx`
+- `frontend/src/components/issues/IssueDetailPanel.tsx`
+- `frontend/src/components/home/IssueRow.tsx`
+- `frontend/src/components/home/utils.ts`
+
+Documentation:
+
+- `README.md`
+- `docs/architecture/system-architecture.md`
+- `docs/tracking/feature-checklist.md`
+- `docs/tracking/implementation-log.md`
+
+### Verification
+
+- ran frontend typecheck successfully with `npx tsc --noEmit`
+- ran backend compile check successfully with `python -m compileall app`
+- ran backend smoke tests successfully with `venv\Scripts\python.exe -m pytest -q tests/test_api_smoke.py`
+- applied the latest database migration with Alembic
+- verified a live BBC multi-page scan completes with the bounded crawl behavior
+- verified in the browser that reports show a numeric accessibility score instead of `score pending`
+- verified in the browser that page rows show `Issues found` instead of `Fail`
+- verified in the browser that report issue cards render the new `Where to find it` guidance
+
+### Outcome
+
+The dashboard and reports now better match user expectations: synchronous multi-page scans are bounded, reports use clearer status language, saved reports can display a meaningful score, and each issue includes practical guidance for locating the affected element on the webpage.
+
+### Next step
+
+Move full axe-core multi-page execution into queued/background processing, then add automated tests around report mapping and locator guidance so these user-facing details do not regress.
+
+## 2026-05-05 - Crawl Memory Preference
+
+### Completed work
+
+Implemented user-controlled crawl memory for repeat multi-page scans:
+
+- added `skip_previously_scanned_pages` to backend preferences and frontend Preferences state
+- added a Crawl Defaults toggle labeled `Skip pages already scanned on the same domain`
+- added `pages_skipped` to live scan responses, saved scan history, reports, and scan runs
+- added a database migration for the new preference and skipped-page count
+- added backend lookup logic that builds a same-domain set from previous completed scan roots, final URLs, and saved issue `page_url` values
+- updated multi-page crawl discovery so previously scanned discovered internal URLs are skipped only when the preference is enabled
+- kept the submitted start URL always scanable, even when it appears in prior scan history
+- surfaced skipped-page counts in dashboard scan details, scan progress completion text, scan history rows, report headers, report summaries, and CSV export
+
+### Why this was done
+
+Repeat domain scans should not waste the limited synchronous crawl budget on internal pages the user has already scanned, but the user still needs control. This feature lets the user decide globally from Preferences whether repeat multi-page scans should focus on new internal pages or include already scanned internal pages again.
+
+### Files involved
+
+- `backend/app/main.py`
+- `backend/app/models/preferences.py`
+- `backend/app/models/scan.py`
+- `backend/app/repositories/scan_repository.py`
+- `backend/app/schemas/preferences.py`
+- `backend/app/schemas/scan.py`
+- `backend/app/schemas/history.py`
+- `backend/app/services/page_scanner.py`
+- `backend/alembic/versions/9848b576f062_add_crawl_memory_preferences.py`
+- `backend/tests/test_api_smoke.py`
+- `frontend/src/lib/contexts/PreferencesContext.tsx`
+- `frontend/src/hooks/useDashboardScan.ts`
+- `frontend/src/components/preferences/CrawlDefaultsSection.tsx`
+- `frontend/src/components/home/OverviewPanels.tsx`
+- `frontend/src/components/home/types.ts`
+- `frontend/src/lib/saved-scans.ts`
+- `frontend/src/components/reports/ReportHeader.tsx`
+- `frontend/src/components/reports/SummaryGrid.tsx`
+- `frontend/src/components/reports/export-utils.ts`
+- `frontend/src/components/scan-history/ScanHistoryRow.tsx`
+- `README.md`
+- `docs/architecture/system-architecture.md`
+- `docs/tracking/feature-checklist.md`
+- `docs/tracking/implementation-log.md`
+
+### Verification
+
+- backend tests cover the preference default, skip-enabled crawl behavior, skip-disabled crawl behavior, start-URL re-scan behavior, and skipped count in the scan response
+- backend compile check passed with `python -m compileall app`
+- backend smoke tests passed with `venv\Scripts\python.exe -m pytest -q tests/test_api_smoke.py`
+- frontend typecheck passed with `npx tsc --noEmit`
+- Alembic migration file was added, but local `alembic upgrade head` could not complete because the local PostgreSQL/Docker database was not running
+
+### Outcome
+
+Multi-page scans now remember historical same-domain page coverage and can use the user preference to skip previously scanned discovered pages while still allowing the domain/root URL to be scanned again.
+
+### Next step
+
+Start the local PostgreSQL service and apply the new Alembic migration, then move full axe-core multi-page execution into queued/background processing.
+
+## 2026-05-05 - Page-Level Report Traceability
+
+### Completed work
+
+Enhanced page-level visibility for scanned and skipped pages:
+
+- added persisted `scanned_page_urls` and `skipped_page_urls` lists to scan runs
+- added a database migration for scanned/skipped page URL lists
+- updated live scan responses and saved scan responses to include scanned and skipped URL lists
+- updated report mapping so pages with zero issues are visible as scanned/pass pages
+- updated report mapping so skipped pages are visible as skipped rows
+- replaced the Reports page table expansion with a selectable page list and page-specific issue panel
+- added dashboard scan coverage details that list scanned and skipped URLs when available
+
+### Why this was done
+
+The previous report view grouped only pages that had issues, so a domain scan could hide pages with no findings and could not show which pages were skipped by crawl memory. The new view makes scan coverage explicit and lets users select a page such as `/about` to see only the issues found on that page.
+
+### Files involved
+
+- `backend/app/models/scan.py`
+- `backend/app/repositories/scan_repository.py`
+- `backend/app/schemas/history.py`
+- `backend/app/schemas/scan.py`
+- `backend/app/services/page_scanner.py`
+- `backend/alembic/versions/9848b576f063_add_scan_page_url_lists.py`
+- `backend/tests/test_api_smoke.py`
+- `frontend/src/components/home/OverviewPanels.tsx`
+- `frontend/src/components/home/types.ts`
+- `frontend/src/components/reports/PagesTab.tsx`
+- `frontend/src/lib/saved-scans.ts`
+- `README.md`
+- `docs/architecture/system-architecture.md`
+- `docs/tracking/feature-checklist.md`
+- `docs/tracking/implementation-log.md`
+
+### Verification
+
+- backend tests were updated to assert scanned/skipped URL lists
+- frontend typecheck and backend smoke checks should be run after this change
+
+### Outcome
+
+Reports now clearly differentiate scanned pages from skipped pages and provide granular page-specific issue visibility.
+
+### Next step
+
+Run the migration, then verify the report page in the browser with a repeat multi-page scan that skips at least one internal URL.
+
+## 2026-05-05 - Issues Page Scanned-Page Filtering
+
+### Completed work
+
+Extended page-level traceability to the Issues page:
+
+- added a scanned-page selector inside the Issues filters
+- populated the selector from persisted `scanned_page_urls`, with an issue-page fallback for older scan records
+- filtered the issue list by the selected scanned page
+- updated issue rows to show the affected page path or host instead of a generic page count
+- kept the scan-run selector focused on choosing the saved scan record
+
+### Why this was done
+
+The Issues page previously selected only a domain-level scan run and then showed all findings together. Users could not easily isolate findings for a scanned page such as `/about`. The new selector separates scan-run selection from page selection, so users can inspect issues tied to a specific scanned URL.
+
+### Files involved
+
+- `frontend/src/app/(dashboard)/issues/page.tsx`
+- `frontend/src/components/issues/IssueFilterBar.tsx`
+- `frontend/src/components/issues/IssueList.tsx`
+- `docs/tracking/feature-checklist.md`
+- `docs/tracking/implementation-log.md`
+
+### Verification
+
+- frontend typecheck passed with `npx tsc --noEmit`
+- browser check confirmed the Issues page shows scanned page options and filters the list after page selection
+- browser check confirmed the document remains bounded to the viewport while the issue/detail sections scroll internally
+
+### Outcome
+
+The Issues page now lists scanned pages within the selected scan run and provides page-specific issue filtering, so findings are no longer visible only at the domain level.
+
+## 2026-05-05 - Background Multi-Page axe-core Scans
+
+### Completed work
+
+Implemented bounded background multi-page scanning with full axe-core analysis:
+
+- changed multi-page `POST /scan/page` requests to create a saved scan record with `status="running"`
+- added backend repository helpers to create, complete, and fail running scan records
+- added a FastAPI background task that runs the multi-page crawl and updates the saved scan when complete
+- enabled axe-core analysis for every crawled multi-page scan page in the background path
+- kept issue screenshots disabled for background multi-page scans because screenshots are live-only and not persisted
+- updated the dashboard scan hook to poll `GET /scans/{scan_id}` until the background scan completes or fails
+- added running scan status support to scan history filters and rows
+- updated smoke tests to verify queued multi-page scans and full-analysis multi-page options
+
+### Why this was done
+
+Single-page scans found more issues because they ran custom checks plus axe-core, while multi-page scans only ran fast custom HTML checks. Background processing lets multi-page scans use the same axe-core standards engine without forcing the dashboard request to stay open for the full crawl duration.
+
+### Files involved
+
+- `backend/app/main.py`
+- `backend/app/repositories/scan_repository.py`
+- `backend/app/schemas/scan.py`
+- `backend/app/services/page_scanner.py`
+- `backend/tests/test_api_smoke.py`
+- `frontend/src/hooks/useDashboardScan.ts`
+- `frontend/src/components/home/types.ts`
+- `frontend/src/lib/saved-scans.ts`
+- `frontend/src/app/(dashboard)/scan-history/page.tsx`
+- `frontend/src/components/scan-history/ScanHistoryFilterBar.tsx`
+- `frontend/src/components/scan-history/ScanHistoryRow.tsx`
+- `README.md`
+- `docs/architecture/system-architecture.md`
+- `docs/tracking/feature-checklist.md`
+- `docs/tracking/implementation-log.md`
+
+### Verification
+
+- backend compile check passed with `python -m compileall app`
+- backend smoke tests passed with `pytest -q tests/test_api_smoke.py`
+- frontend typecheck passed with `npx tsc --noEmit`
+- frontend typecheck passed with `npx tsc --noEmit`
+
+### Outcome
+
+Multi-page scans now run as bounded background jobs and use axe-core across crawled pages, so they should surface the broader standards-based findings previously only available in single-page mode.
+
+### Next step
+
+Move background scan execution from in-process FastAPI background tasks to a dedicated worker queue if scan volume or longer page limits become necessary.
+
+## 2026-05-06 - Dedicated Scan Worker Queue
+
+### Completed work
+
+Moved bounded multi-page scan execution out of the API process and into a dedicated worker service:
+
+- added `scan_runs.scan_options` so queued jobs retain crawl preferences after the request returns
+- added an Alembic migration for persisted scan options
+- changed Docker and Docker Compose to run a separate `scan-worker` service
+- added `SCAN_EXECUTION_MODE=worker` for Docker-backed API containers
+- added `app.scan_worker`, a lightweight database-backed worker loop that claims queued scan rows
+- added repository support for queued scan creation and locked queued-job claiming
+- changed worker-backed multi-page scans to move through `queued -> running -> complete/error`
+- kept the in-process background mode as the default fallback for direct local backend runs outside Docker
+- updated frontend status types and scan history UI to handle queued scans
+- expanded backend smoke tests for queued worker mode and worker option reconstruction
+
+### Why this was done
+
+The previous implementation used FastAPI background tasks. That avoided long request blocking but still executed scan work inside the API container. A dedicated worker service gives cleaner separation between API request handling and long-running crawl/axe work, which is a better foundation for larger scans and future retries.
+
+### Files involved
+
+- `backend/app/main.py`
+- `backend/app/models/scan.py`
+- `backend/app/repositories/scan_repository.py`
+- `backend/app/schemas/scan.py`
+- `backend/app/scan_worker.py`
+- `backend/alembic/versions/9848b576f064_add_scan_options.py`
+- `backend/tests/test_api_smoke.py`
+- `docker-compose.yml`
+- `docker-compose.dev.yml`
+- `frontend/src/components/home/types.ts`
+- `frontend/src/lib/saved-scans.ts`
+- `frontend/src/app/(dashboard)/scan-history/page.tsx`
+- `frontend/src/components/scan-history/ScanHistoryFilterBar.tsx`
+- `frontend/src/components/scan-history/ScanHistoryRow.tsx`
+- `README.md`
+- `docs/architecture/system-architecture.md`
+- `docs/tracking/feature-checklist.md`
+- `docs/tracking/implementation-log.md`
+
+### Verification
+
+- backend compile check passed with `python -m compileall app`
+- backend smoke tests passed with `pytest -q tests/test_api_smoke.py`
+- frontend typecheck passed with `npx tsc --noEmit`
+
+### Outcome
+
+Docker-backed multi-page scans now use a dedicated worker queue. The API enqueues scan jobs, the worker claims and runs them, and the frontend polls queued/running scan records until completion.
+
+### Next step
+
+Add worker retry policy and stale-job recovery, or move to full JavaScript page rendering for SPA-heavy sites before analysis.
+
+## 2026-05-06 - Queued Scan Polling Fix
+
+### Completed work
+
+Fixed the dashboard multi-page scan flow so queued worker jobs are not treated as completed scans:
+
+- updated the dashboard scan hook to poll saved scan status when the initial response is `queued` or `running`
+- added explicit progress text for queued scans waiting on the scan worker
+- added a guard for malformed queued responses that do not include a `scan_id`
+
+### Why this was done
+
+Worker-backed multi-page scans now return `status="queued"` immediately. The dashboard previously only polled `running` scans, so it displayed a false completed state with 0 pages and 0 issues before the worker had started.
+
+### Files involved
+
+- `frontend/src/hooks/useDashboardScan.ts`
+- `docs/tracking/implementation-log.md`
+
+### Verification
+
+- frontend typecheck passed with `npx tsc --noEmit`
+
+### Outcome
+
+The dashboard now keeps the scan progress active while the scan is queued or running, then shows completion only after the worker has saved final results.
+
+## 2026-05-06 - Worker Retry Recovery and Queue Controls
+
+### Completed work
+
+Added worker reliability and user-controlled queued-page management for bounded multi-page scans:
+
+- added scan-run fields for worker attempts, max attempts, worker ID, lock time, heartbeat time, last worker error, current page URL, queued page URLs, and user-excluded page URLs
+- added an Alembic migration for worker queue state
+- updated the scan worker to recover stale `running` jobs, requeue failed jobs while attempts remain, and fail jobs after max attempts are exhausted
+- added crawler queue callbacks so running scans persist current page, waiting pages, scanned pages, and skipped pages during execution
+- added queue-control API routes to remove a waiting page or move a waiting page to the front of the queue
+- updated the dashboard scan hook to poll active queue metadata and expose remove/prioritize actions
+- added a dashboard Scan queue panel showing current page, queued pages, removed pages, and retry attempt count
+- added smoke coverage for queue-control routes and crawler queue ordering/removal behavior
+
+### Why this was done
+
+Queued multi-page scans were reliable enough for basic background execution, but a worker crash or hung job could leave a scan stuck. The dashboard also hid the discovered crawl queue, so users could not see or influence which pages would be scanned next. The new state fields and API actions make queue progress visible and controllable while giving the worker a recovery path.
+
+### Files involved
+
+- `backend/app/main.py`
+- `backend/app/models/scan.py`
+- `backend/app/repositories/scan_repository.py`
+- `backend/app/schemas/history.py`
+- `backend/app/schemas/scan.py`
+- `backend/app/services/page_scanner.py`
+- `backend/app/scan_worker.py`
+- `backend/alembic/versions/9848b576f065_add_scan_worker_queue_state.py`
+- `backend/tests/test_api_smoke.py`
+- `frontend/src/app/page.tsx`
+- `frontend/src/components/home/QueuePanel.tsx`
+- `frontend/src/components/home/types.ts`
+- `frontend/src/hooks/useDashboardScan.ts`
+- `frontend/src/lib/saved-scans.ts`
+- `README.md`
+- `docs/architecture/system-architecture.md`
+- `docs/tracking/feature-checklist.md`
+- `docs/tracking/implementation-log.md`
+
+### Verification
+
+- backend compile check passed with `python -m compileall app`
+- backend smoke tests passed with `pytest -q tests/test_api_smoke.py`
+- frontend typecheck passed with `npx tsc --noEmit`
+
+### Outcome
+
+Running multi-page scans now expose the page currently being scanned and the discovered queue. Users can remove queued pages they do not want scanned or move a queued page to the front before the worker reaches it. Worker jobs now have retry and stale-job recovery metadata instead of getting stuck silently.
+
+### Next step
+
+Add full JavaScript page rendering for SPA-heavy sites before analysis, then expand automated frontend coverage around the queue-management UI.
+
+## 2026-05-06 - JavaScript-Rendered Page Analysis
+
+### Completed work
+
+Added rendered-page analysis for full scan paths:
+
+- changed full-analysis scans to navigate pages in Playwright before running checks
+- added a rendered DOM wait step so SPA and client-hydrated content can appear before analysis
+- custom checks now parse the rendered HTML from `page.content()` when rendering succeeds
+- axe-core now runs against the real navigated Playwright page instead of only a sanitized `set_content()` snapshot
+- screenshot capture continues to use the rendered Playwright page for single-page live responses
+- kept raw HTTP HTML fetching as a fallback when Playwright rendering is unavailable or unexpectedly fails
+- updated dashboard progress text to mention JavaScript rendering and rendered-content checks
+- added smoke tests for rendered-page preference and raw-fetch fallback behavior
+
+### Why this was done
+
+Modern sites often ship sparse HTML and build the accessible DOM after JavaScript hydration or client-side data loading. The previous full-analysis path fetched raw HTML first and then loaded that HTML into Playwright, which could miss issues that only exist after real browser navigation. Rendering first makes single-page and worker-backed multi-page scans better match what users actually see.
+
+### Files involved
+
+- `backend/app/services/page_scanner.py`
+- `backend/tests/test_api_smoke.py`
+- `frontend/src/hooks/useDashboardScan.ts`
+- `README.md`
+- `docs/architecture/system-architecture.md`
+- `docs/tracking/feature-checklist.md`
+- `docs/tracking/implementation-log.md`
+
+### Verification
+
+- backend compile check passed with `python -m compileall app`
+- backend smoke tests passed with `pytest -q tests/test_api_smoke.py`
+
+### Outcome
+
+Full-analysis scan paths now prefer real JavaScript-rendered page content and still retain the older raw HTML fetch path as a fallback. This should improve scan accuracy on SPA-heavy and hydrated pages.
+
+### Next step
+
+Add fuller automated backend/frontend test coverage, especially browser-level coverage for rendered scans and dashboard queue controls.
+
+## 2026-05-06 - JavaScript Rendering Manual Test Page
+
+### Completed work
+
+Added a deterministic manual test route for rendered-page scan validation:
+
+- added `GET /test/page-js-rendered`
+- the route serves clean initial HTML and injects accessibility issues after JavaScript runs
+- added smoke coverage to confirm the route is available
+- documented the frontend manual test URL in the README
+
+### Verification
+
+- backend compile check passed with `python -m compileall app`
+- backend smoke tests passed with `pytest -q tests/test_api_smoke.py`
+- frontend typecheck passed with `npx tsc --noEmit`
+
+### Outcome
+
+The rendered-analysis feature can now be tested from the frontend by scanning `http://localhost:8000/test/page-js-rendered` and checking that dynamically injected issues are reported.
+
+## 2026-05-06 - Expanded Backend Automated Test Suite
+
+### Completed work
+
+Expanded backend automated coverage beyond the original API smoke file:
+
+- added scanner unit tests for custom rule detection, discovered URL filtering, queue-control ordering, crawl-memory skipping, and issue page attribution
+- added repository unit tests using in-memory SQLite for score calculation, queued-page removal, queued-page prioritization, queue progress preservation, and stale-job recovery
+- updated CI to run the full backend `tests` directory instead of only `tests/test_api_smoke.py`
+- documented backend and frontend verification commands in the README
+- marked the backend automated test suite complete in the feature checklist
+
+### Why this was done
+
+The backend now has several critical behaviors that are not visible from a basic health/API smoke test: rendered-page scanner behavior, crawl queue edits, retry recovery, scoring, and crawl-memory filtering. These tests make regressions easier to catch before manual browser testing.
+
+### Files involved
+
+- `.github/workflows/quality-gate.yml`
+- `backend/tests/test_page_scanner_unit.py`
+- `backend/tests/test_scan_repository_unit.py`
+- `README.md`
+- `docs/tracking/feature-checklist.md`
+- `docs/tracking/implementation-log.md`
+
+### Verification
+
+- backend compile check passed with `python -m compileall app`
+- backend test suite passed with `pytest -q tests` (`25 passed`)
+- frontend typecheck passed with `npx tsc --noEmit`
+
+### Outcome
+
+The backend now has automated tests covering API smoke flows, scanner units, and repository state transitions. CI runs the full backend test directory, so new backend tests are included automatically.
+
+### Next step
+
+Add a full automated frontend test suite for dashboard queue controls, report page grouping, and scan-state rendering.
+
+## 2026-05-06 - Login, Sign-Up, and Stored User Records
+
+### Completed work
+
+Added first-party authentication with persisted user/session records:
+
+- added `users` and `user_sessions` SQLAlchemy models
+- added Alembic migration `9848b576f066_add_auth_tables.py`
+- added PBKDF2-SHA256 password hashing and verification helpers
+- added signed JWT access token generation and hashed JWT `jti` storage before database persistence
+- added auth repository functions for creating users, creating sessions, resolving bearer tokens, and revoking sessions
+- added `POST /auth/signup`, `POST /auth/login`, `GET /auth/me`, and `POST /auth/logout`
+- added frontend auth API helpers and an `AuthProvider`
+- added `/login` and `/signup` pages
+- added a dashboard client-side route guard for anonymous users
+- added sidebar user identity and logout control
+- added backend tests for auth persistence, password verification, session revocation, and auth API flows
+
+### Why this was done
+
+The app now needs real user records so future scan history, preferences, reports, and repair workflows can be tied to an account instead of being global-only. This implementation stores users and sessions first while keeping existing scan APIs backward-compatible.
+
+### Files involved
+
+- `backend/app/main.py`
+- `backend/app/models/auth.py`
+- `backend/app/repositories/auth_repository.py`
+- `backend/app/schemas/auth.py`
+- `backend/app/services/auth_service.py`
+- `backend/alembic/env.py`
+- `backend/alembic/versions/9848b576f066_add_auth_tables.py`
+- `backend/tests/test_api_smoke.py`
+- `backend/tests/test_auth_unit.py`
+- `frontend/src/app/layout.tsx`
+- `frontend/src/app/login/page.tsx`
+- `frontend/src/app/signup/page.tsx`
+- `frontend/src/components/auth/AuthCard.tsx`
+- `frontend/src/components/dashboard/DashboardShell.tsx`
+- `frontend/src/lib/auth.ts`
+- `frontend/src/lib/contexts/AuthContext.tsx`
+- `README.md`
+- `docs/architecture/system-architecture.md`
+- `docs/tracking/feature-checklist.md`
+- `docs/tracking/implementation-log.md`
+
+### Verification
+
+- backend compile check passed with `python -m compileall app`
+- backend test suite passed with `pytest -q tests` (`30 passed`)
+- frontend typecheck passed with `npx tsc --noEmit`
+
+### Outcome
+
+Users can now sign up, log in, stay authenticated through a signed JWT bearer token, and log out. User records and session records are stored in PostgreSQL after running the latest migration; the session table stores a hash of the JWT `jti` so logout/revocation remains possible without storing raw tokens.
+
+### Next step
+
+Scope saved scans and preferences by authenticated user so each account sees only its own audit history and settings.

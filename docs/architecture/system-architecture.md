@@ -7,10 +7,12 @@ The **Web Accessibility Audit and Repair Assistant** is a web-based system that 
 The current system is designed to do these main jobs:
 
 1. Accept a URL from the user.
-2. Scan one page and return structured accessibility findings.
+2. Scan one page with full analysis or queue a bounded worker-backed multi-page crawl with full custom plus axe-core checks.
 3. Save the scan result in PostgreSQL for later use.
-4. Let the frontend show summaries, issues, and scan history views.
-5. Prepare the project for later work such as multi-page crawling, reporting, and AI-generated repair guidance.
+4. Let the frontend show summaries, issues, scan history, and persisted reports.
+5. Give users actionable locator guidance so they can find the affected element on the original webpage.
+6. Let users create accounts, log in, and store session records.
+7. Prepare the project for later work such as larger full-site scan orchestration and AI-generated repair guidance.
 
 ## 2. High-Level Architecture
 
@@ -27,7 +29,8 @@ FastAPI Backend
   |
   +--> Page Fetching / Rendering
   |       |
-  |       +--> HTTP fetch for page source
+  |       +--> Playwright navigation for rendered page source
+  |       +--> Raw HTTP fetch fallback when rendering is unavailable
   |       +--> Playwright for axe-core checks and screenshots
   |
   +--> Accessibility Analysis
@@ -57,12 +60,15 @@ Contains the web interface.
 
 Current frontend responsibilities:
 
+- create an account and log in
 - enter a URL
 - start a scan
 - view scan summaries
 - inspect issue details
 - open the dashboard issues page
 - open the scan history page UI
+- open persisted reports with per-page issue grouping
+- show issue locator guidance using affected page URLs, DOM paths, line/column data, source snippets, and text previews
 
 Current technologies:
 
@@ -73,12 +79,19 @@ Current technologies:
 Current status:
 
 - frontend source is organized under `frontend/src/`
+- login and sign-up pages are implemented
+- dashboard routes are guarded client-side for anonymous users
 - home dashboard scan flow is implemented
 - issues page loads real saved scan details from the backend
 - scan history page loads real saved scan summaries from the backend
 - shared dashboard shell with sidebar is implemented
 - reports page loads persisted scan data using `scanId`
 - preferences page persists settings through backend APIs
+- multi-page scan mode is enabled as a queued scan-worker job with a 5-page dashboard cap
+- queued multi-page scans expose current page, queued page URLs, removed page URLs, retry attempts, and stale-worker recovery state
+- users can remove queued pages or prioritize a queued page before it is scanned
+- multi-page scans can skip previously scanned internal pages when the user enables crawl memory in Preferences
+- reports show a computed accessibility score when persisted score data exists or can be derived from issue totals
 
 ### `backend/`
 
@@ -92,6 +105,10 @@ Current backend responsibilities:
 - run accessibility checks
 - save scan results
 - return structured JSON for both live and saved scan views
+- create users, verify credentials, issue sessions, and revoke sessions
+- create queued scan jobs for bounded multi-page dashboard scans
+- track queue state, current page, removed pages, worker lock/heartbeat metadata, and retry attempts for running multi-page scans
+- persist score, mode, pages scanned, pages skipped, scanned/skipped page URL lists, issue page URLs, and element locator metadata
 
 Current technologies:
 
@@ -105,9 +122,20 @@ Current technologies:
 
 Contains setup guides, architecture notes, implementation guides, and project tracking files.
 
-### `tests/`
+### `backend/tests/`
 
-Reserved for unit, integration, and end-to-end tests.
+Contains backend API smoke tests and unit tests for scanner and repository behavior.
+
+Current coverage includes:
+
+- health and deterministic test routes
+- scan and queue-control API smoke paths
+- scanner custom rules, crawl filtering, queue ordering, and rendered fallback behavior
+- repository scoring, queue state updates, queued-page controls, and stale worker recovery
+
+### Frontend tests
+
+The current frontend automated gate is TypeScript typechecking. A fuller component or browser-level frontend test suite is still planned.
 
 ### `README.md`
 
@@ -128,15 +156,23 @@ Responsibilities:
 - expose API routes
 - coordinate live scan handling
 - expose saved scan endpoints
+- expose authentication endpoints
 
 Current routes:
 
 - `GET /`
 - `GET /health`
+- `POST /auth/signup`
+- `POST /auth/login`
+- `GET /auth/me`
+- `POST /auth/logout`
 - `GET /test/page-bad`
+- `GET /test/page-js-rendered`
 - `POST /scan/page`
 - `GET /scans`
 - `GET /scans/{scan_id}`
+- `POST /scans/{scan_id}/queue/remove`
+- `POST /scans/{scan_id}/queue/prioritize`
 - `DELETE /scans`
 - `GET /preferences`
 - `PUT /preferences`
@@ -167,6 +203,10 @@ Important models:
 - `SavedScanListResponse`
 - `SavedScanResponse`
 
+### `backend/app/schemas/auth.py`
+
+Defines sign-up, login, current-user, and auth response models.
+
 ### `backend/app/services/page_scanner.py`
 
 Contains the live scan pipeline.
@@ -180,6 +220,15 @@ Responsibilities:
 - merge and normalize results
 - capture issue screenshots
 - build the final live scan response
+
+Current behavior:
+
+- single-page scans run the full rendered-page custom plus axe-core pipeline with screenshots when available
+- multi-page scans create a queued saved scan record, then the scan-worker service runs rendered-page custom checks plus axe-core
+- multi-page scans are capped at 5 pages in the dashboard flow while larger scan orchestration remains future work
+- repeat multi-page scans can skip previously scanned discovered internal pages while always scanning the submitted start URL
+- running multi-page scans publish queue state as links are discovered, including current page, queued pages, and pages removed by the user
+- the scan worker retries failed jobs while attempts remain and recovers stale `running` jobs after the stale timeout
 
 ### `backend/app/services/axe_scanner.py`
 
@@ -210,8 +259,33 @@ Contains SQLAlchemy ORM models.
 
 Current models:
 
+- `User`
+- `UserSession`
 - `ScanRun`
 - `ScanIssueRecord`
+
+### `backend/app/repositories/auth_repository.py`
+
+Contains persistence logic for users and sessions.
+
+Responsibilities:
+
+- create user records
+- find users by email
+- create persisted user sessions
+- resolve a bearer JWT to the current user
+- revoke sessions on logout
+
+### `backend/app/services/auth_service.py`
+
+Contains authentication helpers.
+
+Responsibilities:
+
+- hash passwords with PBKDF2-SHA256
+- verify submitted passwords against stored password hashes
+- create signed JWT access tokens
+- hash JWT `jti` values before session persistence
 
 ### `backend/app/repositories/scan_repository.py`
 
@@ -235,17 +309,33 @@ Current responsibility:
 
 ## 5. Current Scan Flow
 
-The current one-page scan flow is:
+The current single-page scan flow is:
 
 1. The frontend or API client sends `POST /scan/page` with a URL.
 2. FastAPI validates the request body.
 3. The backend validates the URL format.
-4. The scanner fetches the page HTML.
-5. The backend runs custom checks.
-6. The backend runs axe-core in Playwright.
-7. The backend merges issues and captures screenshots.
-8. The backend saves the finished scan in PostgreSQL.
-9. The API returns the live scan result plus `scan_id`.
+4. The scanner navigates to the page in Playwright, waits for rendered JavaScript content, and captures rendered HTML.
+5. If rendering is unavailable, the scanner falls back to raw HTTP HTML fetch.
+6. The backend runs custom checks against the rendered or fallback HTML.
+7. The backend runs axe-core in Playwright.
+8. The backend merges issues and captures screenshots.
+9. The backend saves the finished scan in PostgreSQL.
+10. The API returns the live scan result plus `scan_id`.
+
+The current multi-page scan flow is:
+
+1. The frontend sends `POST /scan/page` with `mode="multi"` and crawl preferences.
+2. The backend creates a saved scan record with `status="queued"` and clamps the page limit to a maximum of 5 pages.
+3. The crawler follows allowed internal links while respecting depth, ignore patterns, same-domain settings, and robots settings.
+4. Each page is rendered in Playwright when available, then analyzed with custom HTML checks plus axe-core.
+5. Issues are tagged with their affected `page_url` and locator metadata.
+6. When crawl memory is enabled, discovered internal URLs that were previously scanned on the same domain are skipped.
+7. The scan-worker claims the queued row, marks it `status="running"`, and increments worker attempt metadata.
+8. As links are discovered, the worker persists `current_page_url`, `queued_page_urls`, `excluded_page_urls`, scanned URLs, skipped URLs, and heartbeat timestamps.
+9. The dashboard polls the saved scan, shows the current queue, and can call queue-control routes to remove or prioritize waiting pages.
+10. If a worker stops updating heartbeat data, stale-job recovery requeues the scan while attempts remain or marks it failed after max attempts.
+11. The worker updates the row to `status="complete"` with actual `mode`, `pages_scanned`, `pages_skipped`, scanned/skipped page URL lists, issue counts, and a computed score.
+12. Reports provide a selectable page list so users can inspect issues tied to each scanned page and see which pages were skipped.
 
 If a scan fails after request validation:
 
@@ -272,6 +362,10 @@ Important fields:
 - completed time
 - duration
 - issue counts
+- pages scanned
+- pages skipped by crawl memory
+- scanned and skipped page URL lists
+- accessibility score
 - optional error message
 
 ### `scan_issues`
@@ -288,6 +382,8 @@ Important fields:
 - message
 - recommendation
 - source-location hints
+- affected page URL
+- DOM path and text preview
 - WCAG criteria
 - detection source
 
@@ -362,16 +458,19 @@ Planned future stages include:
 
 ### Multi-page crawling
 
-- stay inside one domain
-- follow page limits
-- avoid duplicate visits
-- aggregate results across pages
+- current dashboard crawls run through the scan-worker service and stay bounded at 5 pages
+- current crawls stay inside configured domain rules, follow page limits, avoid duplicate visits, and aggregate results across pages
+- current crawls use rendered-page custom HTML checks plus axe-core for every scanned page when Playwright rendering is available
+- current crawls support user-controlled crawl memory to skip already scanned internal pages
+- current crawls expose queue progress and support queued-page removal/prioritization during worker execution
+- current worker jobs include retry and stale-job recovery; planned larger crawling should add worker scaling controls
 
 ### Reporting
 
 - saved history views
 - CSV export
 - PDF export
+- persisted report pages with score, selectable per-page issue views, skipped-page visibility, issue status wording, and locator guidance
 
 ### AI recommendation layer
 
@@ -404,17 +503,36 @@ Purpose:
 
 - deterministic local test page with intentional accessibility issues
 
+### `GET /test/page-js-rendered`
+
+Purpose:
+
+- deterministic local test page that injects accessibility issues after JavaScript renders
+- manual proof path for Playwright-rendered analysis from the frontend
+
 ### `POST /scan/page`
 
 Purpose:
 
-- scan one page, save the result, and return the live response
+- scan one page or a bounded multi-page crawl, save the result, and return the live response
 
 Example request:
 
 ```json
 {
-  "url": "https://example.com"
+  "url": "https://example.com",
+  "mode": "single"
+}
+```
+
+Example bounded multi-page request:
+
+```json
+{
+  "url": "https://example.com",
+  "mode": "multi",
+  "page_limit": 5,
+  "crawl_depth": 1
 }
 ```
 
@@ -458,14 +576,19 @@ Purpose:
 Implemented today:
 
 - backend single-page scanning
-- custom HTML checks plus axe-core checks
+- rendered-page custom HTML checks plus axe-core checks
 - contextual issue screenshots in live scan results
 - PostgreSQL persistence for successful and failed scan attempts
+- persisted accessibility score calculation for saved scans
 - saved scan list API
 - saved scan detail API
 - dashboard home scan UI
+- bounded worker-backed multi-page crawl mode with a 5-page dashboard cap, full axe-core checks, and per-page issue attribution
+- running crawl queue visibility, queued-page removal, queued-page prioritization, retry attempts, and stale-job recovery
+- crawl memory preference for skipping previously scanned internal pages during repeat domain scans
 - dedicated issues screen backed by saved scan data
 - scan history screen backed by saved scan data
+- reports screen backed by saved scan data, including issue locator guidance
 - Docker setup for production-style and development workflows
 
 Implemented intelligent-analysis features:
@@ -474,15 +597,13 @@ Implemented intelligent-analysis features:
 - automated issue merging between custom rules and axe-core findings
 - automated repair guidance and help-link surfacing in issue results
 - automated WCAG tagging for detected issues
-- automated locator guidance using source hints, DOM paths, and text previews
+- automated locator guidance using affected page URLs, source hints, line/column data, DOM paths, source snippets, and text previews
 - automated contextual screenshot capture to support issue review
 
 Not built yet:
 
-- full JavaScript rendering for single-page apps before analysis
-- multi-page crawl
-- background jobs / queued scan processing
-- formal test suite
+- worker scaling controls for larger multi-page scans
+- full automated frontend test suite
 - generative AI / LLM-based repair suggestions
 
 ## 12. How To Explain This In The Final Report

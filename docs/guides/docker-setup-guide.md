@@ -18,9 +18,10 @@ Examples are included where they make the process easier to follow.
 
 ### What
 
-We wanted one command to start both parts of the project:
+We wanted one command to start the project services:
 
 - the FastAPI backend
+- the scan-worker for queued multi-page scans
 - the Next.js frontend
 
 ### Why
@@ -51,6 +52,7 @@ docker compose up --build
         +--> build backend image
         +--> build frontend image
         +--> start backend container
+        +--> start scan-worker container
         +--> wait for backend health check
         +--> start frontend container
 ```
@@ -292,9 +294,10 @@ That is the job of Docker Compose.
 
 ### How
 
-We defined two services:
+We defined application services for:
 
 - `backend`
+- `scan-worker`
 - `frontend`
 
 For the backend:
@@ -359,7 +362,8 @@ With `depends_on`, the startup order is safer:
 
 1. backend starts
 2. backend health check passes
-3. frontend starts
+3. scan-worker starts and claims queued scan jobs
+4. frontend starts
 
 ## 7. Step Six: Update The README
 
@@ -386,6 +390,7 @@ and documented the service URLs:
 - frontend: `http://127.0.0.1:3000`
 - backend API: `http://127.0.0.1:8000`
 - backend docs: `http://127.0.0.1:8000/docs`
+- scan-worker: background service, no browser URL
 
 ## 8. Step Seven: Validate The Compose File
 
@@ -444,7 +449,8 @@ Docker will:
 2. build the frontend image
 3. start the backend container
 4. run the backend health check
-5. start the frontend container
+5. start the scan-worker container
+6. start the frontend container
 
 Then verify:
 
@@ -471,6 +477,7 @@ Remember these points:
 2. Playwright needs Chromium installed inside the backend image, not only on the host machine.
 3. `.dockerignore` files matter because they reduce build time and avoid copying local junk into images.
 4. `depends_on` is better when combined with a real health check, not just service start order.
+5. The scan-worker uses the same backend image and `DATABASE_URL`, but runs `python -m app.scan_worker` instead of Uvicorn.
 
 ## 11. Quick Repeat Checklist
 

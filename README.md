@@ -10,9 +10,14 @@ The project currently includes:
 - a Next.js frontend
 - a Tailwind CSS v4 + shadcn/ui component layer for polished frontend controls
 - live one-page accessibility scanning
+- JavaScript-rendered accessibility analysis for SPA-heavy pages
+- bounded worker-backed multi-page crawling with a 5-page cap, rendered-page axe-core checks, retry recovery, and visible queue controls
+- login and sign-up pages backed by persisted user/session records
+- crawl memory that can skip previously scanned internal pages on repeat domain scans
 - PostgreSQL persistence for saved scan records
 - saved scan history APIs
 - screenshot support for detected issues
+- persisted report data with score, selectable per-page grouping, skipped-page visibility, and issue-location guidance
 
 ## Project Structure
 
@@ -75,6 +80,9 @@ The backend reads:
 - `FRONTEND_URL`
 - `CORS_ALLOWED_ORIGINS`
 - `CORS_ALLOWED_ORIGIN_REGEX`
+- `SCAN_EXECUTION_MODE`
+- `SCAN_WORKER_STALE_AFTER_SECONDS`
+- `AUTH_JWT_SECRET`
 
 Examples:
 
@@ -83,6 +91,9 @@ DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/accessibility
 FRONTEND_URL=https://web-accessibility-assistant.vercel.app
 CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 CORS_ALLOWED_ORIGIN_REGEX=https://.*\.vercel\.app
+SCAN_EXECUTION_MODE=worker
+SCAN_WORKER_STALE_AFTER_SECONDS=300
+AUTH_JWT_SECRET=replace-with-a-long-random-secret
 ```
 
 Notes:
@@ -91,6 +102,9 @@ Notes:
 - `FRONTEND_URL` should be a single exact origin with no trailing slash
 - `CORS_ALLOWED_ORIGINS` should be comma-separated
 - `CORS_ALLOWED_ORIGIN_REGEX` is useful for Vercel preview deployments
+- `SCAN_EXECUTION_MODE=worker` makes the API enqueue multi-page scans for the scan-worker service; without it, direct local backend runs use the in-process background fallback
+- `SCAN_WORKER_STALE_AFTER_SECONDS` controls when a running worker job is considered stale and eligible for retry/recovery
+- `AUTH_JWT_SECRET` signs login JWTs; set a long private value outside local development
 
 ## Local Setup
 
@@ -140,33 +154,42 @@ Frontend UI note:
 Implemented today:
 
 - backend single-page scanning
-- custom HTML checks plus axe-core checks
+- custom checks plus axe-core checks against rendered page content when Playwright is available
 - contextual issue screenshots in live scan responses
 - PostgreSQL persistence for successful and failed scan attempts
 - `GET /scans` and `GET /scans/{scan_id}` saved-scan APIs
+- sign-up, login, current-user, and logout APIs backed by stored user/session records and signed JWT access tokens
 - dashboard home scan UI
+- login and sign-up pages
+- dashboard route guard and sidebar logout control
 - dedicated issues screen backed by saved scan data
 - scan history screen backed by saved scan data
 - compare mode with real issue-delta analysis
 - reports page backed by persisted scan records via `scanId`
 - preferences persistence with backend encryption for API keys
 - danger-zone actions backed by API (`DELETE /scans`, `POST /preferences/reset`)
-- minimal automated smoke checks (frontend typecheck + backend pytest smoke tests)
+- bounded worker-backed multi-page crawl mode using persisted crawl preferences, rendered custom checks, and axe-core checks
+- multi-page scans create a queued scan job immediately, then the dashboard polls saved scan status until completion
+- queued multi-page scans expose current page, waiting pages, removed pages, retry attempts, and stale-job recovery state
+- users can remove queued pages or move a queued page to the front before the worker scans it
+- user-controlled crawl memory preference for skipping already scanned internal pages on the same domain
+- scanned and skipped page URL lists for granular report traceability
+- persisted accessibility score calculation for reports and scan history
+- issue locator guidance in dashboard, issues, and reports using affected page URL, DOM path, line/column, text preview, and source snippets
+- automated backend pytest coverage for API smoke paths, scanner logic, repository queue state, and worker recovery
+- automated backend pytest coverage for password hashing, session persistence, and auth API flows
+- minimal frontend smoke check through TypeScript typecheck
 - Docker setup for production-style and development workflows
 
 Planned target from the project overview:
 
-- multi-page domain-limited crawling
 - AI-generated repair guidance
 - corrected code examples for detected issues
-- AI-generated repair guidance and code suggestions
+- AI-generated code suggestions
 
 Not implemented yet:
 
-- multi-page crawling
-- full JavaScript rendering for real SPA content before analysis
-- background jobs / queued scan processing
-- full automated frontend/backend test suites
+- full automated frontend test suite
 - generative AI / LLM-based repair suggestions
 
 ## Run With Docker
@@ -182,6 +205,7 @@ Services:
 - frontend: `http://127.0.0.1:3000`
 - backend API: `http://127.0.0.1:8000`
 - backend docs: `http://127.0.0.1:8000/docs`
+- scan-worker: background multi-page scan executor
 - database: `localhost:5432`
 
 This uses:
@@ -201,6 +225,7 @@ docker compose -f docker-compose.dev.yml up --build
 Use this workflow for day-to-day coding. It provides hot reload through bind mounts:
 
 - backend runs with `uvicorn --reload`
+- scan-worker runs queued multi-page scans
 - frontend runs with `next dev`
 - PostgreSQL runs in the `db` service
 - code changes do not require a full rebuild
@@ -251,6 +276,39 @@ After changing backend environment variables on Render, redeploy the backend ser
 4. Confirm the backend returns issue data and screenshots.
 5. Confirm the response includes a `scan_id`.
 6. Open `GET /scans` in the backend docs and confirm the new scan appears.
+7. Open the Reports page and confirm the scan shows a numeric score, per-page issue grouping, and "Where to find it" details for each issue.
+
+To manually prove JavaScript-rendered scanning is active, scan this URL from the frontend:
+
+```text
+http://localhost:8000/test/page-js-rendered
+```
+
+The static HTML is mostly clean, then JavaScript injects an image without `alt`, vague link text, and an empty button. Those issues should appear only when the backend rendered the page before analysis.
+
+## Automated Verification
+
+Run the backend test suite:
+
+```powershell
+cd "D:\Lithan\UOR\Final Year Project\web-accessibility-assistant\backend"
+& ".\venv\Scripts\python.exe" -m compileall app
+& ".\venv\Scripts\python.exe" -m pytest -q tests
+```
+
+Run the frontend typecheck:
+
+```powershell
+cd "D:\Lithan\UOR\Final Year Project\web-accessibility-assistant\frontend"
+npx tsc --noEmit
+```
+
+After pulling auth changes into an existing Docker database, run:
+
+```powershell
+cd "D:\Lithan\UOR\Final Year Project\web-accessibility-assistant"
+docker compose -f docker-compose.dev.yml exec backend alembic upgrade head
+```
 
 ## Notes
 
@@ -258,6 +316,12 @@ After changing backend environment variables on Render, redeploy the backend ser
 - Some external websites block automated screenshot capture in headless environments.
 - The backend now saves both successful and failed scan attempts.
 - Issue screenshots are returned in live scan responses, but they are not stored in PostgreSQL yet.
+- Existing saved scans only show the locator fields that were captured when they were scanned. New scans include more precise DOM paths for repeated elements.
+- Multi-page dashboard scans now run through a dedicated scan-worker service with full axe-core analysis across the bounded crawled pages. Issue screenshots remain live-only for single-page scans and are not persisted.
+- Full-analysis scans now navigate pages in Playwright first, wait for rendered JavaScript content, run custom checks and axe-core against the rendered DOM, and fall back to raw HTML analysis if rendering is unavailable.
+- Running multi-page scans update queue metadata as pages are discovered; the dashboard can show the current page, queued pages, removed pages, and retry attempt count.
+- The scan worker retries failed jobs while attempts remain and recovers stale `running` jobs after the configured stale timeout.
+- When crawl memory is enabled, repeat multi-page scans still scan the submitted start URL but skip previously scanned discovered internal pages where historical page URLs are available. Reports show both scanned and skipped page lists.
 - Render backend CORS configuration must match the actual deployed frontend origin.
 
 
