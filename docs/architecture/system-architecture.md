@@ -305,7 +305,13 @@ Contains database migration files.
 
 Current responsibility:
 
-- create and track the PostgreSQL schema for saved scans and issues
+- create and track the PostgreSQL schema for saved scans, issues, preferences, users, and sessions
+
+Production startup rule:
+
+- the backend Docker image starts through `backend/start.sh`
+- `backend/start.sh` runs `alembic upgrade head` before Uvicorn starts
+- hosted deployments should not override the Docker command with direct `uvicorn ...`, because that skips migrations and can leave required tables missing
 
 ## 5. Current Scan Flow
 

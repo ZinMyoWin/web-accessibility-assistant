@@ -240,7 +240,7 @@ Recommended service settings:
 - environment: `Docker`
 - Docker build context directory: `backend`
 - Dockerfile path: `backend/Dockerfile`
-- Docker command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- Docker command: leave blank so Render uses `backend/Dockerfile`, or set it to `/app/start.sh`
 - health check path: `/health`
 
 Recommended backend environment variables:
@@ -252,6 +252,8 @@ CORS_ALLOWED_ORIGIN_REGEX=https://.*\.vercel\.app
 ```
 
 Use `DATABASE_URL` for the production database connection. Use `FRONTEND_URL` for the main production frontend domain. Use `CORS_ALLOWED_ORIGIN_REGEX` if preview Vercel domains also need access.
+
+The backend container must start through `/app/start.sh` because that script runs `alembic upgrade head` before Uvicorn starts. Do not override the Docker command with direct `uvicorn ...`; doing so skips migrations and can leave production without tables such as `users` and `user_sessions`.
 
 ### Frontend On Vercel
 

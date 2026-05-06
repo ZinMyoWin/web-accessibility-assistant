@@ -2297,3 +2297,36 @@ Users can now sign up, log in, stay authenticated through a signed JWT bearer to
 ### Next step
 
 Scope saved scans and preferences by authenticated user so each account sees only its own audit history and settings.
+
+## 2026-05-07 - Production Auth Migration Startup Fix
+
+### Completed work
+
+Fixed the production startup guidance after sign-up/login failed with `relation "users" does not exist`:
+
+- updated `backend/start.sh` to respect the hosted platform `PORT` environment variable while still running `alembic upgrade head`
+- corrected the Render Docker command guidance so production starts through `/app/start.sh`
+- documented that direct `uvicorn ...` startup skips Alembic migrations and can leave auth tables missing
+
+### Why this was done
+
+The auth migration exists, but the documented Render Docker command overrode the Dockerfile `CMD`. That bypassed `backend/start.sh`, so production could boot the API without creating the new `users` and `user_sessions` tables.
+
+### Files involved
+
+- `backend/start.sh`
+- `README.md`
+- `docs/architecture/system-architecture.md`
+- `docs/tracking/implementation-log.md`
+
+### Verification
+
+- backend compile check passed with `python -m compileall app`
+
+### Outcome
+
+Production deployments should now keep the migration-running entrypoint. After redeploying the backend with the corrected command, Alembic will create the auth tables before sign-up and login requests reach the database.
+
+### Next step
+
+Redeploy the backend service and confirm the Render logs show `Running upgrade ... 9848b576f066` or `alembic upgrade head` completing before Uvicorn starts.
