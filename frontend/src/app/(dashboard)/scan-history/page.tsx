@@ -22,6 +22,7 @@ import {
   getSavedScanTotalIssues,
   type SavedScanListItem,
 } from "@/lib/saved-scans"
+import { useAuth } from "@/lib/contexts/AuthContext"
 
 type StatusFilter = "all" | "queued" | "running" | "complete" | "error"
 type ModeFilter = "all" | "single" | "multi"
@@ -31,6 +32,7 @@ const PAGE_SIZE = 10
 
 export default function ScanHistoryPage() {
   const router = useRouter()
+  const { token } = useAuth()
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [modeFilter, setModeFilter] = useState<ModeFilter>("all")
@@ -55,11 +57,17 @@ export default function ScanHistoryPage() {
     let cancelled = false
 
     async function loadScans() {
+      if (!token) {
+        setLoading(false)
+        return
+      }
+      const authToken = token
+
       setLoading(true)
       setError("")
 
       try {
-        const response = await fetchSavedScans({
+        const response = await fetchSavedScans(authToken, {
           limit: PAGE_SIZE,
           offset: (currentPage - 1) * PAGE_SIZE,
           status: statusFilter === "all" ? undefined : statusFilter,
@@ -107,7 +115,7 @@ export default function ScanHistoryPage() {
     return () => {
       cancelled = true
     }
-  }, [currentPage, deferredSearchQuery, modeFilter, statusFilter])
+  }, [currentPage, deferredSearchQuery, modeFilter, statusFilter, token])
 
   const filteredScans = useMemo(() => {
     const result = [...scans]

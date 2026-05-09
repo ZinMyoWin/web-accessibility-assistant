@@ -13,6 +13,7 @@ The project currently includes:
 - JavaScript-rendered accessibility analysis for SPA-heavy pages
 - bounded worker-backed multi-page crawling with a 5-page cap, rendered-page axe-core checks, retry recovery, and visible queue controls
 - login and sign-up pages backed by persisted user/session records
+- authenticated scan history and preferences scoped to each user account
 - crawl memory that can skip previously scanned internal pages on repeat domain scans
 - PostgreSQL persistence for saved scan records
 - saved scan history APIs
@@ -159,6 +160,8 @@ Implemented today:
 - PostgreSQL persistence for successful and failed scan attempts
 - `GET /scans` and `GET /scans/{scan_id}` saved-scan APIs
 - sign-up, login, current-user, and logout APIs backed by stored user/session records and signed JWT access tokens
+- scan, history, report, queue-control, danger-zone, and preferences APIs require the current user's bearer token
+- saved scans and preferences are scoped to the authenticated user account
 - dashboard home scan UI
 - login and sign-up pages
 - dashboard route guard and sidebar logout control

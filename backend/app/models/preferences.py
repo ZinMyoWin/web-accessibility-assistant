@@ -1,7 +1,8 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
+import sqlalchemy as sa
 
 from app.models.base import Base
 
@@ -9,8 +10,14 @@ from app.models.base import Base
 class AppPreferences(Base):
     __tablename__ = "app_preferences"
 
-    # Only one row should exist. We'll enforce this with a check constraint or just hardcode id=1
     id = Column(Integer, primary_key=True)
+    user_id = Column(
+        sa.Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        unique=True,
+        index=True,
+        nullable=True,
+    )
 
     # AI Provider
     ai_provider = Column(String, default="openai")

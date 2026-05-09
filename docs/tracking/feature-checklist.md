@@ -22,6 +22,8 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Logout endpoint `POST /auth/logout`
 - [x] Password hashing for stored user records
 - [x] Persisted user session tokens
+- [x] Authenticated-user ownership for scan records
+- [x] Authenticated-user ownership for preferences
 - [x] Public URL validation
 - [x] Raw HTML fetch for submitted pages
 - [x] Custom HTML-based accessibility checks
@@ -89,6 +91,7 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Report route accepts `scanId` query parameter
 - [x] Preferences applied to dashboard scan defaults
 - [x] Danger-zone actions wired to backend APIs
+- [x] Frontend sends bearer tokens for scan, history, report, issue, queue, and preference API calls
 - [x] Multi-page scan UI
 - [x] Dashboard polls queued/running background multi-page scans until completion
 - [x] Dashboard shows the running scan queue, current page, removed pages, and retry attempt count
@@ -123,6 +126,8 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Stored user records
 - [x] Stored user session records
 - [x] Stored scan sessions
+- [x] Stored scan sessions scoped to the authenticated user
+- [x] Stored preferences scoped to the authenticated user
 - [x] Stored page-level issue records
 - [x] Historical comparison views
 - [x] Compare identity uses rule plus locator context
@@ -156,3 +161,4 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Add worker retry policy and stale-job recovery
 - [x] Add user-controlled queued-page removal and prioritization during running multi-page scans
 - [x] Add full JavaScript page rendering for SPA-heavy sites before analysis
+- [x] Scope saved scans and preferences by authenticated user

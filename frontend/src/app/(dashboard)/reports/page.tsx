@@ -15,6 +15,7 @@ import {
   mapSavedScanToReportData,
   type ReportViewData,
 } from "@/lib/saved-scans"
+import { useAuth } from "@/lib/contexts/AuthContext"
 
 export default function ReportsPage() {
   return (
@@ -32,18 +33,25 @@ function ReportsPageContent() {
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const searchParams = useSearchParams()
   const requestedScanId = searchParams.get("scanId")
+  const { token } = useAuth()
 
   useEffect(() => {
     let cancelled = false
 
     async function loadReport() {
+      if (!token) {
+        setLoading(false)
+        return
+      }
+      const authToken = token
+
       setLoading(true)
       setError("")
 
       try {
         let scanId = requestedScanId
         if (!scanId) {
-          const latest = await fetchSavedScans({ limit: 1, offset: 0 })
+          const latest = await fetchSavedScans(authToken, { limit: 1, offset: 0 })
           scanId = latest.items[0]?.id ?? null
         }
 
@@ -55,7 +63,7 @@ function ReportsPageContent() {
           return
         }
 
-        const scan = await fetchSavedScan(scanId)
+        const scan = await fetchSavedScan(scanId, authToken)
         if (!cancelled) {
           setReport(mapSavedScanToReportData(scan))
         }
@@ -80,7 +88,7 @@ function ReportsPageContent() {
     return () => {
       cancelled = true
     }
-  }, [requestedScanId])
+  }, [requestedScanId, token])
 
   function showToast(msg: string) {
     setToast(msg)

@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react"
 import { API, TEST_URL } from "@/components/home/constants"
 import type { ProgressState, ScanIssue, ScanResponse } from "@/components/home/types"
+import { authHeaders } from "@/lib/api"
+import { useAuth } from "@/lib/contexts/AuthContext"
 import type { AppPreferences } from "@/lib/contexts/PreferencesContext"
 import {
   fetchSavedScan,
@@ -20,6 +22,7 @@ const POLL_INTERVAL_MS = 2000
 const MAX_POLL_ATTEMPTS = 180
 
 export function useDashboardScan() {
+  const { token } = useAuth()
   const [url, setUrl] = useState(TEST_URL)
   const [result, setResult] = useState<ScanResponse | null>(null)
   const [error, setError] = useState("")
@@ -110,6 +113,10 @@ export function useDashboardScan() {
     if (isScanning || !url.trim()) {
       return
     }
+    if (!token) {
+      setError("Please log in before starting a scan.")
+      return
+    }
 
     setIsScanning(true)
     setError("")
@@ -120,7 +127,7 @@ export function useDashboardScan() {
     try {
       const response = await fetch(`${API}/scan/page`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders(token, { "Content-Type": "application/json" }),
         body: JSON.stringify({
           url,
           mode,
@@ -157,6 +164,9 @@ export function useDashboardScan() {
       const completedData =
         pendingScanId
           ? await pollScanUntilComplete(pendingScanId, (scan) => {
+              if (!token) {
+                return
+              }
               setActiveScan(scan)
               setProgressText(
                 scan.status === "queued"
@@ -165,7 +175,7 @@ export function useDashboardScan() {
                     ? `Scanning ${shortenUrl(scan.current_page_url)}...`
                     : "Scan worker is running full multi-page analysis..."
               )
-            })
+            }, token)
           : data
 
       setResult(completedData)
@@ -196,11 +206,15 @@ export function useDashboardScan() {
     if (!activeScan || queueActionUrl) {
       return
     }
+    if (!token) {
+      setError("Please log in before changing the scan queue.")
+      return
+    }
 
     setQueueActionUrl(pageUrl)
     setError("")
     try {
-      const updatedScan = await removeScanQueuePage(activeScan.id, pageUrl)
+      const updatedScan = await removeScanQueuePage(activeScan.id, pageUrl, token)
       setActiveScan(updatedScan)
     } catch (queueError) {
       setError(
@@ -217,11 +231,15 @@ export function useDashboardScan() {
     if (!activeScan || queueActionUrl) {
       return
     }
+    if (!token) {
+      setError("Please log in before changing the scan queue.")
+      return
+    }
 
     setQueueActionUrl(pageUrl)
     setError("")
     try {
-      const updatedScan = await prioritizeScanQueuePage(activeScan.id, pageUrl)
+      const updatedScan = await prioritizeScanQueuePage(activeScan.id, pageUrl, token)
       setActiveScan(updatedScan)
     } catch (queueError) {
       setError(
@@ -258,12 +276,13 @@ function isPendingScan(scan: ScanResponse): boolean {
 
 async function pollScanUntilComplete(
   scanId: string,
-  onScanUpdate?: (scan: SavedScanDetail) => void
+  onScanUpdate: ((scan: SavedScanDetail) => void) | undefined,
+  token: string
 ): Promise<ScanResponse> {
   for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt += 1) {
     await wait(POLL_INTERVAL_MS)
 
-    const scan = await fetchSavedScan(scanId)
+    const scan = await fetchSavedScan(scanId, token)
     onScanUpdate?.(scan)
 
     if (scan.status === "queued" || scan.status === "running") {

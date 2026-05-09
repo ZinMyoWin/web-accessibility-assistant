@@ -12,7 +12,8 @@ The current system is designed to do these main jobs:
 4. Let the frontend show summaries, issues, scan history, and persisted reports.
 5. Give users actionable locator guidance so they can find the affected element on the original webpage.
 6. Let users create accounts, log in, and store session records.
-7. Prepare the project for later work such as larger full-site scan orchestration and AI-generated repair guidance.
+7. Keep saved scan history and preferences scoped to the authenticated user.
+8. Prepare the project for later work such as larger full-site scan orchestration and AI-generated repair guidance.
 
 ## 2. High-Level Architecture
 
@@ -69,6 +70,7 @@ Current frontend responsibilities:
 - open the scan history page UI
 - open persisted reports with per-page issue grouping
 - show issue locator guidance using affected page URLs, DOM paths, line/column data, source snippets, and text previews
+- send the logged-in user's bearer token for scan, history, report, queue-control, and preferences API calls
 
 Current technologies:
 
@@ -87,6 +89,7 @@ Current status:
 - shared dashboard shell with sidebar is implemented
 - reports page loads persisted scan data using `scanId`
 - preferences page persists settings through backend APIs
+- scan history, reports, issues, and preferences now read and write account-scoped data
 - multi-page scan mode is enabled as a queued scan-worker job with a 5-page dashboard cap
 - queued multi-page scans expose current page, queued page URLs, removed page URLs, retry attempts, and stale-worker recovery state
 - users can remove queued pages or prioritize a queued page before it is scanned
@@ -106,9 +109,11 @@ Current backend responsibilities:
 - save scan results
 - return structured JSON for both live and saved scan views
 - create users, verify credentials, issue sessions, and revoke sessions
+- require bearer-token authentication for scan creation, saved scans, queue controls, scan-history clearing, and preferences
 - create queued scan jobs for bounded multi-page dashboard scans
 - track queue state, current page, removed pages, worker lock/heartbeat metadata, and retry attempts for running multi-page scans
 - persist score, mode, pages scanned, pages skipped, scanned/skipped page URL lists, issue page URLs, and element locator metadata
+- persist scan runs and preferences with the authenticated user's ID
 
 Current technologies:
 
@@ -263,6 +268,7 @@ Current models:
 - `UserSession`
 - `ScanRun`
 - `ScanIssueRecord`
+- `AppPreferences`
 
 ### `backend/app/repositories/auth_repository.py`
 
@@ -295,8 +301,8 @@ Responsibilities:
 
 - save successful scans
 - save failed scans
-- list saved scans
-- load one saved scan with its issues
+- list saved scans for the current user
+- load one saved scan with its issues only when it belongs to the current user
 - convert ORM objects into API response models
 
 ### `backend/alembic/`
@@ -305,7 +311,7 @@ Contains database migration files.
 
 Current responsibility:
 
-- create and track the PostgreSQL schema for saved scans, issues, preferences, users, and sessions
+- create and track the PostgreSQL schema for saved scans, issues, preferences, users, sessions, and user ownership fields
 
 Production startup rule:
 
@@ -317,25 +323,25 @@ Production startup rule:
 
 The current single-page scan flow is:
 
-1. The frontend or API client sends `POST /scan/page` with a URL.
-2. FastAPI validates the request body.
+1. The frontend or API client sends `POST /scan/page` with a bearer token and URL.
+2. FastAPI resolves the current user from the token and validates the request body.
 3. The backend validates the URL format.
 4. The scanner navigates to the page in Playwright, waits for rendered JavaScript content, and captures rendered HTML.
 5. If rendering is unavailable, the scanner falls back to raw HTTP HTML fetch.
 6. The backend runs custom checks against the rendered or fallback HTML.
 7. The backend runs axe-core in Playwright.
 8. The backend merges issues and captures screenshots.
-9. The backend saves the finished scan in PostgreSQL.
+9. The backend saves the finished scan in PostgreSQL with the current user's ID.
 10. The API returns the live scan result plus `scan_id`.
 
 The current multi-page scan flow is:
 
-1. The frontend sends `POST /scan/page` with `mode="multi"` and crawl preferences.
-2. The backend creates a saved scan record with `status="queued"` and clamps the page limit to a maximum of 5 pages.
+1. The frontend sends `POST /scan/page` with a bearer token, `mode="multi"`, and crawl preferences.
+2. The backend creates a user-owned saved scan record with `status="queued"` and clamps the page limit to a maximum of 5 pages.
 3. The crawler follows allowed internal links while respecting depth, ignore patterns, same-domain settings, and robots settings.
 4. Each page is rendered in Playwright when available, then analyzed with custom HTML checks plus axe-core.
 5. Issues are tagged with their affected `page_url` and locator metadata.
-6. When crawl memory is enabled, discovered internal URLs that were previously scanned on the same domain are skipped.
+6. When crawl memory is enabled, discovered internal URLs that were previously scanned by the same user on the same domain are skipped.
 7. The scan-worker claims the queued row, marks it `status="running"`, and increments worker attempt metadata.
 8. As links are discovered, the worker persists `current_page_url`, `queued_page_urls`, `excluded_page_urls`, scanned URLs, skipped URLs, and heartbeat timestamps.
 9. The dashboard polls the saved scan, shows the current queue, and can call queue-control routes to remove or prioritize waiting pages.
@@ -360,6 +366,7 @@ Stores one row per scan attempt.
 Important fields:
 
 - scan ID
+- user ID
 - requested URL
 - final URL
 - status
@@ -562,7 +569,7 @@ Important response fields:
 
 Purpose:
 
-- return saved scan summaries for the history page
+- return saved scan summaries for the authenticated user's history page
 
 Example use cases:
 
@@ -575,7 +582,7 @@ Example use cases:
 
 Purpose:
 
-- return one saved scan with its saved issue records
+- return one saved scan with its saved issue records when it belongs to the authenticated user
 
 ## 11. Current Status
 
@@ -588,6 +595,7 @@ Implemented today:
 - persisted accessibility score calculation for saved scans
 - saved scan list API
 - saved scan detail API
+- authenticated user ownership for saved scans and preferences
 - dashboard home scan UI
 - bounded worker-backed multi-page crawl mode with a 5-page dashboard cap, full axe-core checks, and per-page issue attribution
 - running crawl queue visibility, queued-page removal, queued-page prioritization, retry attempts, and stale-job recovery

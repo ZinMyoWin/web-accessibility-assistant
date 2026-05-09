@@ -19,6 +19,7 @@ from app.schemas.scan import ScanIssue, ScanPageResponse, ScanSummary
 def save_completed_scan(
     session: Session,
     *,
+    user_id: UUID,
     requested_url: str,
     result: ScanPageResponse,
     started_at: datetime,
@@ -29,6 +30,7 @@ def save_completed_scan(
     duration_seconds = _duration_seconds(started_at, completed_at)
 
     scan_run = ScanRun(
+        user_id=user_id,
         requested_url=requested_url,
         final_url=result.url,
         status="complete",
@@ -84,6 +86,7 @@ def save_completed_scan(
 def create_scan_job(
     session: Session,
     *,
+    user_id: UUID,
     requested_url: str,
     started_at: datetime,
     mode: str = "single",
@@ -92,6 +95,7 @@ def create_scan_job(
     scan_options: dict[str, object] | None = None,
 ) -> ScanRun:
     scan_run = ScanRun(
+        user_id=user_id,
         requested_url=requested_url,
         final_url=None,
         status=status,
@@ -324,6 +328,7 @@ def retry_or_fail_running_scan(
 def save_failed_scan(
     session: Session,
     *,
+    user_id: UUID,
     requested_url: str,
     error_message: str,
     started_at: datetime,
@@ -334,6 +339,7 @@ def save_failed_scan(
     duration_seconds = _duration_seconds(started_at, completed_at)
 
     scan_run = ScanRun(
+        user_id=user_id,
         requested_url=requested_url,
         final_url=None,
         status="error",
@@ -366,13 +372,14 @@ def save_failed_scan(
 def list_saved_scans(
     session: Session,
     *,
+    user_id: UUID,
     limit: int,
     offset: int,
     status: str | None = None,
     mode: str | None = None,
     q: str | None = None,
 ) -> SavedScanListResponse:
-    base_query = select(ScanRun)
+    base_query = select(ScanRun).where(ScanRun.user_id == user_id)
 
     if status:
         base_query = base_query.where(ScanRun.status == status)
@@ -401,17 +408,21 @@ def list_saved_scans(
     )
 
 
-def get_saved_scan(session: Session, scan_id: UUID) -> ScanRun | None:
+def get_saved_scan(session: Session, scan_id: UUID, user_id: UUID) -> ScanRun | None:
     statement: Select[tuple[ScanRun]] = (
         select(ScanRun)
         .options(selectinload(ScanRun.issues))
-        .where(ScanRun.id == scan_id)
+        .where(ScanRun.id == scan_id, ScanRun.user_id == user_id)
     )
     return session.scalar(statement)
 
 
-def clear_saved_scans(session: Session) -> int:
-    deleted_count = session.query(ScanRun).delete(synchronize_session=False)
+def clear_saved_scans(session: Session, user_id: UUID) -> int:
+    deleted_count = (
+        session.query(ScanRun)
+        .filter(ScanRun.user_id == user_id)
+        .delete(synchronize_session=False)
+    )
     session.commit()
     return int(deleted_count or 0)
 
@@ -506,8 +517,15 @@ def get_scan_queue_state(session: Session, scan_id: UUID) -> tuple[list[str], se
     return scan_run.queued_page_urls or [], set(scan_run.excluded_page_urls or [])
 
 
-def remove_queued_scan_page(session: Session, scan_id: UUID, url: str) -> ScanRun | None:
-    scan_run = session.get(ScanRun, scan_id)
+def remove_queued_scan_page(
+    session: Session,
+    scan_id: UUID,
+    user_id: UUID,
+    url: str,
+) -> ScanRun | None:
+    scan_run = session.scalar(
+        select(ScanRun).where(ScanRun.id == scan_id, ScanRun.user_id == user_id)
+    )
     if scan_run is None:
         return None
     if scan_run.status not in {"queued", "running"}:
@@ -528,8 +546,15 @@ def remove_queued_scan_page(session: Session, scan_id: UUID, url: str) -> ScanRu
     return scan_run
 
 
-def prioritize_queued_scan_page(session: Session, scan_id: UUID, url: str) -> ScanRun | None:
-    scan_run = session.get(ScanRun, scan_id)
+def prioritize_queued_scan_page(
+    session: Session,
+    scan_id: UUID,
+    user_id: UUID,
+    url: str,
+) -> ScanRun | None:
+    scan_run = session.scalar(
+        select(ScanRun).where(ScanRun.id == scan_id, ScanRun.user_id == user_id)
+    )
     if scan_run is None:
         return None
     if scan_run.status not in {"queued", "running"}:
@@ -599,6 +624,7 @@ def calculate_scan_score(result: ScanPageResponse) -> int:
 
 def get_previously_scanned_page_urls_for_domain(
     session: Session,
+    user_id: UUID,
     root_url: str,
 ) -> set[str]:
     root_host = _normalized_host(root_url)
@@ -608,7 +634,7 @@ def get_previously_scanned_page_urls_for_domain(
     statement: Select[tuple[ScanRun]] = (
         select(ScanRun)
         .options(selectinload(ScanRun.issues))
-        .where(ScanRun.status == "complete")
+        .where(ScanRun.status == "complete", ScanRun.user_id == user_id)
     )
 
     scanned_urls: set[str] = set()

@@ -22,6 +22,7 @@ import {
   type SavedScanDetail,
   type SavedScanListItem,
 } from "@/lib/saved-scans"
+import { useAuth } from "@/lib/contexts/AuthContext"
 
 const SEVERITY_ORDER: Record<IssueListItem["severity"], number> = {
   high: 0,
@@ -41,6 +42,7 @@ function IssuesPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const requestedScanId = searchParams.get("scanId")
+  const { token } = useAuth()
 
   const [scans, setScans] = useState<SavedScanListItem[]>([])
   const [activeScanId, setActiveScanId] = useState<string | null>(requestedScanId)
@@ -61,11 +63,17 @@ function IssuesPageContent() {
     let cancelled = false
 
     async function loadSavedScans() {
+      if (!token) {
+        setLoadingScans(false)
+        return
+      }
+      const authToken = token
+
       setLoadingScans(true)
       setError("")
 
       try {
-        const response = await fetchSavedScans({ limit: 50, offset: 0 })
+        const response = await fetchSavedScans(authToken, { limit: 50, offset: 0 })
 
         if (cancelled) {
           return
@@ -103,15 +111,16 @@ function IssuesPageContent() {
     return () => {
       cancelled = true
     }
-  }, [requestedScanId])
+  }, [requestedScanId, token])
 
   useEffect(() => {
-    if (!activeScanId) {
+    if (!activeScanId || !token) {
       setActiveScan(null)
       return
     }
 
     const scanId = activeScanId
+    const authToken = token
     let cancelled = false
 
     async function loadSavedScan() {
@@ -119,7 +128,7 @@ function IssuesPageContent() {
       setError("")
 
       try {
-        const response = await fetchSavedScan(scanId)
+        const response = await fetchSavedScan(scanId, authToken)
 
         if (cancelled) {
           return
@@ -149,7 +158,7 @@ function IssuesPageContent() {
     return () => {
       cancelled = true
     }
-  }, [activeScanId])
+  }, [activeScanId, token])
 
   const issues = useMemo(() => {
     return activeScan ? mapSavedScanToIssueList(activeScan) : []

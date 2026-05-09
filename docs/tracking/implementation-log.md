@@ -2330,3 +2330,58 @@ Production deployments should now keep the migration-running entrypoint. After r
 ### Next step
 
 Redeploy the backend service and confirm the Render logs show `Running upgrade ... 9848b576f066` or `alembic upgrade head` completing before Uvicorn starts.
+
+## 2026-05-09 - User-Scoped Scans and Preferences
+
+### Completed work
+
+Scoped saved audit data to the authenticated account:
+
+- added a migration that links `scan_runs` and `app_preferences` to `users`
+- saved new single-page scans, failed scans, and queued multi-page jobs with the current user's ID
+- filtered scan history, scan detail, queue-control, clear-history, and crawl-memory lookups by the current user
+- changed preferences from one global row to one row per authenticated user
+- required bearer-token authentication for scan creation, saved scans, queue controls, scan-history clearing, and preferences
+- updated frontend scan, history, reports, issues, compare, queue-control, danger-zone, and preferences requests to send the logged-in user's token
+- added repository coverage that verifies users cannot read or modify another user's scan rows
+
+### Why this was done
+
+Authentication was already implemented, but scan history and preferences were still effectively global. This change makes each user's audit history, crawl memory, and settings private to that account.
+
+### Files involved
+
+- `backend/app/main.py`
+- `backend/app/models/scan.py`
+- `backend/app/models/preferences.py`
+- `backend/app/repositories/scan_repository.py`
+- `backend/app/repositories/preferences_repository.py`
+- `backend/alembic/versions/9848b576f067_scope_data_by_user.py`
+- `backend/tests/test_api_smoke.py`
+- `backend/tests/test_scan_repository_unit.py`
+- `frontend/src/lib/api.ts`
+- `frontend/src/lib/saved-scans.ts`
+- `frontend/src/lib/contexts/PreferencesContext.tsx`
+- `frontend/src/hooks/useDashboardScan.ts`
+- `frontend/src/app/(dashboard)/issues/page.tsx`
+- `frontend/src/app/(dashboard)/reports/page.tsx`
+- `frontend/src/app/(dashboard)/scan-history/page.tsx`
+- `frontend/src/components/scan-history/ScanHistoryCompareView.tsx`
+- `README.md`
+- `docs/architecture/system-architecture.md`
+- `docs/tracking/feature-checklist.md`
+- `docs/tracking/implementation-log.md`
+
+### Verification
+
+- backend compile check passed with `python -m compileall app`
+- backend test suite passed with `pytest -q tests` (`33 passed`)
+- frontend typecheck passed with `npx tsc --noEmit`
+
+### Outcome
+
+New scans, scan history, reports, queue edits, crawl-memory lookup, danger-zone history clearing, and preferences now operate against the authenticated user's data. A scan ID from another account returns as not found through the user-scoped detail and queue-control paths.
+
+### Next step
+
+Add a full automated frontend test suite for dashboard queue controls, report page grouping, and scan-state rendering.

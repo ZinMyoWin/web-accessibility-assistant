@@ -4,6 +4,8 @@ from uuid import uuid4
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from app.models.auth import User
+import app.models.preferences  # noqa: F401
 from app.models.scan import ScanIssueRecord, ScanRun
 from app.repositories import scan_repository
 from app.schemas.scan import ScanPageResponse, ScanSummary
@@ -11,6 +13,7 @@ from app.schemas.scan import ScanPageResponse, ScanSummary
 
 def _session():
     engine = create_engine("sqlite+pysqlite:///:memory:")
+    User.__table__.create(engine)
     ScanRun.__table__.create(engine)
     ScanIssueRecord.__table__.create(engine)
     return sessionmaker(bind=engine)()
@@ -19,6 +22,7 @@ def _session():
 def _scan_run(**overrides):
     values = {
         "id": uuid4(),
+        "user_id": uuid4(),
         "requested_url": "https://example.com",
         "final_url": None,
         "status": "running",
@@ -77,6 +81,7 @@ def test_remove_queued_scan_page_excludes_url_from_running_scan():
     updated = scan_repository.remove_queued_scan_page(
         session,
         scan_run.id,
+        scan_run.user_id,
         "https://example.com/about/",
     )
 
@@ -100,6 +105,7 @@ def test_prioritize_queued_scan_page_moves_url_to_front():
     updated = scan_repository.prioritize_queued_scan_page(
         session,
         scan_run.id,
+        scan_run.user_id,
         "https://example.com/pricing",
     )
 
@@ -172,3 +178,43 @@ def test_recover_stale_scan_requeues_until_max_attempts_then_fails():
     assert exhausted_scan.error_message == (
         "Scan worker stopped responding and retry attempts were exhausted."
     )
+
+
+def test_saved_scan_queries_are_scoped_to_user():
+    session = _session()
+    owner_id = uuid4()
+    other_user_id = uuid4()
+    owner_scan = _scan_run(user_id=owner_id, status="complete")
+    other_scan = _scan_run(user_id=other_user_id, status="complete")
+    session.add_all([owner_scan, other_scan])
+    session.commit()
+
+    response = scan_repository.list_saved_scans(
+        session,
+        user_id=owner_id,
+        limit=20,
+        offset=0,
+    )
+
+    assert response.total == 1
+    assert response.items[0].id == str(owner_scan.id)
+    assert scan_repository.get_saved_scan(session, owner_scan.id, owner_id) is not None
+    assert scan_repository.get_saved_scan(session, other_scan.id, owner_id) is None
+
+
+def test_queue_controls_do_not_update_another_users_scan():
+    session = _session()
+    owner_id = uuid4()
+    other_user_id = uuid4()
+    other_scan = _scan_run(user_id=other_user_id)
+    session.add(other_scan)
+    session.commit()
+
+    updated = scan_repository.remove_queued_scan_page(
+        session,
+        other_scan.id,
+        owner_id,
+        "https://example.com/about",
+    )
+
+    assert updated is None

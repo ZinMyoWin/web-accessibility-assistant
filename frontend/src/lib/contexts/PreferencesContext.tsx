@@ -1,7 +1,8 @@
 "use client"
 
 import React, { createContext, useContext, useEffect, useState } from "react"
-import { API_BASE_URL } from "@/lib/api"
+import { API_BASE_URL, authHeaders } from "@/lib/api"
+import { useAuth } from "@/lib/contexts/AuthContext"
 
 export interface AppPreferences {
   ai_provider: string
@@ -85,14 +86,28 @@ interface PreferencesContextValue {
 const PreferencesContext = createContext<PreferencesContextValue | undefined>(undefined)
 
 export function PreferencesProvider({ children }: { children: React.ReactNode }) {
+  const { status, token } = useAuth()
   const [preferences, setPreferences] = useState<AppPreferences>(defaultPreferences)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     async function fetchPreferences() {
+      if (status === "loading") {
+        return
+      }
+      if (!token) {
+        setIsLoading(false)
+        setPreferences(defaultPreferences)
+        return
+      }
+
+      setIsLoading(true)
+      setError(null)
       try {
-        const response = await fetch(`${API_BASE_URL}/preferences`)
+        const response = await fetch(`${API_BASE_URL}/preferences`, {
+          headers: authHeaders(token),
+        })
         if (!response.ok) {
           throw new Error("Failed to load preferences.")
         }
@@ -106,9 +121,13 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       }
     }
     void fetchPreferences()
-  }, [])
+  }, [status, token])
 
   async function updatePreferences(newPrefs: Partial<AppPreferences>) {
+    if (!token) {
+      throw new Error("Authentication required.")
+    }
+
     const payload = { ...newPrefs } as Partial<AppPreferences> & {
       clear_api_key?: boolean
     }
@@ -123,9 +142,9 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
     try {
       const response = await fetch(`${API_BASE_URL}/preferences`, {
         method: "PUT",
-        headers: {
+        headers: authHeaders(token, {
           "Content-Type": "application/json",
-        },
+        }),
         body: JSON.stringify(payload),
       })
 
@@ -141,14 +160,28 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
   }
 
   async function clearScanHistory() {
-    const response = await fetch(`${API_BASE_URL}/scans`, { method: "DELETE" })
+    if (!token) {
+      throw new Error("Authentication required.")
+    }
+
+    const response = await fetch(`${API_BASE_URL}/scans`, {
+      method: "DELETE",
+      headers: authHeaders(token),
+    })
     if (!response.ok) {
       throw new Error("Failed to clear scan history.")
     }
   }
 
   async function resetPreferences() {
-    const response = await fetch(`${API_BASE_URL}/preferences/reset`, { method: "POST" })
+    if (!token) {
+      throw new Error("Authentication required.")
+    }
+
+    const response = await fetch(`${API_BASE_URL}/preferences/reset`, {
+      method: "POST",
+      headers: authHeaders(token),
+    })
     if (!response.ok) {
       throw new Error("Failed to reset preferences.")
     }

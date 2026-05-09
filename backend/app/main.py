@@ -9,6 +9,7 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
 from app.db import get_db_session, get_session_factory
+from app.models.auth import User
 from app.repositories.scan_repository import (
     clear_saved_scans,
     complete_running_scan,
@@ -170,14 +171,16 @@ def test_js_rendered_page():
 def scan_single_page(
     request: ScanPageRequest,
     background_tasks: BackgroundTasks,
+    authorization: str | None = Header(default=None),
     db: Session = Depends(get_db_session),
 ):
+    current_user = _get_user_from_authorization_header(db, authorization)
     requested_url = str(request.url)
     started_at = datetime.now(UTC)
     mode = request.mode
     page_limit = min(request.page_limit, SYNC_CRAWL_PAGE_LIMIT) if request.mode == "multi" else None
     previously_scanned_urls = (
-        get_previously_scanned_page_urls_for_domain(db, requested_url)
+        get_previously_scanned_page_urls_for_domain(db, current_user.id, requested_url)
         if request.mode == "multi" and request.skip_previously_scanned_pages
         else set()
     )
@@ -200,6 +203,7 @@ def scan_single_page(
             job_status = "queued" if execution_mode == SCAN_EXECUTION_MODE_WORKER else "running"
             scan_run = create_scan_job(
                 db,
+                user_id=current_user.id,
                 requested_url=requested_url,
                 started_at=started_at,
                 mode=mode,
@@ -248,6 +252,7 @@ def scan_single_page(
         try:
             save_failed_scan(
                 db,
+                user_id=current_user.id,
                 requested_url=requested_url,
                 error_message=exc.message,
                 started_at=started_at,
@@ -264,6 +269,7 @@ def scan_single_page(
     try:
         saved_scan = save_completed_scan(
             db,
+            user_id=current_user.id,
             requested_url=requested_url,
             result=result,
             started_at=started_at,
@@ -405,7 +411,7 @@ def logout(
 def _get_user_from_authorization_header(
     db: Session,
     authorization: str | None,
-):
+) -> User:
     token = _get_bearer_token(authorization)
     user = get_user_for_token(db, token)
     if user is None:
@@ -429,14 +435,29 @@ def get_scans(
     status: str | None = Query(default=None),
     mode: str | None = Query(default=None),
     q: str | None = Query(default=None),
+    authorization: str | None = Header(default=None),
     db: Session = Depends(get_db_session),
 ):
-    return list_saved_scans(db, limit=limit, offset=offset, status=status, mode=mode, q=q)
+    current_user = _get_user_from_authorization_header(db, authorization)
+    return list_saved_scans(
+        db,
+        user_id=current_user.id,
+        limit=limit,
+        offset=offset,
+        status=status,
+        mode=mode,
+        q=q,
+    )
 
 
 @app.get("/scans/{scan_id}", response_model=SavedScanResponse)
-def get_scan(scan_id: UUID, db: Session = Depends(get_db_session)):
-    scan_run = get_saved_scan(db, scan_id)
+def get_scan(
+    scan_id: UUID,
+    authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db_session),
+):
+    current_user = _get_user_from_authorization_header(db, authorization)
+    scan_run = get_saved_scan(db, scan_id, current_user.id)
     if scan_run is None:
         raise HTTPException(status_code=404, detail="Scan not found")
     return to_saved_scan_response(scan_run)
@@ -446,9 +467,11 @@ def get_scan(scan_id: UUID, db: Session = Depends(get_db_session)):
 def remove_scan_queue_page(
     scan_id: UUID,
     request: ScanQueuePageRequest,
+    authorization: str | None = Header(default=None),
     db: Session = Depends(get_db_session),
 ):
-    scan_run = remove_queued_scan_page(db, scan_id, request.url)
+    current_user = _get_user_from_authorization_header(db, authorization)
+    scan_run = remove_queued_scan_page(db, scan_id, current_user.id, request.url)
     if scan_run is None:
         raise HTTPException(status_code=404, detail="Scan not found")
     return to_saved_scan_response(scan_run)
@@ -458,37 +481,56 @@ def remove_scan_queue_page(
 def prioritize_scan_queue_page(
     scan_id: UUID,
     request: ScanQueuePageRequest,
+    authorization: str | None = Header(default=None),
     db: Session = Depends(get_db_session),
 ):
-    scan_run = prioritize_queued_scan_page(db, scan_id, request.url)
+    current_user = _get_user_from_authorization_header(db, authorization)
+    scan_run = prioritize_queued_scan_page(db, scan_id, current_user.id, request.url)
     if scan_run is None:
         raise HTTPException(status_code=404, detail="Scan not found")
     return to_saved_scan_response(scan_run)
 
 
 @app.delete("/scans")
-def delete_scans(db: Session = Depends(get_db_session)):
-    deleted = clear_saved_scans(db)
+def delete_scans(
+    authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db_session),
+):
+    current_user = _get_user_from_authorization_header(db, authorization)
+    deleted = clear_saved_scans(db, current_user.id)
     return {"deleted_scan_runs": deleted}
 
 
 @app.get("/preferences", response_model=AppPreferencesResponse)
-def get_app_preferences(db: Session = Depends(get_db_session)):
-    prefs = get_preferences(db)
+def get_app_preferences(
+    authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db_session),
+):
+    current_user = _get_user_from_authorization_header(db, authorization)
+    prefs = get_preferences(db, current_user.id)
     # Expose if a key is stored, but do not expose the encrypted key itself
     has_api_key = bool(prefs.encrypted_api_key)
     return AppPreferencesResponse.model_validate(prefs).model_copy(update={"has_api_key": has_api_key})
 
 
 @app.put("/preferences", response_model=AppPreferencesResponse)
-def update_app_preferences(update_data: AppPreferencesUpdate, db: Session = Depends(get_db_session)):
-    prefs = update_preferences(db, update_data)
+def update_app_preferences(
+    update_data: AppPreferencesUpdate,
+    authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db_session),
+):
+    current_user = _get_user_from_authorization_header(db, authorization)
+    prefs = update_preferences(db, current_user.id, update_data)
     has_api_key = bool(prefs.encrypted_api_key)
     return AppPreferencesResponse.model_validate(prefs).model_copy(update={"has_api_key": has_api_key})
 
 
 @app.post("/preferences/reset", response_model=AppPreferencesResponse)
-def reset_app_preferences(db: Session = Depends(get_db_session)):
-    prefs = reset_preferences(db)
+def reset_app_preferences(
+    authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db_session),
+):
+    current_user = _get_user_from_authorization_header(db, authorization)
+    prefs = reset_preferences(db, current_user.id)
     has_api_key = bool(prefs.encrypted_api_key)
     return AppPreferencesResponse.model_validate(prefs).model_copy(update={"has_api_key": has_api_key})

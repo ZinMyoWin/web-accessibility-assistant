@@ -15,6 +15,19 @@ def _fake_db():
     return SimpleNamespace(close=lambda: None, rollback=lambda: None)
 
 
+def _auth_user():
+    return SimpleNamespace(
+        id=uuid4(),
+        name="Test User",
+        email="user@example.com",
+        created_at=datetime.now(UTC),
+    )
+
+
+def _auth_headers(token: str = "test-token"):
+    return {"Authorization": f"Bearer {token}"}
+
+
 def test_health_endpoint():
     client = TestClient(app)
     response = client.get("/health")
@@ -112,22 +125,34 @@ def test_auth_signup_login_me_and_logout(monkeypatch):
 
 def test_delete_scans_endpoint(monkeypatch):
     app.dependency_overrides[get_db_session] = lambda: _fake_db()
-    monkeypatch.setattr("app.main.clear_saved_scans", lambda _db: 2)
+    current_user = _auth_user()
+    captured: dict[str, object] = {}
+    monkeypatch.setattr("app.main.get_user_for_token", lambda _db, _token: current_user)
+
+    def fake_clear_saved_scans(_db, user_id):
+        captured["user_id"] = user_id
+        return 2
+
+    monkeypatch.setattr("app.main.clear_saved_scans", fake_clear_saved_scans)
 
     client = TestClient(app)
-    response = client.delete("/scans")
+    response = client.delete("/scans", headers=_auth_headers())
 
     assert response.status_code == 200
     assert response.json() == {"deleted_scan_runs": 2}
+    assert captured["user_id"] == current_user.id
     app.dependency_overrides.clear()
 
 
 def test_reset_preferences_endpoint(monkeypatch):
     app.dependency_overrides[get_db_session] = lambda: _fake_db()
+    current_user = _auth_user()
+    captured: dict[str, object] = {}
+    monkeypatch.setattr("app.main.get_user_for_token", lambda _db, _token: current_user)
 
-    monkeypatch.setattr(
-        "app.main.reset_preferences",
-        lambda _db: SimpleNamespace(
+    def fake_reset_preferences(_db, user_id):
+        captured["user_id"] = user_id
+        return SimpleNamespace(
             ai_provider="openai",
             ai_model="gpt-4o",
             active_suggestion_provider="openai",
@@ -155,17 +180,19 @@ def test_reset_preferences_endpoint(monkeypatch):
             high_contrast=False,
             density="comfortable",
             encrypted_api_key=None,
-        ),
-    )
+        )
+
+    monkeypatch.setattr("app.main.reset_preferences", fake_reset_preferences)
 
     client = TestClient(app)
-    response = client.post("/preferences/reset")
+    response = client.post("/preferences/reset", headers=_auth_headers())
 
     assert response.status_code == 200
     body = response.json()
     assert body["ai_provider"] == "openai"
     assert body["has_api_key"] is False
     assert body["skip_previously_scanned_pages"] is True
+    assert captured["user_id"] == current_user.id
     app.dependency_overrides.clear()
 
 
@@ -174,6 +201,8 @@ def test_scan_page_multi_mode_endpoint(monkeypatch):
 
     captured: dict[str, object] = {}
     scan_id = uuid4()
+    current_user = _auth_user()
+    monkeypatch.setattr("app.main.get_user_for_token", lambda _db, _token: current_user)
 
     def fake_scan_page(url, options, queue_control=None):
         captured["url"] = url
@@ -195,6 +224,7 @@ def test_scan_page_multi_mode_endpoint(monkeypatch):
     def fake_create_scan_job(
         _db,
         *,
+        user_id,
         requested_url,
         started_at,
         mode,
@@ -202,6 +232,7 @@ def test_scan_page_multi_mode_endpoint(monkeypatch):
         status,
         scan_options,
     ):
+        captured["user_id"] = user_id
         captured["requested_url"] = requested_url
         captured["mode"] = mode
         captured["page_limit"] = page_limit
@@ -220,12 +251,13 @@ def test_scan_page_multi_mode_endpoint(monkeypatch):
     monkeypatch.setattr("app.main.get_session_factory", lambda: _fake_db)
     monkeypatch.setattr(
         "app.main.get_previously_scanned_page_urls_for_domain",
-        lambda _db, _url: {"https://example.com/about"},
+        lambda _db, _user_id, _url: {"https://example.com/about"},
     )
 
     client = TestClient(app)
     response = client.post(
         "/scan/page",
+        headers=_auth_headers(),
         json={
             "url": "https://example.com",
             "mode": "multi",
@@ -251,6 +283,7 @@ def test_scan_page_multi_mode_endpoint(monkeypatch):
     assert body["skipped_page_urls"] == []
     assert str(captured["url"]) == "https://example.com/"
     assert captured["mode"] == "multi"
+    assert captured["user_id"] == current_user.id
     assert captured["page_limit"] == 5
     assert captured["job_status"] == "running"
     assert captured["pages_scanned"] == 3
@@ -271,10 +304,13 @@ def test_scan_page_multi_mode_can_enqueue_for_worker(monkeypatch):
     app.dependency_overrides[get_db_session] = lambda: _fake_db()
     scan_id = uuid4()
     captured: dict[str, object] = {}
+    current_user = _auth_user()
+    monkeypatch.setattr("app.main.get_user_for_token", lambda _db, _token: current_user)
 
     def fake_create_scan_job(
         _db,
         *,
+        user_id,
         requested_url,
         started_at,
         mode,
@@ -282,6 +318,7 @@ def test_scan_page_multi_mode_can_enqueue_for_worker(monkeypatch):
         status,
         scan_options,
     ):
+        captured["user_id"] = user_id
         captured["requested_url"] = requested_url
         captured["status"] = status
         captured["scan_options"] = scan_options
@@ -291,12 +328,13 @@ def test_scan_page_multi_mode_can_enqueue_for_worker(monkeypatch):
     monkeypatch.setattr("app.main.create_scan_job", fake_create_scan_job)
     monkeypatch.setattr(
         "app.main.get_previously_scanned_page_urls_for_domain",
-        lambda _db, _url: set(),
+        lambda _db, _user_id, _url: set(),
     )
 
     client = TestClient(app)
     response = client.post(
         "/scan/page",
+        headers=_auth_headers(),
         json={
             "url": "https://example.com",
             "mode": "multi",
@@ -309,6 +347,7 @@ def test_scan_page_multi_mode_can_enqueue_for_worker(monkeypatch):
     assert body["status"] == "queued"
     assert body["scan_id"] == str(scan_id)
     assert captured["status"] == "queued"
+    assert captured["user_id"] == current_user.id
     assert captured["scan_options"]["mode"] == "multi"
     app.dependency_overrides.clear()
 
@@ -317,6 +356,8 @@ def test_scan_queue_control_endpoints(monkeypatch):
     app.dependency_overrides[get_db_session] = lambda: _fake_db()
     scan_id = uuid4()
     captured: dict[str, object] = {}
+    current_user = _auth_user()
+    monkeypatch.setattr("app.main.get_user_for_token", lambda _db, _token: current_user)
 
     def fake_to_saved_scan_response(scan_run):
         return {
@@ -346,16 +387,16 @@ def test_scan_queue_control_endpoints(monkeypatch):
             "issues": [],
         }
 
-    def fake_remove(_db, received_scan_id, page_url):
-        captured["removed"] = (received_scan_id, page_url)
+    def fake_remove(_db, received_scan_id, user_id, page_url):
+        captured["removed"] = (received_scan_id, user_id, page_url)
         return SimpleNamespace(
             id=received_scan_id,
             queued_page_urls=["https://example.com/contact"],
             excluded_page_urls=[page_url],
         )
 
-    def fake_prioritize(_db, received_scan_id, page_url):
-        captured["prioritized"] = (received_scan_id, page_url)
+    def fake_prioritize(_db, received_scan_id, user_id, page_url):
+        captured["prioritized"] = (received_scan_id, user_id, page_url)
         return SimpleNamespace(
             id=received_scan_id,
             queued_page_urls=[page_url, "https://example.com/contact"],
@@ -369,17 +410,19 @@ def test_scan_queue_control_endpoints(monkeypatch):
     client = TestClient(app)
     remove_response = client.post(
         f"/scans/{scan_id}/queue/remove",
+        headers=_auth_headers(),
         json={"url": "https://example.com/about"},
     )
     prioritize_response = client.post(
         f"/scans/{scan_id}/queue/prioritize",
+        headers=_auth_headers(),
         json={"url": "https://example.com/pricing"},
     )
 
     assert remove_response.status_code == 200
     assert prioritize_response.status_code == 200
-    assert captured["removed"] == (scan_id, "https://example.com/about")
-    assert captured["prioritized"] == (scan_id, "https://example.com/pricing")
+    assert captured["removed"] == (scan_id, current_user.id, "https://example.com/about")
+    assert captured["prioritized"] == (scan_id, current_user.id, "https://example.com/pricing")
     assert remove_response.json()["excluded_page_urls"] == ["https://example.com/about"]
     assert prioritize_response.json()["queued_page_urls"][0] == "https://example.com/pricing"
     app.dependency_overrides.clear()

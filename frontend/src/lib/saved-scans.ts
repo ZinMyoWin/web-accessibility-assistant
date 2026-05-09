@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "@/lib/api"
+import { API_BASE_URL, authHeaders } from "@/lib/api"
 
 export type SavedScanStatus = "queued" | "running" | "complete" | "error"
 export type SavedScanMode = "single" | "multi"
@@ -184,6 +184,7 @@ export type ReportViewData = {
 }
 
 export async function fetchSavedScans(
+  token: string,
   query: SavedScanQuery = {}
 ): Promise<SavedScanListResponse> {
   const url = new URL("/scans", API_BASE_URL)
@@ -204,7 +205,10 @@ export async function fetchSavedScans(
     url.searchParams.set("q", query.q)
   }
 
-  const response = await fetch(url.toString(), { cache: "no-store" })
+  const response = await fetch(url.toString(), {
+    headers: authHeaders(token),
+    cache: "no-store",
+  })
 
   if (!response.ok) {
     throw new Error(await getApiErrorMessage(response))
@@ -213,8 +217,12 @@ export async function fetchSavedScans(
   return (await response.json()) as SavedScanListResponse
 }
 
-export async function fetchSavedScan(scanId: string): Promise<SavedScanDetail> {
+export async function fetchSavedScan(
+  scanId: string,
+  token: string
+): Promise<SavedScanDetail> {
   const response = await fetch(`${API_BASE_URL}/scans/${scanId}`, {
+    headers: authHeaders(token),
     cache: "no-store",
   })
 
@@ -280,26 +288,29 @@ export function mapSavedScanToIssueList(scan: SavedScanDetail): IssueListItem[] 
 
 export async function removeScanQueuePage(
   scanId: string,
-  pageUrl: string
+  pageUrl: string,
+  token: string
 ): Promise<SavedScanDetail> {
-  return updateScanQueue(scanId, "remove", pageUrl)
+  return updateScanQueue(scanId, "remove", pageUrl, token)
 }
 
 export async function prioritizeScanQueuePage(
   scanId: string,
-  pageUrl: string
+  pageUrl: string,
+  token: string
 ): Promise<SavedScanDetail> {
-  return updateScanQueue(scanId, "prioritize", pageUrl)
+  return updateScanQueue(scanId, "prioritize", pageUrl, token)
 }
 
 async function updateScanQueue(
   scanId: string,
   action: "remove" | "prioritize",
-  pageUrl: string
+  pageUrl: string,
+  token: string
 ): Promise<SavedScanDetail> {
   const response = await fetch(`${API_BASE_URL}/scans/${scanId}/queue/${action}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders(token, { "Content-Type": "application/json" }),
     body: JSON.stringify({ url: pageUrl }),
   })
 

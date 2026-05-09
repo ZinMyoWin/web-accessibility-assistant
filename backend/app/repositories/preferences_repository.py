@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from sqlalchemy.orm import Session
 
 from app.models.preferences import AppPreferences
@@ -5,10 +7,10 @@ from app.schemas.preferences import AppPreferencesUpdate
 from app.utils.encryption import encrypt_api_key
 
 
-def get_preferences(db: Session) -> AppPreferences:
-    prefs = db.query(AppPreferences).filter(AppPreferences.id == 1).first()
+def get_preferences(db: Session, user_id: UUID) -> AppPreferences:
+    prefs = db.query(AppPreferences).filter(AppPreferences.user_id == user_id).first()
     if not prefs:
-        prefs = AppPreferences(id=1)
+        prefs = AppPreferences(user_id=user_id)
         db.add(prefs)
         db.commit()
         db.refresh(prefs)
@@ -19,8 +21,12 @@ def get_preferences(db: Session) -> AppPreferences:
     return prefs
 
 
-def update_preferences(db: Session, update_data: AppPreferencesUpdate) -> AppPreferences:
-    prefs = get_preferences(db)
+def update_preferences(
+    db: Session,
+    user_id: UUID,
+    update_data: AppPreferencesUpdate,
+) -> AppPreferences:
+    prefs = get_preferences(db, user_id)
     data = update_data.model_dump(exclude_unset=True)
 
     clear_api_key = bool(data.pop("clear_api_key", False))
@@ -39,13 +45,13 @@ def update_preferences(db: Session, update_data: AppPreferencesUpdate) -> AppPre
     return prefs
 
 
-def reset_preferences(db: Session) -> AppPreferences:
-    existing = db.query(AppPreferences).filter(AppPreferences.id == 1).first()
+def reset_preferences(db: Session, user_id: UUID) -> AppPreferences:
+    existing = db.query(AppPreferences).filter(AppPreferences.user_id == user_id).first()
     if existing:
         db.delete(existing)
         db.flush()
 
-    prefs = AppPreferences(id=1)
+    prefs = AppPreferences(user_id=user_id)
     db.add(prefs)
     db.commit()
     db.refresh(prefs)
