@@ -179,6 +179,7 @@ Implemented today:
 - scanned and skipped page URL lists for granular report traceability
 - persisted accessibility score calculation for reports and scan history
 - issue locator guidance in dashboard, issues, and reports using affected page URL, DOM path, line/column, text preview, and source snippets
+- automated frontend tests for scan-state rendering, queue controls, and report page grouping
 - automated backend pytest coverage for API smoke paths, scanner logic, repository queue state, and worker recovery
 - automated backend pytest coverage for password hashing, session persistence, and auth API flows
 - minimal frontend smoke check through TypeScript typecheck
@@ -192,7 +193,6 @@ Planned target from the project overview:
 
 Not implemented yet:
 
-- full automated frontend test suite
 - generative AI / LLM-based repair suggestions
 
 ## Run With Docker
@@ -306,6 +306,13 @@ Run the frontend typecheck:
 ```powershell
 cd "D:\Lithan\UOR\Final Year Project\web-accessibility-assistant\frontend"
 npx tsc --noEmit
+```
+
+Run the frontend test suite:
+
+```powershell
+cd "D:\Lithan\UOR\Final Year Project\web-accessibility-assistant\frontend"
+npm test
 ```
 
 After pulling auth changes into an existing Docker database, run:

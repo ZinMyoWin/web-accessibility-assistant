@@ -104,7 +104,7 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Reports provide selectable page-level issue views
 - [x] Issues page provides scanned-page filtering and page-specific issue lists
 - [x] Dashboard scan details show scanned and skipped page coverage
-- [ ] Full automated frontend test suite
+- [x] Full automated frontend test suite
 - [x] Minimal frontend smoke check via TypeScript gate
 
 ## AI / Intelligent Analysis
@@ -149,6 +149,7 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [ ] Formal deployment verification evidence for hosted frontend and backend
 - [x] CI pipeline
 - [x] Lint/test/build quality gate automation
+- [x] Frontend component/unit test gate in CI
 
 ## Current Gaps Worth Addressing Next
 

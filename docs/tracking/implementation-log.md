@@ -2385,3 +2385,52 @@ New scans, scan history, reports, queue edits, crawl-memory lookup, danger-zone 
 ### Next step
 
 Add a full automated frontend test suite for dashboard queue controls, report page grouping, and scan-state rendering.
+
+## 2026-05-09 - Frontend Automated Test Suite
+
+### Completed work
+
+Added a frontend test gate for the core dashboard/report surfaces:
+
+- installed Vitest, jsdom, Vite React plugin, and Testing Library dependencies
+- added `npm test` and `npm run test:watch` frontend scripts
+- added shared Vitest setup and saved-scan fixtures
+- covered scan-state rendering through `ProgressPanel`
+- covered dashboard queue visibility, first-page prioritization disabling, remove action, and prioritize action through `QueuePanel`
+- covered report mapping from saved scan detail into page-level report rows
+- covered `PagesTab` rendering for scanned pages, issue pages, skipped pages, and empty page data
+- added `npm test` to the GitHub Actions frontend quality gate
+
+### Why this was done
+
+The backend already had a full pytest suite, but the frontend only had a TypeScript smoke gate. These tests cover the highest-risk UI contracts around queued scans, report grouping, and scan-state rendering without requiring a full browser server in CI.
+
+### Files involved
+
+- `.github/workflows/quality-gate.yml`
+- `frontend/package.json`
+- `frontend/package-lock.json`
+- `frontend/vitest.config.mts`
+- `frontend/src/test/setup.ts`
+- `frontend/src/test/saved-scan-fixtures.ts`
+- `frontend/src/components/home/ProgressPanel.test.tsx`
+- `frontend/src/components/home/QueuePanel.test.tsx`
+- `frontend/src/components/reports/PagesTab.test.tsx`
+- `frontend/src/lib/saved-scans.test.ts`
+- `README.md`
+- `docs/architecture/system-architecture.md`
+- `docs/tracking/feature-checklist.md`
+- `docs/tracking/implementation-log.md`
+
+### Verification
+
+- frontend test suite passed with `npm test` (`4 passed`, `7 tests`)
+- frontend typecheck passed with `npx tsc --noEmit`
+
+### Outcome
+
+The frontend now has an automated test suite in addition to TypeScript checking, and CI will run both before accepting frontend changes.
+
+### Next step
+
+Add formal deployment verification evidence for the hosted frontend and backend, or start the generative AI repair-suggestion feature.

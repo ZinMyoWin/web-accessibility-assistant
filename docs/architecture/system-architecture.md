@@ -140,7 +140,7 @@ Current coverage includes:
 
 ### Frontend tests
 
-The current frontend automated gate is TypeScript typechecking. A fuller component or browser-level frontend test suite is still planned.
+The frontend automated gate now includes TypeScript typechecking plus a Vitest and Testing Library suite for scan-state rendering, dashboard queue controls, saved-scan report mapping, and report page grouping.
 
 ### `README.md`
 
@@ -603,6 +603,7 @@ Implemented today:
 - dedicated issues screen backed by saved scan data
 - scan history screen backed by saved scan data
 - reports screen backed by saved scan data, including issue locator guidance
+- frontend component/unit tests for scan progress state, queue controls, saved-scan report mapping, and report page grouping
 - Docker setup for production-style and development workflows
 
 Implemented intelligent-analysis features:
@@ -617,7 +618,6 @@ Implemented intelligent-analysis features:
 Not built yet:
 
 - worker scaling controls for larger multi-page scans
-- full automated frontend test suite
 - generative AI / LLM-based repair suggestions
 
 ## 12. How To Explain This In The Final Report
