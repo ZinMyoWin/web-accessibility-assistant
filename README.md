@@ -19,6 +19,7 @@ The project currently includes:
 - saved scan history APIs
 - screenshot support for detected issues
 - persisted report data with score, selectable per-page grouping, skipped-page visibility, and issue-location guidance
+- grouped AI repair suggestions that persist one generated suggestion per authenticated user, scan, and similar issue pattern, with OpenAI and DeepSeek provider support
 
 ## Project Structure
 
@@ -64,14 +65,22 @@ For containerized development:
 The frontend reads:
 
 - `NEXT_PUBLIC_API_BASE_URL`
+- `AUTH_API_BASE_URL` for server-side Auth.js calls when it differs from the browser API URL
+- `AUTH_SECRET` or `NEXTAUTH_SECRET`
+- `NEXTAUTH_URL` for hosted deployments
 
 Example:
 
 ```text
 NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
+AUTH_API_BASE_URL=http://127.0.0.1:8000
+AUTH_SECRET=replace-with-a-long-random-secret
+NEXTAUTH_URL=http://localhost:3000
 ```
 
-If this variable is not set, the frontend falls back to `http://127.0.0.1:8000`.
+If `NEXT_PUBLIC_API_BASE_URL` is not set, the frontend falls back to `http://127.0.0.1:8000`.
+When running the frontend in Docker, set `AUTH_API_BASE_URL` to the backend service URL, for example `http://backend:8000`, because Auth.js login runs server-side inside the frontend container.
+Auth.js uses the frontend secret to sign its session JWT; keep it stable across restarts and set `NEXTAUTH_URL` to the deployed frontend URL in production.
 
 ### Backend
 
@@ -160,6 +169,7 @@ Implemented today:
 - PostgreSQL persistence for successful and failed scan attempts
 - `GET /scans` and `GET /scans/{scan_id}` saved-scan APIs
 - sign-up, login, current-user, and logout APIs backed by stored user/session records and signed JWT access tokens
+- Auth.js credentials authentication in the Next.js frontend, delegating credential checks and sign-up to the backend auth APIs
 - scan, history, report, queue-control, danger-zone, and preferences APIs require the current user's bearer token
 - saved scans and preferences are scoped to the authenticated user account
 - dashboard home scan UI
@@ -179,6 +189,7 @@ Implemented today:
 - scanned and skipped page URL lists for granular report traceability
 - persisted accessibility score calculation for reports and scan history
 - issue locator guidance in dashboard, issues, and reports using affected page URL, DOM path, line/column, text preview, and source snippets
+- grouped AI repair suggestions from the Reports page, persisted by authenticated user, scan, and issue group, using OpenAI or DeepSeek based on Preferences
 - automated frontend tests for scan-state rendering, queue controls, and report page grouping
 - automated backend pytest coverage for API smoke paths, scanner logic, repository queue state, and worker recovery
 - automated backend pytest coverage for password hashing, session persistence, and auth API flows
@@ -187,13 +198,14 @@ Implemented today:
 
 Planned target from the project overview:
 
-- AI-generated repair guidance
-- corrected code examples for detected issues
-- AI-generated code suggestions
+- broader AI remediation workflows beyond the current grouped report suggestions
+- corrected code examples where enough source context exists
+- exportable AI-generated patch bundles
 
 Not implemented yet:
 
-- generative AI / LLM-based repair suggestions
+- conversational remediation assistant
+- export-all patch generation for grouped suggestions
 
 ## Run With Docker
 
@@ -269,6 +281,9 @@ Required frontend environment variable:
 
 ```text
 NEXT_PUBLIC_API_BASE_URL=https://web-accessibility-assistant.onrender.com
+AUTH_API_BASE_URL=https://web-accessibility-assistant.onrender.com
+AUTH_SECRET=<long-random-frontend-auth-secret>
+NEXTAUTH_URL=https://<your-vercel-frontend-domain>
 ```
 
 After changing backend environment variables on Render, redeploy the backend service.

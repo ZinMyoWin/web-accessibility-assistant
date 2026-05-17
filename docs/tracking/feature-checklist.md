@@ -16,6 +16,8 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Preferences endpoints `GET /preferences` and `PUT /preferences`
 - [x] Clear scan history endpoint `DELETE /scans`
 - [x] Reset preferences endpoint `POST /preferences/reset`
+- [x] Repair suggestion group endpoint `GET /scans/{scan_id}/repair-suggestion-groups`
+- [x] Repair suggestion generation endpoint `POST /scans/{scan_id}/repair-suggestion-groups/{group_key}/generate`
 - [x] User sign-up endpoint `POST /auth/signup`
 - [x] User login endpoint `POST /auth/login`
 - [x] Current-user endpoint `GET /auth/me`
@@ -39,6 +41,7 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] CORS configuration for local and hosted frontends
 - [x] Database connection layer with SQLAlchemy sessions
 - [x] SQLAlchemy models for scan runs and scan issues
+- [x] SQLAlchemy model for persisted AI repair suggestions
 - [x] Alembic migration setup for database schema changes
 - [x] Persist successful scan results to PostgreSQL
 - [x] Persist failed scan attempts to PostgreSQL
@@ -64,6 +67,7 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Home dashboard scan page
 - [x] Login page
 - [x] Sign-up page
+- [x] Auth.js credentials session integration for login and sign-up
 - [x] Dashboard route guard for anonymous users
 - [x] Sidebar user identity and logout control
 - [x] Shared dashboard shell with sidebar and mobile toggle
@@ -91,7 +95,7 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Report route accepts `scanId` query parameter
 - [x] Preferences applied to dashboard scan defaults
 - [x] Danger-zone actions wired to backend APIs
-- [x] Frontend sends bearer tokens for scan, history, report, issue, queue, and preference API calls
+- [x] Frontend sends Auth.js session-backed bearer tokens for scan, history, report, issue, queue, and preference API calls
 - [x] Multi-page scan UI
 - [x] Dashboard polls queued/running background multi-page scans until completion
 - [x] Dashboard shows the running scan queue, current page, removed pages, and retry attempt count
@@ -104,6 +108,9 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Reports provide selectable page-level issue views
 - [x] Issues page provides scanned-page filtering and page-specific issue lists
 - [x] Dashboard scan details show scanned and skipped page coverage
+- [x] Reports group similar issues for AI repair suggestions
+- [x] Reports can generate and display a saved AI repair suggestion per issue group
+- [x] Preferences expose current DeepSeek model choices for repair suggestions
 - [x] Full automated frontend test suite
 - [x] Minimal frontend smoke check via TypeScript gate
 
@@ -116,7 +123,8 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Automated locator guidance using source hints, DOM paths, and text previews
 - [x] Actionable locator guidance by issue type for links, images, DOM paths, source snippets, and affected pages
 - [x] Automated contextual screenshot capture for issue review
-- [ ] Generative AI / LLM-based fix generation
+- [x] Grouped generative AI / LLM-based repair suggestions
+- [x] DeepSeek API support for grouped AI repair suggestions
 - [ ] Automatic code repair suggestions per issue
 - [ ] Conversational remediation assistant
 
@@ -128,6 +136,7 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Stored scan sessions
 - [x] Stored scan sessions scoped to the authenticated user
 - [x] Stored preferences scoped to the authenticated user
+- [x] Stored AI repair suggestions scoped to the authenticated user
 - [x] Stored page-level issue records
 - [x] Historical comparison views
 - [x] Compare identity uses rule plus locator context
@@ -163,3 +172,4 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Add user-controlled queued-page removal and prioritization during running multi-page scans
 - [x] Add full JavaScript page rendering for SPA-heavy sites before analysis
 - [x] Scope saved scans and preferences by authenticated user
+- [x] Generate one AI repair suggestion for grouped similar issues

@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import type { ReportPageRow } from "@/lib/saved-scans"
@@ -23,53 +24,57 @@ export function PagesTab({ pagesData }: { pagesData: ReportPageRow[] }) {
   }
 
   return (
-    <div className="grid min-h-[460px] grid-cols-1 lg:grid-cols-[380px_1fr]">
-      <aside className="border-b border-border bg-muted/20 lg:border-b-0 lg:border-r">
-        <div className="border-b border-border px-5 py-4">
+    <div className="grid h-full min-h-0 grid-cols-1 grid-rows-[minmax(260px,0.42fr)_minmax(0,1fr)] overflow-hidden lg:grid-cols-[380px_1fr] lg:grid-rows-none">
+      <aside className="flex min-h-0 flex-col border-b border-border bg-muted/20 lg:border-b-0 lg:border-r">
+        <div className="shrink-0 border-b border-border px-5 py-4">
           <div className="text-sm font-medium text-foreground">Pages in this scan</div>
           <div className="mt-1 text-xs text-muted-foreground">
             {scannedCount} scanned · {skippedCount} skipped
           </div>
         </div>
-        <div className="max-h-[560px] overflow-y-auto p-3">
-          {pagesData.map((page) => (
-            <button
-              key={`${page.status}-${page.url}`}
-              type="button"
-              onClick={() => setSelectedUrl(page.url)}
-              className={cn(
-                "mb-2 w-full rounded-md border-[0.5px] p-3 text-left transition-colors last:mb-0",
-                selectedPage?.url === page.url
-                  ? "border-primary bg-secondary shadow-[0_0_0_2px_rgba(29,158,117,0.08)]"
-                  : "border-border bg-card hover:border-primary/40"
-              )}
-            >
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <PageStatusBadge page={page} />
-                <span className="text-[10px] text-muted-foreground">
-                  {page.status === "skipped"
-                    ? "Previously scanned"
-                    : `${page.issues} issue${page.issues !== 1 ? "s" : ""}`}
-                </span>
-              </div>
-              <div className="break-all font-mono text-[11px] leading-relaxed text-foreground">
-                {page.url}
-              </div>
-              {page.status !== "skipped" && (
-                <div className="mt-2 flex flex-wrap gap-1">
-                  <SevCount count={page.critical} variant="critical" />
-                  <SevCount count={page.serious} variant="serious" />
-                  <SevCount count={page.moderate} variant="moderate" />
-                  <SevCount count={page.minor} variant="minor" />
+        <ScrollArea className="min-h-0 flex-1">
+          <div className="p-3">
+            {pagesData.map((page) => (
+              <button
+                key={`${page.status}-${page.url}`}
+                type="button"
+                onClick={() => setSelectedUrl(page.url)}
+                className={cn(
+                  "mb-2 w-full rounded-md border-[0.5px] p-3 text-left transition-colors last:mb-0",
+                  selectedPage?.url === page.url
+                    ? "border-primary bg-secondary shadow-[0_0_0_2px_rgba(29,158,117,0.08)]"
+                    : "border-border bg-card hover:border-primary/40"
+                )}
+              >
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <PageStatusBadge page={page} />
+                  <span className="text-[10px] text-muted-foreground">
+                    {page.status === "skipped"
+                      ? "Previously scanned"
+                      : `${page.issues} issue${page.issues !== 1 ? "s" : ""}`}
+                  </span>
                 </div>
-              )}
-            </button>
-          ))}
-        </div>
+                <div className="break-all font-mono text-[11px] leading-relaxed text-foreground">
+                  {page.url}
+                </div>
+                {page.status !== "skipped" && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    <SevCount count={page.critical} variant="critical" />
+                    <SevCount count={page.serious} variant="serious" />
+                    <SevCount count={page.moderate} variant="moderate" />
+                    <SevCount count={page.minor} variant="minor" />
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+        </ScrollArea>
       </aside>
 
-      <section className="min-w-0">
-        {selectedPage && <SelectedPageIssues page={selectedPage} />}
+      <section className="min-h-0 min-w-0 overflow-hidden">
+        <ScrollArea className="h-full min-h-0">
+          {selectedPage && <SelectedPageIssues page={selectedPage} />}
+        </ScrollArea>
       </section>
     </div>
   )

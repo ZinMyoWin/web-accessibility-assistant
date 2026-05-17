@@ -26,6 +26,13 @@ from app.repositories.scan_repository import (
     to_saved_scan_response,
     update_scan_progress,
 )
+from app.repositories.repair_suggestion_repository import (
+    get_existing_suggestion,
+    get_repair_suggestion_group,
+    list_repair_suggestion_groups,
+    save_repair_suggestion,
+    to_repair_suggestion_response,
+)
 from app.repositories.auth_repository import (
     create_user,
     create_user_session,
@@ -38,13 +45,25 @@ from app.schemas.auth import AuthResponse, LoginRequest, SignupRequest, UserResp
 from app.schemas.history import SavedScanListResponse, SavedScanResponse
 from app.schemas.scan import ScanPageRequest, ScanPageResponse, ScanQueuePageRequest
 from app.schemas.preferences import AppPreferencesResponse, AppPreferencesUpdate
+from app.schemas.repair_suggestion import (
+    GenerateRepairSuggestionRequest,
+    RepairSuggestionGroupsResponse,
+    RepairSuggestionResponse,
+)
 from app.services.page_scanner import CrawlQueueControl, CrawlQueueState, ScanError, ScanOptions, scan_page
 from app.services.auth_service import create_session_token, hash_password, verify_password
+from app.services.repair_suggestion_service import (
+    RepairSuggestionGenerationError,
+    generate_grouped_repair_suggestion,
+    normalize_repair_suggestion_provider,
+    resolve_repair_suggestion_model,
+)
 from app.repositories.preferences_repository import (
     get_preferences,
     reset_preferences,
     update_preferences,
 )
+from app.utils.encryption import decrypt_api_key
 
 LOCAL_CORS_ORIGINS = [
     "http://localhost:3000",
@@ -461,6 +480,87 @@ def get_scan(
     if scan_run is None:
         raise HTTPException(status_code=404, detail="Scan not found")
     return to_saved_scan_response(scan_run)
+
+
+@app.get(
+    "/scans/{scan_id}/repair-suggestion-groups",
+    response_model=RepairSuggestionGroupsResponse,
+)
+def get_repair_suggestion_groups(
+    scan_id: UUID,
+    authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db_session),
+):
+    current_user = _get_user_from_authorization_header(db, authorization)
+    scan_run = get_saved_scan(db, scan_id, current_user.id)
+    if scan_run is None:
+        raise HTTPException(status_code=404, detail="Scan not found")
+
+    return RepairSuggestionGroupsResponse(
+        scan_id=str(scan_run.id),
+        groups=list_repair_suggestion_groups(db, scan_run),
+    )
+
+
+@app.post(
+    "/scans/{scan_id}/repair-suggestion-groups/{group_key}/generate",
+    response_model=RepairSuggestionResponse,
+)
+def generate_repair_suggestion_group(
+    scan_id: UUID,
+    group_key: str,
+    request: GenerateRepairSuggestionRequest,
+    authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db_session),
+):
+    current_user = _get_user_from_authorization_header(db, authorization)
+    scan_run = get_saved_scan(db, scan_id, current_user.id)
+    if scan_run is None:
+        raise HTTPException(status_code=404, detail="Scan not found")
+
+    group = get_repair_suggestion_group(scan_run, group_key)
+    if group is None:
+        raise HTTPException(status_code=404, detail="Repair suggestion group not found")
+
+    existing = get_existing_suggestion(
+        db,
+        user_id=current_user.id,
+        group_key=group_key,
+    )
+    if existing is not None and not request.force:
+        return to_repair_suggestion_response(existing)
+
+    prefs = get_preferences(db, current_user.id)
+    provider = normalize_repair_suggestion_provider(
+        prefs.active_suggestion_provider or prefs.ai_provider
+    )
+    model = resolve_repair_suggestion_model(provider, prefs.ai_model)
+    api_key = decrypt_api_key(prefs.encrypted_api_key)
+    if not api_key:
+        raise HTTPException(
+            status_code=400,
+            detail="Add an AI provider API key in Preferences before generating repair suggestions.",
+        )
+
+    try:
+        draft = generate_grouped_repair_suggestion(
+            provider=provider,
+            model=model,
+            api_key=api_key,
+            group=group,
+        )
+    except RepairSuggestionGenerationError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    suggestion = save_repair_suggestion(
+        db,
+        scan_run=scan_run,
+        group=group,
+        provider=provider,
+        model=model,
+        draft=draft,
+    )
+    return to_repair_suggestion_response(suggestion)
 
 
 @app.post("/scans/{scan_id}/queue/remove", response_model=SavedScanResponse)

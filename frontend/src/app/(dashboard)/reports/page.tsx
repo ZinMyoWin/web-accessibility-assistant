@@ -7,7 +7,6 @@ import { ExportBar } from "@/components/reports/ExportBar"
 import { ReportHeader } from "@/components/reports/ReportHeader"
 import { SummaryGrid } from "@/components/reports/SummaryGrid"
 import { PagesTab } from "@/components/reports/PagesTab"
-import { CategoriesTab } from "@/components/reports/CategoriesTab"
 import { AiSuggestionsTab } from "@/components/reports/AiSuggestionsTab"
 import {
   fetchSavedScan,
@@ -28,6 +27,7 @@ export default function ReportsPage() {
 function ReportsPageContent() {
   const [toast, setToast] = useState<string | null>(null)
   const [report, setReport] = useState<ReportViewData | null>(null)
+  const [activeScanId, setActiveScanId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -65,6 +65,7 @@ function ReportsPageContent() {
 
         const scan = await fetchSavedScan(scanId, authToken)
         if (!cancelled) {
+          setActiveScanId(scanId)
           setReport(mapSavedScanToReportData(scan))
         }
       } catch (loadError) {
@@ -75,6 +76,7 @@ function ReportsPageContent() {
               : "Failed to load report data."
           )
           setReport(null)
+          setActiveScanId(null)
         }
       } finally {
         if (!cancelled) {
@@ -128,20 +130,14 @@ function ReportsPageContent() {
 
       <Tabs
         defaultValue="pages"
-        className="mx-6 mt-5 flex-1 overflow-hidden rounded-xl border-[0.5px] border-border bg-card print:mx-0 print:mt-2 print:rounded-none print:border-0"
+        className="mx-6 mt-5 h-[720px] min-h-[620px] overflow-hidden rounded-xl border-[0.5px] border-border bg-card print:mx-0 print:mt-2 print:h-auto print:min-h-0 print:rounded-none print:border-0"
       >
-        <TabsList className="gap-0 border-b border-border bg-card px-0 print:hidden">
+        <TabsList className="shrink-0 gap-0 border-b border-border bg-card px-0 print:hidden">
           <TabsTrigger value="pages" className="gap-1.5">
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-3">
               <rect x="3" y="2" width="10" height="12" rx="1.5" /><path d="M5 6h6M5 9h4" strokeLinecap="round" />
             </svg>
             Pages Crawled
-          </TabsTrigger>
-          <TabsTrigger value="categories" className="gap-1.5">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-3">
-              <path d="M2 4h12M2 8h8M2 12h5" strokeLinecap="round" />
-            </svg>
-            Issues by Category
           </TabsTrigger>
           <TabsTrigger value="ai" className="gap-1.5">
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-3">
@@ -151,21 +147,18 @@ function ReportsPageContent() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="pages">
+        <TabsContent value="pages" className="min-h-0 flex-1 overflow-hidden">
           <PagesTab pagesData={report.pagesData} />
         </TabsContent>
-        <TabsContent value="categories">
-          <CategoriesTab categoriesData={report.categoriesData} />
-        </TabsContent>
-        <TabsContent value="ai">
+        <TabsContent value="ai" className="min-h-0 flex-1 overflow-y-auto">
           <AiSuggestionsTab
-            aiSuggestions={report.aiSuggestions}
+            scanId={activeScanId}
             totalCriticalSerious={totalCriticalSerious}
           />
         </TabsContent>
       </Tabs>
 
-      <div className="h-6 print:hidden" />
+      <div className="h-6 shrink-0 print:hidden" />
 
       <div
         className={`fixed bottom-6 right-6 z-[200] flex items-center gap-2 rounded-md bg-[#04342C] px-4 py-3 text-xs font-medium text-white shadow-lg transition-all duration-250 print:hidden ${

@@ -174,6 +174,48 @@ export type ReportAiSuggestion = {
   added: string
 }
 
+export type RepairSuggestion = {
+  id: string
+  group_key: string
+  provider: string
+  model: string
+  explanation: string
+  impact: string
+  recommended_fix: string
+  before_code: string | null
+  after_code: string | null
+  confidence: "high" | "medium" | "low" | string
+  limitations: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type RepairSuggestionExample = {
+  element: string
+  page_url: string | null
+  source_hint: string | null
+  dom_path: string | null
+  text_preview: string | null
+}
+
+export type RepairSuggestionGroup = {
+  group_key: string
+  rule_id: string
+  title: string
+  severity: IssueSeverity
+  recommendation: string
+  wcag_criteria: string[]
+  affected_count: number
+  affected_pages: string[]
+  examples: RepairSuggestionExample[]
+  suggestion: RepairSuggestion | null
+}
+
+export type RepairSuggestionGroupsResponse = {
+  scan_id: string
+  groups: RepairSuggestionGroup[]
+}
+
 export type ReportViewData = {
   meta: ReportMeta
   severityBreakdown: ReportSeverityBreakdownItem[]
@@ -231,6 +273,47 @@ export async function fetchSavedScan(
   }
 
   return (await response.json()) as SavedScanDetail
+}
+
+export async function fetchRepairSuggestionGroups(
+  scanId: string,
+  token: string
+): Promise<RepairSuggestionGroupsResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/scans/${scanId}/repair-suggestion-groups`,
+    {
+      headers: authHeaders(token),
+      cache: "no-store",
+    }
+  )
+
+  if (!response.ok) {
+    throw new Error(await getApiErrorMessage(response))
+  }
+
+  return (await response.json()) as RepairSuggestionGroupsResponse
+}
+
+export async function generateRepairSuggestionGroup(
+  scanId: string,
+  groupKey: string,
+  token: string,
+  options: { force?: boolean } = {}
+): Promise<RepairSuggestion> {
+  const response = await fetch(
+    `${API_BASE_URL}/scans/${scanId}/repair-suggestion-groups/${groupKey}/generate`,
+    {
+      method: "POST",
+      headers: authHeaders(token, { "Content-Type": "application/json" }),
+      body: JSON.stringify({ force: options.force ?? false }),
+    }
+  )
+
+  if (!response.ok) {
+    throw new Error(await getApiErrorMessage(response))
+  }
+
+  return (await response.json()) as RepairSuggestion
 }
 
 async function getApiErrorMessage(response: Response): Promise<string> {

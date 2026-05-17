@@ -2434,3 +2434,128 @@ The frontend now has an automated test suite in addition to TypeScript checking,
 ### Next step
 
 Add formal deployment verification evidence for the hosted frontend and backend, or start the generative AI repair-suggestion feature.
+
+## 2026-05-09 - Grouped AI Repair Suggestions
+
+### Completed work
+
+Implemented the first generative AI repair-suggestion workflow:
+
+- added a `repair_suggestions` table with user, scan, and group ownership fields
+- added grouped issue-pattern APIs for saved scans
+- grouped similar issues by rule, severity, message, recommendation, WCAG criteria, and detection source so repeated page/DOM instances share one suggestion
+- added an OpenAI Responses API generation service that requests structured repair-suggestion JSON
+- persisted generated suggestions and returned saved suggestions on repeat requests
+- wired the Reports AI tab to load groups, show representative examples, generate one suggestion per group, and display the saved result
+- added backend tests for grouping, persistence, scoped endpoints, and cached suggestion reuse
+- added a frontend test for loading groups and generating a saved suggestion
+
+### Why this was done
+
+Repeated accessibility failures, such as missing image alt text across many pages, should not require one AI call per individual issue. The new flow lets the user generate one reusable suggestion for the repeated pattern and stores it under that user's scan.
+
+### Files involved
+
+- `backend/app/models/repair_suggestion.py`
+- `backend/app/repositories/repair_suggestion_repository.py`
+- `backend/app/schemas/repair_suggestion.py`
+- `backend/app/services/repair_suggestion_service.py`
+- `backend/app/main.py`
+- `backend/alembic/env.py`
+- `backend/alembic/versions/9848b576f068_create_repair_suggestions.py`
+- `backend/tests/test_api_smoke.py`
+- `backend/tests/test_repair_suggestion_repository_unit.py`
+- `frontend/src/lib/saved-scans.ts`
+- `frontend/src/app/(dashboard)/reports/page.tsx`
+- `frontend/src/components/reports/AiSuggestionsTab.tsx`
+- `frontend/src/components/reports/AiSuggestionsTab.test.tsx`
+- `README.md`
+- `docs/architecture/system-architecture.md`
+- `docs/tracking/feature-checklist.md`
+- `docs/tracking/implementation-log.md`
+
+### Verification
+
+- backend compile check passed with `python -m compileall app`
+- backend test suite passed with `pytest -q tests` (`37 passed`)
+- frontend test suite passed with `npm test -- --run` (`5 passed`, `9 tests`)
+- frontend typecheck passed with `npx tsc --noEmit`
+
+### Outcome
+
+The Reports page now supports grouped AI repair suggestions backed by persisted user-owned data. Users with an API key in Preferences can generate a suggestion once for a repeated issue pattern and revisit the saved suggestion later.
+
+### Next step
+
+Add a regeneration option or export-all patch workflow for grouped suggestions.
+
+## 2026-05-09 - Scan Worker Startup Fix
+
+### Completed work
+
+Fixed a multi-page scan startup failure where jobs stayed queued with "Waiting for the scan worker to claim this job."
+
+- traced the failure to the `scan-worker` container exiting during queued-job claim
+- found SQLAlchemy could not resolve `scan_runs.user_id` because the isolated worker process imported `ScanRun` without registering the `User` model
+- imported the auth model in `backend/app/scan_worker.py` so the `users` table is present in SQLAlchemy metadata
+- added a regression test that imports `app.scan_worker` in a fresh Python process and confirms the `users` table is registered
+- restarted the dev `scan-worker` service and confirmed it claimed and completed the previously stuck scan job
+
+### Verification
+
+- backend compile check passed with `python -m compileall app`
+- backend test suite passed with `pytest -q tests` (`38 passed`)
+- `docker compose -f docker-compose.dev.yml ps scan-worker` showed the worker running
+- scan-worker logs showed `claimed scan job 27c6dbc4-a02d-431d-a20a-dd43ebf2ad12` and `completed scan job 27c6dbc4-a02d-431d-a20a-dd43ebf2ad12`
+
+### Outcome
+
+Queued multi-page scans can now be claimed by the dedicated scan-worker process again.
+
+## 2026-05-11 - DeepSeek Repair Suggestion Provider
+
+### Completed work
+
+Added DeepSeek as a working provider for grouped AI repair suggestions:
+
+- added a DeepSeek provider path in `backend/app/services/repair_suggestion_service.py`
+- used DeepSeek Chat Completions at `https://api.deepseek.com/chat/completions`
+- enabled DeepSeek JSON mode with `response_format: {"type": "json_object"}`
+- normalized provider/model combinations so selecting DeepSeek with an older OpenAI model falls back to `deepseek-v4-flash`
+- updated the Preferences UI to offer current DeepSeek models first: `deepseek-v4-flash` and `deepseek-v4-pro`
+- kept legacy `deepseek-chat` and `deepseek-reasoner` visible for existing keys/workflows
+- added backend unit tests for DeepSeek payload shape and provider/model fallback
+
+### Verification
+
+- backend compile check passed with `python -m compileall app`
+- backend test suite passed with `pytest -q tests` (`41 passed`)
+- frontend test suite passed with `npm test -- --run` (`5 passed`, `9 tests`)
+- frontend typecheck passed with `npx tsc --noEmit`
+
+### Outcome
+
+Users can now select DeepSeek in Preferences, save a DeepSeek API key, choose a DeepSeek model, and generate grouped repair suggestions from Reports.
+
+## 2026-05-12 - Auth.js Frontend Session Integration
+
+### Completed work
+
+Replaced the frontend-owned localStorage auth token flow with Auth.js credentials sessions while keeping the existing FastAPI user/session APIs as the backend source of truth.
+
+- added `next-auth` to the frontend package
+- added the Auth.js route handler at `frontend/src/app/api/auth/[...nextauth]/route.ts`
+- delegated login and sign-up credentials to `POST /auth/login` and `POST /auth/signup`
+- stored the backend bearer token inside the Auth.js JWT session for existing backend API calls
+- updated the shared auth context and dashboard logout flow to use Auth.js session state
+- added Auth.js middleware protection for dashboard routes
+- documented frontend auth environment variables
+
+### Verification
+
+- frontend typecheck passed with `npx tsc --noEmit`
+- frontend production build passed with `npm run build`
+
+### Outcome
+
+The browser-facing authentication layer now uses Auth.js, and the backend still enforces authorization with its signed JWT plus persisted session records.

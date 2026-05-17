@@ -24,7 +24,7 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/accessibility_assistant
       SCAN_EXECUTION_MODE: worker
-      AUTH_JWT_SECRET: "XAiBKqnAY5Uk4qY+4YDmYB7winu1i6Uqom1+Uu3bcl/8IUCiuD+YGENH6OFgEpwlc4X19zi2to+HNJ9HmuAdDA=="
+      AUTH_JWT_SECRET: "80757e73e2521d8c54f50d51f95f2be7839996b16d75c8dace662ed50b9a3eaf"
     volumes:
       - ./backend:/app
     ports:
@@ -68,6 +68,9 @@ services:
     container_name: web-accessibility-frontend-dev
     environment:
       NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+      AUTH_API_BASE_URL: http://backend:8000
+      AUTH_SECRET: "80757e73e2521d8c54f50d51f95f2be7839996b16d75c8dace662ed50b9a3eaf"
+      NEXTAUTH_URL: http://localhost:3000
       CHOKIDAR_USEPOLLING: "true"
       WATCHPACK_POLLING: "true"
     volumes:

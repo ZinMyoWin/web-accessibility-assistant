@@ -26,7 +26,7 @@ const providerLabels: Record<Provider, string> = {
 
 const providerModels: Record<Provider, string[]> = {
   openai: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"],
-  deepseek: ["deepseek-chat", "deepseek-reasoner"],
+  deepseek: ["deepseek-v4-flash", "deepseek-v4-pro", "deepseek-chat", "deepseek-reasoner"],
   anthropic: ["claude-sonnet-4-6", "claude-opus-4-6", "claude-haiku-4-5"],
 }
 
