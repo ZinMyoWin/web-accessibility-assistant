@@ -60,7 +60,7 @@ def list_repair_suggestion_groups(
     session: Session,
     scan_run: ScanRun,
 ) -> list[RepairSuggestionGroupResponse]:
-    suggestions = _suggestions_by_group_key(session, scan_run.user_id)
+    suggestions = _suggestions_by_group_key(session, scan_run.id, scan_run.user_id)
     return [
         _to_group_response(group, suggestions.get(group.group_key))
         for group in build_repair_suggestion_groups(scan_run)
@@ -80,11 +80,13 @@ def get_repair_suggestion_group(
 def get_existing_suggestion(
     session: Session,
     *,
+    scan_run_id: UUID,
     user_id: UUID,
     group_key: str,
 ) -> RepairSuggestion | None:
     return session.scalar(
         select(RepairSuggestion).where(
+            RepairSuggestion.scan_run_id == scan_run_id,
             RepairSuggestion.user_id == user_id,
             RepairSuggestion.group_key == group_key,
         )
@@ -102,6 +104,7 @@ def save_repair_suggestion(
 ) -> RepairSuggestion:
     existing = get_existing_suggestion(
         session,
+        scan_run_id=scan_run.id,
         user_id=scan_run.user_id,
         group_key=group.group_key,
     )
@@ -178,10 +181,12 @@ def to_repair_suggestion_response(
 
 def _suggestions_by_group_key(
     session: Session,
+    scan_run_id: UUID,
     user_id: UUID,
 ) -> dict[str, RepairSuggestion]:
     suggestions = session.scalars(
         select(RepairSuggestion).where(
+            RepairSuggestion.scan_run_id == scan_run_id,
             RepairSuggestion.user_id == user_id,
         )
     ).all()

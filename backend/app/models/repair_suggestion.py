@@ -54,7 +54,8 @@ class RepairSuggestion(Base):
     __table_args__ = (
         sa.UniqueConstraint(
             "user_id",
+            "scan_run_id",
             "group_key",
-            name="uq_repair_suggestions_user_group",
+            name="uq_repair_suggestions_user_scan_group",
         ),
     )

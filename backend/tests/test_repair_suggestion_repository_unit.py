@@ -178,7 +178,7 @@ def test_groups_color_contrast_issues_with_different_ratio_details():
     )
 
 
-def test_reuses_one_suggestion_per_user_and_group_across_scans():
+def test_scopes_saved_suggestions_to_scan_run():
     session = _session()
     user_id = uuid4()
     scan_run = _scan_run()
@@ -220,5 +220,26 @@ def test_reuses_one_suggestion_per_user_and_group_across_scans():
     assert suggestion.user_id == scan_run.user_id
     assert suggestion.scan_run_id == scan_run.id
     assert suggestion.affected_count == 2
-    assert response_groups[0].suggestion is not None
-    assert response_groups[0].suggestion.id == str(suggestion.id)
+    assert response_groups[0].suggestion is None
+
+    later_group = build_repair_suggestion_groups(later_scan_run)[0]
+    later_suggestion = save_repair_suggestion(
+        session,
+        scan_run=later_scan_run,
+        group=later_group,
+        provider="openai",
+        model="gpt-4o",
+        draft=RepairSuggestionDraft(
+            explanation="The later scan needs its own alternative text.",
+            impact="Screen reader users miss the later image purpose.",
+            recommended_fix="Write concise alt text for the later image.",
+            confidence="medium",
+        ),
+    )
+
+    updated_response_groups = list_repair_suggestion_groups(session, later_scan_run)
+
+    assert later_suggestion.id != suggestion.id
+    assert later_suggestion.scan_run_id == later_scan_run.id
+    assert updated_response_groups[0].suggestion is not None
+    assert updated_response_groups[0].suggestion.id == str(later_suggestion.id)

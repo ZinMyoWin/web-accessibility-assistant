@@ -524,6 +524,7 @@ def generate_repair_suggestion_group(
 
     existing = get_existing_suggestion(
         db,
+        scan_run_id=scan_run.id,
         user_id=current_user.id,
         group_key=group_key,
     )
