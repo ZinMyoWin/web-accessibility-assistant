@@ -21,7 +21,6 @@ export default function DashboardPage() {
   const {
     url,
     setUrl,
-    setTestUrl,
     result,
     error,
     isScanning,
@@ -64,7 +63,6 @@ export default function DashboardPage() {
           isScanning={isScanning}
           onUrlChange={setUrl}
           onScanModeChange={setScanMode}
-          onUseTestPage={setTestUrl}
           onScan={() => handleScan(scanMode, preferences)}
         />
 

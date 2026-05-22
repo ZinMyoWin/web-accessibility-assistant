@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { API, TEST_URL } from "@/components/home/constants"
+import { API } from "@/components/home/constants"
 import type { ProgressState, ScanIssue, ScanResponse } from "@/components/home/types"
 import { authHeaders } from "@/lib/api"
 import { useAuth } from "@/lib/contexts/AuthContext"
@@ -23,7 +23,7 @@ const MAX_POLL_ATTEMPTS = 180
 
 export function useDashboardScan() {
   const { token } = useAuth()
-  const [url, setUrl] = useState(TEST_URL)
+  const [url, setUrl] = useState("")
   const [result, setResult] = useState<ScanResponse | null>(null)
   const [error, setError] = useState("")
   const [isScanning, setIsScanning] = useState(false)
@@ -44,10 +44,6 @@ export function useDashboardScan() {
       }
     }
   }, [])
-
-  function setTestUrl() {
-    setUrl(TEST_URL)
-  }
 
   function beginProgress(mode: "single" | "multi") {
     setProgress(0)
@@ -255,7 +251,6 @@ export function useDashboardScan() {
   return {
     url,
     setUrl,
-    setTestUrl,
     result,
     error,
     isScanning,

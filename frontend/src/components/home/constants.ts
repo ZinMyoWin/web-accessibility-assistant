@@ -3,8 +3,6 @@ import { API_BASE_URL } from "@/lib/api"
 
 export const API = API_BASE_URL
 
-export const TEST_URL = `${API}/test/page-bad`
-
 export const EMPTY_SUMMARY: ScanSummary = {
   total_issues: 0,
   high: 0,
