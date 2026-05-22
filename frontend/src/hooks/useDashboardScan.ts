@@ -157,7 +157,7 @@ export function useDashboardScan() {
         setProgressText(
           data.status === "queued"
             ? "Scan queued - waiting for scan worker..."
-            : "Scan worker is running full multi-page analysis..."
+            : "Scan worker is running full page analysis..."
         )
       }
 
@@ -173,7 +173,7 @@ export function useDashboardScan() {
                   ? "Scan queued - waiting for scan worker..."
                   : scan.current_page_url
                     ? `Scanning ${shortenUrl(scan.current_page_url)}...`
-                    : "Scan worker is running full multi-page analysis..."
+                    : "Scan worker is running full page analysis..."
               )
             }, token)
           : data
@@ -294,11 +294,11 @@ async function pollScanUntilComplete(
     }
 
     if (scan.status === "error") {
-      throw new Error(scan.error_message || "Multi-page scan failed.")
+      throw new Error(scan.error_message || "Scan failed.")
     }
   }
 
-  throw new Error("Multi-page scan is still running. Open Scan History to check progress.")
+  throw new Error("Scan is still running. Open Scan History to check progress.")
 }
 
 function mapSavedScanToScanResponse(scan: SavedScanDetail): ScanResponse {

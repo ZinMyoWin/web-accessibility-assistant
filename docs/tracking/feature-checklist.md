@@ -53,7 +53,7 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Persist scanned and skipped page URL lists for scan runs
 - [x] Full axe-core analysis for background multi-page scans
 - [x] In-process background jobs for bounded multi-page scans
-- [x] Dedicated scan-worker service for queued multi-page scans
+- [x] Dedicated scan-worker service for queued single-page and multi-page scans
 - [x] Worker retry policy and stale-job recovery
 - [x] Persist current page, queued page URLs, and user-excluded queue URLs for running scans
 - [x] Full automated backend test suite
@@ -97,7 +97,7 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Danger-zone actions wired to backend APIs
 - [x] Frontend sends Auth.js session-backed bearer tokens for scan, history, report, issue, queue, and preference API calls
 - [x] Multi-page scan UI
-- [x] Dashboard polls queued/running background multi-page scans until completion
+- [x] Dashboard polls queued/running background scans until completion
 - [x] Dashboard shows the running scan queue, current page, removed pages, and retry attempt count
 - [x] Dashboard can remove or prioritize queued pages before the worker scans them
 - [x] Report issue cards show "Where to find it" locator guidance
@@ -167,7 +167,7 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Decide how reports should be generated from persisted scan records
 - [x] Add at least a minimal automated smoke test path for backend and frontend
 - [x] Add queue/background processing for multi-page scans
-- [x] Move background multi-page scans to a dedicated external worker queue
+- [x] Move background scans to a dedicated external worker queue
 - [x] Add worker retry policy and stale-job recovery
 - [x] Add user-controlled queued-page removal and prioritization during running multi-page scans
 - [x] Add full JavaScript page rendering for SPA-heavy sites before analysis

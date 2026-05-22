@@ -2559,3 +2559,26 @@ Replaced the frontend-owned localStorage auth token flow with Auth.js credential
 ### Outcome
 
 The browser-facing authentication layer now uses Auth.js, and the backend still enforces authorization with its signed JWT plus persisted session records.
+
+## 2026-05-22 - Worker-Backed Single-Page Scan Execution
+
+### Completed work
+
+Moved production worker-mode single-page scans off the web request path:
+
+- updated `POST /scan/page` so `SCAN_EXECUTION_MODE=worker` queues both single-page and multi-page scans
+- kept direct local single-page scans synchronous when worker mode is not enabled
+- reused the existing scan-worker polling contract for queued single-page scans
+- updated dashboard progress/error copy so queued worker scans are not described as multi-page-only
+- added backend regression coverage for worker-mode single-page scan enqueueing
+- updated project docs to describe the Render web-service plus scan-worker deployment requirement
+
+### Verification
+
+- backend compile check passed with `python -m compileall app`
+- focused backend smoke tests passed with `pytest -q tests/test_api_smoke.py` (`20 passed`)
+- frontend typecheck passed with `npx tsc --noEmit`
+
+### Outcome
+
+Production-style deployments can keep Playwright/Chromium work in the scan-worker process instead of blocking the Render web service. This is intended to prevent heavy single-page scans from causing web health-check timeouts and request disconnects.

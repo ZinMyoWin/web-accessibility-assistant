@@ -460,6 +460,64 @@ def test_scan_page_multi_mode_can_enqueue_for_worker(monkeypatch):
     app.dependency_overrides.clear()
 
 
+def test_scan_page_single_mode_can_enqueue_for_worker(monkeypatch):
+    app.dependency_overrides[get_db_session] = lambda: _fake_db()
+    scan_id = uuid4()
+    captured: dict[str, object] = {}
+    current_user = _auth_user()
+    monkeypatch.setattr("app.main.get_user_for_token", lambda _db, _token: current_user)
+
+    def fake_create_scan_job(
+        _db,
+        *,
+        user_id,
+        requested_url,
+        started_at,
+        mode,
+        page_limit,
+        status,
+        scan_options,
+    ):
+        captured["user_id"] = user_id
+        captured["requested_url"] = requested_url
+        captured["mode"] = mode
+        captured["page_limit"] = page_limit
+        captured["status"] = status
+        captured["scan_options"] = scan_options
+        return SimpleNamespace(id=scan_id)
+
+    def fail_scan_page(*_args, **_kwargs):
+        raise AssertionError("single-page scans should be queued in worker mode")
+
+    monkeypatch.setenv("SCAN_EXECUTION_MODE", "worker")
+    monkeypatch.setattr("app.main.create_scan_job", fake_create_scan_job)
+    monkeypatch.setattr("app.main.scan_page", fail_scan_page)
+
+    client = TestClient(app)
+    response = client.post(
+        "/scan/page",
+        headers=_auth_headers(),
+        json={
+            "url": "https://example.com",
+            "mode": "single",
+            "page_timeout_ms": 5000,
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "queued"
+    assert body["mode"] == "single"
+    assert body["scan_id"] == str(scan_id)
+    assert captured["status"] == "queued"
+    assert captured["mode"] == "single"
+    assert captured["page_limit"] is None
+    assert captured["user_id"] == current_user.id
+    assert captured["scan_options"]["mode"] == "single"
+    assert captured["scan_options"]["page_limit"] == 1
+    app.dependency_overrides.clear()
+
+
 def test_scan_queue_control_endpoints(monkeypatch):
     app.dependency_overrides[get_db_session] = lambda: _fake_db()
     scan_id = uuid4()

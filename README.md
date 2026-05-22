@@ -9,9 +9,9 @@ The project currently includes:
 - a FastAPI backend
 - a Next.js frontend
 - a Tailwind CSS v4 + shadcn/ui component layer for polished frontend controls
-- live one-page accessibility scanning
+- worker-backed one-page accessibility scanning in production-style deployments
 - JavaScript-rendered accessibility analysis for SPA-heavy pages
-- bounded worker-backed multi-page crawling with a 5-page cap, rendered-page axe-core checks, retry recovery, and visible queue controls
+- worker-backed single-page and bounded multi-page crawling with rendered-page axe-core checks, retry recovery, and visible queue controls
 - login and sign-up pages backed by persisted user/session records
 - authenticated scan history and preferences scoped to each user account
 - crawl memory that can skip previously scanned internal pages on repeat domain scans
@@ -112,7 +112,7 @@ Notes:
 - `FRONTEND_URL` should be a single exact origin with no trailing slash
 - `CORS_ALLOWED_ORIGINS` should be comma-separated
 - `CORS_ALLOWED_ORIGIN_REGEX` is useful for Vercel preview deployments
-- `SCAN_EXECUTION_MODE=worker` makes the API enqueue multi-page scans for the scan-worker service; without it, direct local backend runs use the in-process background fallback
+- `SCAN_EXECUTION_MODE=worker` makes the API enqueue scans for the scan-worker service; without it, direct local backend runs execute single-page scans inline and use the in-process background fallback for multi-page scans
 - `SCAN_WORKER_STALE_AFTER_SECONDS` controls when a running worker job is considered stale and eligible for retry/recovery
 - `AUTH_JWT_SECRET` signs login JWTs; set a long private value outside local development
 
@@ -163,7 +163,7 @@ Frontend UI note:
 
 Implemented today:
 
-- backend single-page scanning
+- backend single-page scanning, queued for the scan-worker when worker mode is enabled
 - custom checks plus axe-core checks against rendered page content when Playwright is available
 - contextual issue screenshots in live scan responses
 - PostgreSQL persistence for successful and failed scan attempts
@@ -181,9 +181,9 @@ Implemented today:
 - reports page backed by persisted scan records via `scanId`
 - preferences persistence with backend encryption for API keys
 - danger-zone actions backed by API (`DELETE /scans`, `POST /preferences/reset`)
-- bounded worker-backed multi-page crawl mode using persisted crawl preferences, rendered custom checks, and axe-core checks
-- multi-page scans create a queued scan job immediately, then the dashboard polls saved scan status until completion
-- queued multi-page scans expose current page, waiting pages, removed pages, retry attempts, and stale-job recovery state
+- worker-backed scan execution using persisted crawl preferences, rendered custom checks, and axe-core checks
+- worker-mode scans create a queued scan job immediately, then the dashboard polls saved scan status until completion
+- queued scans expose current page, waiting pages, removed pages, retry attempts, and stale-job recovery state
 - users can remove queued pages or move a queued page to the front before the worker scans it
 - user-controlled crawl memory preference for skipping already scanned internal pages on the same domain
 - scanned and skipped page URL lists for granular report traceability
@@ -220,7 +220,7 @@ Services:
 - frontend: `http://127.0.0.1:3000`
 - backend API: `http://127.0.0.1:8000`
 - backend docs: `http://127.0.0.1:8000/docs`
-- scan-worker: background multi-page scan executor
+- scan-worker: background scan executor
 - database: `localhost:5432`
 
 This uses:
@@ -240,7 +240,7 @@ docker compose -f docker-compose.dev.yml up --build
 Use this workflow for day-to-day coding. It provides hot reload through bind mounts:
 
 - backend runs with `uvicorn --reload`
-- scan-worker runs queued multi-page scans
+- scan-worker runs queued scans
 - frontend runs with `next dev`
 - PostgreSQL runs in the `db` service
 - code changes do not require a full rebuild
@@ -264,11 +264,14 @@ Recommended backend environment variables:
 DATABASE_URL=<your-managed-postgresql-url>
 FRONTEND_URL=https://web-accessibility-assistant.vercel.app
 CORS_ALLOWED_ORIGIN_REGEX=https://.*\.vercel\.app
+SCAN_EXECUTION_MODE=worker
 ```
 
 Use `DATABASE_URL` for the production database connection. Use `FRONTEND_URL` for the main production frontend domain. Use `CORS_ALLOWED_ORIGIN_REGEX` if preview Vercel domains also need access.
 
 The backend container must start through `/app/start.sh` because that script runs `alembic upgrade head` before Uvicorn starts. Do not override the Docker command with direct `uvicorn ...`; doing so skips migrations and can leave production without tables such as `users` and `user_sessions`.
+
+For production scans, create a separate Render background worker from the same backend image with command `python -m app.scan_worker` and the same `DATABASE_URL`. With `SCAN_EXECUTION_MODE=worker`, the web service returns queued scan IDs quickly and the worker runs Playwright/Chromium work outside the request-serving process.
 
 ### Frontend On Vercel
 

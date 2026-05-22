@@ -242,7 +242,7 @@ Responsibilities:
 
 Current behavior:
 
-- single-page scans run the full rendered-page custom plus axe-core pipeline with screenshots when available
+- single-page scans run the full rendered-page custom plus axe-core pipeline with screenshots when available; in worker mode they are queued for the scan-worker instead of running inside the web request
 - multi-page scans create a queued saved scan record, then the scan-worker service runs rendered-page custom checks plus axe-core
 - multi-page scans are capped at 5 pages in the dashboard flow while larger scan orchestration remains future work
 - repeat multi-page scans can skip previously scanned discovered internal pages while always scanning the submitted start URL
@@ -358,7 +358,7 @@ Production startup rule:
 
 ## 5. Current Scan Flow
 
-The current single-page scan flow is:
+The current single-page scan flow in direct local mode is:
 
 1. The frontend or API client sends `POST /scan/page` with a bearer token and URL.
 2. FastAPI resolves the current user from the token and validates the request body.
@@ -370,6 +370,14 @@ The current single-page scan flow is:
 8. The backend merges issues and captures screenshots.
 9. The backend saves the finished scan in PostgreSQL with the current user's ID.
 10. The API returns the live scan result plus `scan_id`.
+
+In worker mode, including production-style deployments:
+
+1. The frontend sends `POST /scan/page` with a bearer token, URL, and `mode="single"`.
+2. The backend creates a user-owned scan record with `status="queued"` and returns the scan ID immediately.
+3. The dashboard polls `GET /scans/{scan_id}` while the scan is queued or running.
+4. The scan-worker claims the row, runs the rendered-page custom plus axe-core pipeline, saves the final result, and marks the row `status="complete"` or `status="error"`.
+5. The web API remains available for `/health`, auth, history, and polling while Chromium runs in the worker process.
 
 The current multi-page scan flow is:
 

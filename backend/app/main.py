@@ -216,9 +216,11 @@ def scan_single_page(
         previously_scanned_urls=frozenset(previously_scanned_urls),
     )
 
-    if request.mode == "multi":
+    execution_mode = get_scan_execution_mode()
+    should_enqueue_scan = request.mode == "multi" or execution_mode == SCAN_EXECUTION_MODE_WORKER
+
+    if should_enqueue_scan:
         try:
-            execution_mode = get_scan_execution_mode()
             job_status = "queued" if execution_mode == SCAN_EXECUTION_MODE_WORKER else "running"
             scan_run = create_scan_job(
                 db,
@@ -235,7 +237,7 @@ def scan_single_page(
             raise HTTPException(status_code=500, detail="Failed to create scan job") from exc
 
         background_options = replace(options, run_browser_analysis_for_multi=True)
-        if execution_mode == SCAN_EXECUTION_MODE_BACKGROUND:
+        if request.mode == "multi" and execution_mode == SCAN_EXECUTION_MODE_BACKGROUND:
             background_tasks.add_task(
                 run_multi_page_scan_job,
                 scan_run.id,
@@ -248,7 +250,7 @@ def scan_single_page(
             status=job_status,
             url=requested_url,
             scanned_at=started_at.isoformat(),
-            mode="multi",
+            mode=mode,
             pages_scanned=0,
             pages_skipped=0,
             scanned_page_urls=[],
