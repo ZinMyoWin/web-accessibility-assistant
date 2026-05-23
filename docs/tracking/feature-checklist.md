@@ -122,7 +122,7 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Automated WCAG criteria tagging for issues
 - [x] Automated locator guidance using source hints, DOM paths, and text previews
 - [x] Actionable locator guidance by issue type for links, images, DOM paths, source snippets, and affected pages
-- [x] Automated contextual screenshot capture for issue review
+- [x] Automated contextual screenshot capture and persistence for issue review
 - [x] Grouped generative AI / LLM-based repair suggestions
 - [x] DeepSeek API support for grouped AI repair suggestions
 - [ ] Automatic code repair suggestions per issue

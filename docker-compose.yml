@@ -28,7 +28,9 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/accessibility_assistant
       SCAN_EXECUTION_MODE: worker
-      AUTH_JWT_SECRET: "XAiBKqnAY5Uk4qY+4YDmYB7winu1i6Uqom1+Uu3bcl/8IUCiuD+YGENH6OFgEpwlc4X19zi2to+HNJ9HmuAdDA=="
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:?Set AUTH_JWT_SECRET in your shell or .env}
+      CLOUDINARY_URL: ${CLOUDINARY_URL:-}
+      CLOUDINARY_SCREENSHOT_FOLDER: ${CLOUDINARY_SCREENSHOT_FOLDER:-accessaudit/issue-screenshots}
     ports:
       # Map host port 8000 to container port 8000.
       - "8000:8000"
@@ -59,6 +61,8 @@ services:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/accessibility_assistant
       SCAN_WORKER_POLL_INTERVAL_SECONDS: "2"
       SCAN_WORKER_STALE_AFTER_SECONDS: "300"
+      CLOUDINARY_URL: ${CLOUDINARY_URL:-}
+      CLOUDINARY_SCREENSHOT_FOLDER: ${CLOUDINARY_SCREENSHOT_FOLDER:-accessaudit/issue-screenshots}
     depends_on:
       backend:
         condition: service_healthy
@@ -76,7 +80,7 @@ services:
     container_name: web-accessibility-frontend
     environment:
       AUTH_API_BASE_URL: http://backend:8000
-      AUTH_SECRET: "local-compose-auth-secret-replace-for-shared-environments"
+      AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET in your shell or .env}
       NEXTAUTH_URL: http://localhost:3000
     ports:
       # Map host port 3000 to container port 3000.

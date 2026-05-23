@@ -11,6 +11,7 @@ const baseIssue: SavedScanIssue = {
   source_hint: "<img src=\"/hero.png\">",
   dom_path: "html > body > main > img:nth-of-type(1)",
   text_preview: "hero.png",
+  screenshot_data_url: null,
   wcag_criteria: ["WCAG 1.1.1 A"],
   source: "custom",
   page_url: "https://example.com",

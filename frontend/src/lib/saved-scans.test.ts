@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { mapSavedScanToReportData } from "@/lib/saved-scans"
+import { mapSavedScanToIssueList, mapSavedScanToReportData } from "@/lib/saved-scans"
 import { makeSavedScanDetail } from "@/test/saved-scan-fixtures"
 
 describe("mapSavedScanToReportData", () => {
@@ -21,5 +21,35 @@ describe("mapSavedScanToReportData", () => {
     expect(contactPage?.serious).toBe(1)
     expect(skippedPage?.status).toBe("skipped")
     expect(skippedPage?.elements).toEqual([])
+  })
+})
+
+describe("mapSavedScanToIssueList", () => {
+  it("preserves persisted screenshot data URLs", () => {
+    const dataUrl = "data:image/jpeg;base64,abc123"
+    const issues = mapSavedScanToIssueList(
+      makeSavedScanDetail({
+        issues: [
+          {
+            rule_id: "image-alt",
+            severity: "high",
+            element: "<img>",
+            message: "Image is missing alternative text.",
+            recommendation: "Add alt text.",
+            line: 1,
+            column: 1,
+            source_hint: "<img>",
+            dom_path: "html > body > img",
+            text_preview: "hero.png",
+            screenshot_data_url: dataUrl,
+            wcag_criteria: ["WCAG 1.1.1 A"],
+            source: "custom",
+            page_url: "https://example.com",
+          },
+        ],
+      })
+    )
+
+    expect(issues[0].screenshotDataUrl).toBe(dataUrl)
   })
 })

@@ -8,7 +8,7 @@ from app.models.auth import User
 import app.models.preferences  # noqa: F401
 from app.models.scan import ScanIssueRecord, ScanRun
 from app.repositories import scan_repository
-from app.schemas.scan import ScanPageResponse, ScanSummary
+from app.schemas.scan import ScanIssue, ScanPageResponse, ScanSummary
 
 
 def _session():
@@ -200,6 +200,44 @@ def test_saved_scan_queries_are_scoped_to_user():
     assert response.items[0].id == str(owner_scan.id)
     assert scan_repository.get_saved_scan(session, owner_scan.id, owner_id) is not None
     assert scan_repository.get_saved_scan(session, other_scan.id, owner_id) is None
+
+
+def test_saved_scan_response_preserves_issue_screenshot_data_url():
+    session = _session()
+    user_id = uuid4()
+    data_url = "data:image/jpeg;base64,abc123"
+    result = ScanPageResponse(
+        url="https://example.com",
+        scanned_at=datetime.now(UTC).isoformat(),
+        mode="single",
+        pages_scanned=1,
+        scanned_page_urls=["https://example.com"],
+        summary=ScanSummary(total_issues=1, high=1, medium=0, low=0),
+        issues=[
+            ScanIssue(
+                rule_id="img-alt",
+                severity="high",
+                element="img",
+                message="Image is missing alt text",
+                recommendation="Add meaningful alt text.",
+                screenshot_data_url=data_url,
+                page_url="https://example.com",
+            )
+        ],
+    )
+
+    scan_run = scan_repository.save_completed_scan(
+        session,
+        user_id=user_id,
+        requested_url="https://example.com",
+        result=result,
+        started_at=datetime.now(UTC),
+        completed_at=datetime.now(UTC),
+    )
+
+    response = scan_repository.to_saved_scan_response(scan_run)
+
+    assert response.issues[0].screenshot_data_url == data_url
 
 
 def test_queue_controls_do_not_update_another_users_scan():

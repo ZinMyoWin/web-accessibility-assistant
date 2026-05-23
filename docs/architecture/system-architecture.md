@@ -442,12 +442,13 @@ Important fields:
 - source-location hints
 - affected page URL
 - DOM path and text preview
+- contextual screenshot URL or local data URL
 - WCAG criteria
 - detection source
 
 Current rule:
 
-- issue screenshots are returned in the live scan response, but they are not stored in PostgreSQL yet.
+- issue screenshots are uploaded to Cloudinary when `CLOUDINARY_URL` is configured, and saved issue records store the returned URL; local runs without Cloudinary still use inline data URLs.
 
 ### `repair_suggestions`
 
@@ -676,7 +677,7 @@ Implemented today:
 
 - backend single-page scanning
 - rendered-page custom HTML checks plus axe-core checks
-- contextual issue screenshots in live scan results
+- contextual issue screenshots in live and saved scan results, backed by Cloudinary when configured
 - PostgreSQL persistence for successful and failed scan attempts
 - persisted accessibility score calculation for saved scans
 - saved scan list API

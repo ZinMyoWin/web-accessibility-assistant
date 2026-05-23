@@ -74,6 +74,7 @@ class ScanIssueRecord(Base):
     source_hint: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
     dom_path: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
     text_preview: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    screenshot_data_url: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
     page_url: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
     wcag_criteria: Mapped[list[str] | None] = mapped_column(sa.JSON, nullable=True)
     source: Mapped[str | None] = mapped_column(sa.String(32), nullable=True)

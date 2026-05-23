@@ -19,6 +19,56 @@ This document is meant to support:
 - testing evidence
 - supervisor updates
 
+## 2026-05-23 - Persist Issue Screenshots For Worker Scans
+
+### Completed work
+
+Fixed production worker-mode scan results so captured issue screenshots survive after the scan worker saves the completed scan without storing image blobs directly in PostgreSQL:
+
+- added `screenshot_data_url` to persisted scan issue records
+- added an Alembic migration for the new `scan_issues.screenshot_data_url` column
+- added Cloudinary upload support for captured screenshots when `CLOUDINARY_URL` is configured
+- saved Cloudinary image URLs when direct and worker-completed scans are persisted
+- returned screenshot data URLs from saved scan detail responses
+- preserved saved screenshot data URLs when the dashboard maps queued scan results back into live scan cards
+- moved Docker Compose auth secrets to required environment variables instead of hardcoded values
+- added backend repository coverage for screenshot persistence
+
+### Why this was done
+
+Production worker mode queues single-page scans and the dashboard reads the completed result from the saved scan API. The scanner already captured per-issue screenshots, but the repository dropped `screenshot_data_url` when writing issue records, so production results could appear to have no screenshots. Storing raw base64 screenshots in PostgreSQL would make scan records heavy, so configured production environments upload screenshots to Cloudinary and save only the returned image URL.
+
+### Files changed
+
+- `backend/app/models/scan.py`
+- `backend/app/repositories/scan_repository.py`
+- `backend/app/services/page_scanner.py`
+- `backend/alembic/versions/9848b576f070_persist_issue_screenshots.py`
+- `backend/requirements.txt`
+- `backend/tests/test_scan_repository_unit.py`
+- `backend/tests/test_page_scanner_unit.py`
+- `docker-compose.yml`
+- `docker-compose.dev.yml`
+- `frontend/src/hooks/useDashboardScan.ts`
+- `frontend/src/lib/saved-scans.ts`
+- `frontend/src/components/issues/IssueDetailPanel.tsx`
+- `frontend/src/test/saved-scan-fixtures.ts`
+- `frontend/src/lib/saved-scans.test.ts`
+- `README.md`
+- `docs/architecture/system-architecture.md`
+- `docs/tracking/feature-checklist.md`
+- `docs/tracking/implementation-log.md`
+
+### Verification
+
+- `python -m pytest -q` passed for the backend suite.
+- `npx tsc --noEmit` passed for the frontend.
+- `npm test -- --run` passed for the frontend Vitest suite.
+
+### Next step
+
+Add `CLOUDINARY_URL` to both Render backend services, redeploy the backend and worker so dependencies install and Alembic applies the new column, then run a production scan and confirm saved scan issue cards include Cloudinary-hosted screenshots.
+
 ## 2026-03-12 - Backend Foundation
 
 ### Completed work

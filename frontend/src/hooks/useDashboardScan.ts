@@ -317,7 +317,7 @@ function mapSavedScanToScanResponse(scan: SavedScanDetail): ScanResponse {
     issues: scan.issues.map(
       (issue): ScanIssue => ({
         ...issue,
-        screenshot_data_url: null,
+        screenshot_data_url: issue.screenshot_data_url,
       })
     ),
   }

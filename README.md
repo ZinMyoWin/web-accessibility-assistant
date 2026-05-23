@@ -81,6 +81,7 @@ NEXTAUTH_URL=http://localhost:3000
 If `NEXT_PUBLIC_API_BASE_URL` is not set, the frontend falls back to `http://127.0.0.1:8000`.
 When running the frontend in Docker, set `AUTH_API_BASE_URL` to the backend service URL, for example `http://backend:8000`, because Auth.js login runs server-side inside the frontend container.
 Auth.js uses the frontend secret to sign its session JWT; keep it stable across restarts and set `NEXTAUTH_URL` to the deployed frontend URL in production.
+Docker Compose reads `AUTH_JWT_SECRET`, `AUTH_SECRET`, `CLOUDINARY_URL`, and `CLOUDINARY_SCREENSHOT_FOLDER` from your shell environment or an uncommitted `.env` file in the project root. Compose now fails fast if the required auth secrets are missing.
 
 ### Backend
 
@@ -165,7 +166,7 @@ Implemented today:
 
 - backend single-page scanning, queued for the scan-worker when worker mode is enabled
 - custom checks plus axe-core checks against rendered page content when Playwright is available
-- contextual issue screenshots in live scan responses
+- contextual issue screenshots in live and saved scan responses
 - PostgreSQL persistence for successful and failed scan attempts
 - `GET /scans` and `GET /scans/{scan_id}` saved-scan APIs
 - sign-up, login, current-user, and logout APIs backed by stored user/session records and signed JWT access tokens
@@ -265,9 +266,11 @@ DATABASE_URL=<your-managed-postgresql-url>
 FRONTEND_URL=https://web-accessibility-assistant.vercel.app
 CORS_ALLOWED_ORIGIN_REGEX=https://.*\.vercel\.app
 SCAN_EXECUTION_MODE=worker
+CLOUDINARY_URL=cloudinary://<api-key>:<api-secret>@<cloud-name>
+CLOUDINARY_SCREENSHOT_FOLDER=accessaudit/issue-screenshots
 ```
 
-Use `DATABASE_URL` for the production database connection. Use `FRONTEND_URL` for the main production frontend domain. Use `CORS_ALLOWED_ORIGIN_REGEX` if preview Vercel domains also need access.
+Use `DATABASE_URL` for the production database connection. Use `FRONTEND_URL` for the main production frontend domain. Use `CORS_ALLOWED_ORIGIN_REGEX` if preview Vercel domains also need access. Use `CLOUDINARY_URL` on both the backend web service and scan-worker service so issue screenshots are uploaded to Cloudinary and only the resulting image URL is saved in PostgreSQL.
 
 The backend container must start through `/app/start.sh` because that script runs `alembic upgrade head` before Uvicorn starts. Do not override the Docker command with direct `uvicorn ...`; doing so skips migrations and can leave production without tables such as `users` and `user_sessions`.
 
@@ -345,9 +348,9 @@ docker compose -f docker-compose.dev.yml exec backend alembic upgrade head
 - The frontend test-page shortcut uses the configured API base URL instead of hardcoded localhost.
 - Some external websites block automated screenshot capture in headless environments.
 - The backend now saves both successful and failed scan attempts.
-- Issue screenshots are returned in live scan responses, but they are not stored in PostgreSQL yet.
+- New issue screenshots are uploaded to Cloudinary when `CLOUDINARY_URL` is configured; PostgreSQL stores the resulting image URL. Local runs without Cloudinary fall back to inline data URLs.
 - Existing saved scans only show the locator fields that were captured when they were scanned. New scans include more precise DOM paths for repeated elements.
-- Multi-page dashboard scans now run through a dedicated scan-worker service with full axe-core analysis across the bounded crawled pages. Issue screenshots remain live-only for single-page scans and are not persisted.
+- Multi-page dashboard scans now run through a dedicated scan-worker service with full axe-core analysis across the bounded crawled pages. Issue screenshots are persisted for new worker-completed scans when capture succeeds.
 - Full-analysis scans now navigate pages in Playwright first, wait for rendered JavaScript content, run custom checks and axe-core against the rendered DOM, and fall back to raw HTML analysis if rendering is unavailable.
 - Running multi-page scans update queue metadata as pages are discovered; the dashboard can show the current page, queued pages, removed pages, and retry attempt count.
 - The scan worker retries failed jobs while attempts remain and recovers stale `running` jobs after the configured stale timeout.

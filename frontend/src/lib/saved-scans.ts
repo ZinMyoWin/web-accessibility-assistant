@@ -55,6 +55,7 @@ export type SavedScanIssue = {
   source_hint: string | null
   dom_path: string | null
   text_preview: string | null
+  screenshot_data_url: string | null
   wcag_criteria: string[] | null
   source: string | null
   page_url: string | null
@@ -94,6 +95,7 @@ export type IssueListItem = {
   sourceHint: string | null
   domPath: string | null
   textPreview: string | null
+  screenshotDataUrl: string | null
   pageUrl: string
   finderHint: string
 }
@@ -363,6 +365,7 @@ export function mapSavedScanToIssueList(scan: SavedScanDetail): IssueListItem[] 
       sourceHint: issue.source_hint,
       domPath: issue.dom_path,
       textPreview: issue.text_preview,
+      screenshotDataUrl: issue.screenshot_data_url,
       pageUrl: issuePageUrl,
       finderHint: buildFinderHint(issue, issuePageUrl),
     }
