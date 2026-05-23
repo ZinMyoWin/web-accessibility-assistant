@@ -448,7 +448,7 @@ Important fields:
 
 Current rule:
 
-- issue screenshots are uploaded to Cloudinary when `CLOUDINARY_URL` is configured, and saved issue records store the returned URL; local runs without Cloudinary still use inline data URLs.
+- issue screenshots are uploaded to Cloudinary when `CLOUDINARY_URL` is configured, and saved issue records store the returned URL; local runs without Cloudinary still use inline data URLs. Production omits the screenshot when Cloudinary upload fails unless `CLOUDINARY_SCREENSHOT_FALLBACK=data_url` is explicitly enabled.
 
 ### `repair_suggestions`
 

@@ -29,6 +29,7 @@ Fixed production worker-mode scan results so captured issue screenshots survive 
 - added an Alembic migration for the new `scan_issues.screenshot_data_url` column
 - added Cloudinary upload support for captured screenshots when `CLOUDINARY_URL` is configured
 - saved Cloudinary image URLs when direct and worker-completed scans are persisted
+- added explicit Cloudinary failure logging and an opt-in data URL fallback for failed uploads
 - returned screenshot data URLs from saved scan detail responses
 - preserved saved screenshot data URLs when the dashboard maps queued scan results back into live scan cards
 - moved Docker Compose auth secrets to required environment variables instead of hardcoded values

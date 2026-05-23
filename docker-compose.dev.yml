@@ -27,6 +27,7 @@ services:
       AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:?Set AUTH_JWT_SECRET in your shell or .env}
       CLOUDINARY_URL: ${CLOUDINARY_URL:-}
       CLOUDINARY_SCREENSHOT_FOLDER: ${CLOUDINARY_SCREENSHOT_FOLDER:-accessaudit/issue-screenshots}
+      CLOUDINARY_SCREENSHOT_FALLBACK: ${CLOUDINARY_SCREENSHOT_FALLBACK:-}
     volumes:
       - ./backend:/app
     ports:
@@ -59,6 +60,7 @@ services:
       SCAN_WORKER_STALE_AFTER_SECONDS: "300"
       CLOUDINARY_URL: ${CLOUDINARY_URL:-}
       CLOUDINARY_SCREENSHOT_FOLDER: ${CLOUDINARY_SCREENSHOT_FOLDER:-accessaudit/issue-screenshots}
+      CLOUDINARY_SCREENSHOT_FALLBACK: ${CLOUDINARY_SCREENSHOT_FALLBACK:-}
     volumes:
       - ./backend:/app
     depends_on:

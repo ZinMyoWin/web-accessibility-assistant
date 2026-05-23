@@ -129,3 +129,23 @@ def test_store_screenshot_uploads_to_cloudinary_when_configured(monkeypatch):
     stored_value = page_scanner._store_screenshot(b"image-bytes", "image/jpeg")
 
     assert stored_value == "https://res.cloudinary.com/example/image/upload/demo.jpg"
+
+
+def test_store_screenshot_omits_value_when_cloudinary_upload_fails(monkeypatch):
+    monkeypatch.setenv("CLOUDINARY_URL", "cloudinary://key:secret@example")
+    monkeypatch.delenv("CLOUDINARY_SCREENSHOT_FALLBACK", raising=False)
+    monkeypatch.setattr(page_scanner, "_upload_screenshot_to_cloudinary", lambda *_args: None)
+
+    stored_value = page_scanner._store_screenshot(b"image-bytes", "image/jpeg")
+
+    assert stored_value is None
+
+
+def test_store_screenshot_can_fallback_to_data_url_when_cloudinary_upload_fails(monkeypatch):
+    monkeypatch.setenv("CLOUDINARY_URL", "cloudinary://key:secret@example")
+    monkeypatch.setenv("CLOUDINARY_SCREENSHOT_FALLBACK", "data_url")
+    monkeypatch.setattr(page_scanner, "_upload_screenshot_to_cloudinary", lambda *_args: None)
+
+    stored_value = page_scanner._store_screenshot(b"image-bytes", "image/jpeg")
+
+    assert stored_value == "data:image/jpeg;base64,aW1hZ2UtYnl0ZXM="

@@ -268,9 +268,10 @@ CORS_ALLOWED_ORIGIN_REGEX=https://.*\.vercel\.app
 SCAN_EXECUTION_MODE=worker
 CLOUDINARY_URL=cloudinary://<api-key>:<api-secret>@<cloud-name>
 CLOUDINARY_SCREENSHOT_FOLDER=accessaudit/issue-screenshots
+CLOUDINARY_SCREENSHOT_FALLBACK=
 ```
 
-Use `DATABASE_URL` for the production database connection. Use `FRONTEND_URL` for the main production frontend domain. Use `CORS_ALLOWED_ORIGIN_REGEX` if preview Vercel domains also need access. Use `CLOUDINARY_URL` on both the backend web service and scan-worker service so issue screenshots are uploaded to Cloudinary and only the resulting image URL is saved in PostgreSQL.
+Use `DATABASE_URL` for the production database connection. Use `FRONTEND_URL` for the main production frontend domain. Use `CORS_ALLOWED_ORIGIN_REGEX` if preview Vercel domains also need access. Use `CLOUDINARY_URL` on both the backend web service and scan-worker service so issue screenshots are uploaded to Cloudinary and only the resulting image URL is saved in PostgreSQL. If screenshot availability is more important than keeping PostgreSQL light, set `CLOUDINARY_SCREENSHOT_FALLBACK=data_url` to store an inline data URL when Cloudinary upload fails.
 
 The backend container must start through `/app/start.sh` because that script runs `alembic upgrade head` before Uvicorn starts. Do not override the Docker command with direct `uvicorn ...`; doing so skips migrations and can leave production without tables such as `users` and `user_sessions`.
 
@@ -348,7 +349,7 @@ docker compose -f docker-compose.dev.yml exec backend alembic upgrade head
 - The frontend test-page shortcut uses the configured API base URL instead of hardcoded localhost.
 - Some external websites block automated screenshot capture in headless environments.
 - The backend now saves both successful and failed scan attempts.
-- New issue screenshots are uploaded to Cloudinary when `CLOUDINARY_URL` is configured; PostgreSQL stores the resulting image URL. Local runs without Cloudinary fall back to inline data URLs.
+- New issue screenshots are uploaded to Cloudinary when `CLOUDINARY_URL` is configured; PostgreSQL stores the resulting image URL. Local runs without Cloudinary fall back to inline data URLs. If Cloudinary upload fails, production omits the screenshot by default and logs the failure; `CLOUDINARY_SCREENSHOT_FALLBACK=data_url` can be used as a temporary fallback.
 - Existing saved scans only show the locator fields that were captured when they were scanned. New scans include more precise DOM paths for repeated elements.
 - Multi-page dashboard scans now run through a dedicated scan-worker service with full axe-core analysis across the bounded crawled pages. Issue screenshots are persisted for new worker-completed scans when capture succeeds.
 - Full-analysis scans now navigate pages in Playwright first, wait for rendered JavaScript content, run custom checks and axe-core against the rendered DOM, and fall back to raw HTML analysis if rendering is unavailable.

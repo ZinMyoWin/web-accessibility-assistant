@@ -895,8 +895,27 @@ def _to_data_url(image_bytes: bytes, mime_type: str) -> str:
 
 def _store_screenshot(image_bytes: bytes, mime_type: str) -> str | None:
     if os.getenv("CLOUDINARY_URL", "").strip():
-        return _upload_screenshot_to_cloudinary(image_bytes, mime_type)
+        uploaded_url = _upload_screenshot_to_cloudinary(image_bytes, mime_type)
+        if uploaded_url:
+            return uploaded_url
+        if _cloudinary_data_url_fallback_enabled():
+            logger.warning("Cloudinary screenshot upload failed; using inline data URL fallback.")
+            return _to_data_url(image_bytes, mime_type)
+        logger.warning(
+            "Cloudinary screenshot upload failed and inline fallback is disabled; "
+            "screenshot will be omitted."
+        )
+        return None
     return _to_data_url(image_bytes, mime_type)
+
+
+def _cloudinary_data_url_fallback_enabled() -> bool:
+    return os.getenv("CLOUDINARY_SCREENSHOT_FALLBACK", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "data_url",
+    }
 
 
 def _upload_screenshot_to_cloudinary(image_bytes: bytes, mime_type: str) -> str | None:
@@ -920,7 +939,11 @@ def _upload_screenshot_to_cloudinary(image_bytes: bytes, mime_type: str) -> str 
         return secure_url
 
     url = upload_result.get("url")
-    return url if isinstance(url, str) and url else None
+    if isinstance(url, str) and url:
+        return url
+
+    logger.warning("Cloudinary screenshot upload response did not include a URL.")
+    return None
 
 
 def _prepare_html_for_screenshot(html: str, base_url: str) -> str:
