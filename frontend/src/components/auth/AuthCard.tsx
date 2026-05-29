@@ -44,7 +44,7 @@ export function AuthCard({ mode }: AuthCardProps) {
           : "Login successful. Opening your dashboard..."
       )
       window.setTimeout(() => {
-        router.replace("/")
+        router.replace("/dashboard")
       }, 900)
     } catch (authError) {
       setError(
@@ -172,7 +172,7 @@ export function AuthCard({ mode }: AuthCardProps) {
               <p className="mt-6 text-center text-sm text-muted-foreground">
                 {isSignup ? "Already have an account?" : "No account yet?"}{" "}
                 <Link
-                  href={isSignup ? "/login" : "/signup"}
+                  href={isSignup ? "/login" : "/register"}
                   className="font-medium text-primary underline-offset-4 hover:underline"
                 >
                   {isSignup ? "Log in" : "Sign up"}

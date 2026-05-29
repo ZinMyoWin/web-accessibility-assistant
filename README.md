@@ -8,6 +8,7 @@ The project currently includes:
 
 - a FastAPI backend
 - a Next.js frontend
+- a public AccessAudit landing page at `/` with unauthenticated login/register entry points
 - a Tailwind CSS v4 + shadcn/ui component layer for polished frontend controls
 - worker-backed one-page accessibility scanning in production-style deployments
 - JavaScript-rendered accessibility analysis for SPA-heavy pages
@@ -150,7 +151,8 @@ npm run dev
 
 Then open:
 
-- `http://127.0.0.1:3000`
+- `http://127.0.0.1:3000` for the public landing page
+- `http://127.0.0.1:3000/dashboard` for the authenticated dashboard
 
 The frontend will call the backend using `NEXT_PUBLIC_API_BASE_URL` when set, or fall back to `http://127.0.0.1:8000`.
 
@@ -173,6 +175,7 @@ Implemented today:
 - Auth.js credentials authentication in the Next.js frontend, delegating credential checks and sign-up to the backend auth APIs
 - scan, history, report, queue-control, danger-zone, and preferences APIs require the current user's bearer token
 - saved scans and preferences are scoped to the authenticated user account
+- public marketing landing page at `/`
 - dashboard home scan UI
 - login and sign-up pages
 - dashboard route guard and sidebar logout control

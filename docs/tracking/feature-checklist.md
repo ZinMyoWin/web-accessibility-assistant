@@ -64,7 +64,8 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Next.js frontend scaffold
 - [x] `src/`-based frontend source structure
 - [x] Shared root layout in `src/app/layout.tsx`
-- [x] Home dashboard scan page
+- [x] Public marketing landing page at `/`
+- [x] Home dashboard scan page at `/dashboard`
 - [x] Login page
 - [x] Sign-up page
 - [x] Auth.js credentials session integration for login and sign-up

@@ -68,6 +68,7 @@ Contains the web interface.
 
 Current frontend responsibilities:
 
+- show a public AccessAudit landing page before authentication
 - create an account and log in
 - enter a URL
 - start a scan
@@ -89,6 +90,8 @@ Current technologies:
 Current status:
 
 - frontend source is organized under `frontend/src/`
+- `/` renders the unauthenticated public marketing landing page
+- `/dashboard` renders the authenticated home dashboard scan flow
 - login and sign-up pages are implemented
 - dashboard routes are guarded by Auth.js middleware and the client dashboard shell for anonymous users
 - Auth.js manages the frontend session and stores the backend bearer token in its JWT session for API calls

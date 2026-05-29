@@ -2633,3 +2633,26 @@ Moved production worker-mode single-page scans off the web request path:
 ### Outcome
 
 Production-style deployments can keep Playwright/Chromium work in the scan-worker process instead of blocking the Render web service. This is intended to prevent heavy single-page scans from causing web health-check timeouts and request disconnects.
+
+## 2026-05-29 - Public Marketing Landing Page
+
+### Completed work
+
+Added the public AccessAudit home landing page and moved the authenticated dashboard home to `/dashboard`:
+
+- implemented the marketing route group at `frontend/src/app/(marketing)/page.tsx`
+- added reusable `SiteHeader` and `SiteFooter` components with public navigation, mobile menu state, and scroll shadow behavior
+- split the landing page into Hero, TrustStrip, Features, HowItWorks, AccessibilityBand, and FinalCta components
+- added central marketing tokens for brand shades, surface colors, spacing, shadows, preview width, and landing typography
+- added `/register` as the public signup route used by marketing CTAs
+- removed `/` from the Auth.js middleware matcher and protected `/dashboard` instead
+
+### Verification
+
+- frontend typecheck passed with `npx tsc --noEmit`
+- frontend production build passed with `npm run build`
+- Playwright/Chrome screenshots were captured for the HTML reference and implementation at desktop `1440x1200` and mobile `390x1000`
+
+### Outcome
+
+Unauthenticated visitors now see a public AccessAudit landing page at `/`, while signed-in users continue to use the guarded dashboard at `/dashboard`.
