@@ -19,7 +19,11 @@ type AuthContextValue = {
   status: AuthStatus
   user: AuthUser | null
   token: string | null
-  signIn: (email: string, password: string) => Promise<void>
+  signIn: (
+    email: string,
+    password: string,
+    remember?: boolean
+  ) => Promise<void>
   signUp: (name: string, email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
 }
@@ -52,11 +56,12 @@ function AuthContextProvider({ children }: { children: ReactNode }) {
       }
     : null
 
-  async function signIn(email: string, password: string) {
+  async function signIn(email: string, password: string, remember = false) {
     const response = await authSignIn("credentials", {
       email,
       password,
       mode: "login",
+      remember: remember ? "true" : "false",
       redirect: false,
     })
 
