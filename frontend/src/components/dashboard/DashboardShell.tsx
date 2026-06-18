@@ -12,7 +12,7 @@ const iconClass = "w-4 h-4 shrink-0"
 const NAV_ITEMS = [
   {
     label: "Dashboard",
-    href: "/",
+    href: "/dashboard",
     icon: (
       <svg className={iconClass} viewBox="0 0 16 16" fill="none">
         <rect x="1" y="1" width="6" height="6" rx="1" fill="currentColor" />

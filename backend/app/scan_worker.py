@@ -10,6 +10,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.db import get_session_factory
+import app.models.auth  # noqa: F401 - register users table for scan_run.user_id FK
 from app.models.scan import ScanRun
 from app.repositories.scan_repository import (
     claim_next_queued_scan,

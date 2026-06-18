@@ -12,6 +12,7 @@ from app.models.base import Base
 import app.models.scan  # noqa: F401
 import app.models.preferences  # noqa: F401
 import app.models.auth  # noqa: F401
+import app.models.repair_suggestion  # noqa: F401
 
 config = context.config
 

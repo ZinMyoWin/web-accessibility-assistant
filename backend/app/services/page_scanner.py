@@ -7,6 +7,8 @@ from datetime import UTC, datetime
 from fnmatch import fnmatch
 from html import escape
 from html.parser import HTMLParser
+import logging
+import os
 import re
 from time import sleep
 from typing import Callable
@@ -18,6 +20,8 @@ from urllib.robotparser import RobotFileParser
 from app.schemas.scan import ScanIssue, ScanPageResponse, ScanSummary
 from app.utils.url_utils import validate_public_http_url
 
+
+logger = logging.getLogger(__name__)
 
 VAGUE_LINK_TEXT = {"click here", "read more", "here", "more", "link"}
 VOID_ELEMENTS = {
@@ -819,7 +823,7 @@ def _capture_issue_screenshot(page, issue: ScanIssue) -> str | None:
                         quality=65,
                         clip=_build_context_clip(page, box),
                     )
-                    return _to_data_url(image_bytes, "image/jpeg")
+                    return _store_screenshot(image_bytes, "image/jpeg")
         except Exception:
             pass
 
@@ -835,7 +839,7 @@ def _capture_issue_screenshot(page, issue: ScanIssue) -> str | None:
                 "height": float(min(viewport["height"], 720)),
             },
         )
-        return _to_data_url(image_bytes, "image/jpeg")
+        return _store_screenshot(image_bytes, "image/jpeg")
     except Exception:
         return None
 
@@ -887,6 +891,59 @@ def _build_context_clip(page, box: dict[str, float]) -> dict[str, float]:
 
 def _to_data_url(image_bytes: bytes, mime_type: str) -> str:
     return f"data:{mime_type};base64," + base64.b64encode(image_bytes).decode("ascii")
+
+
+def _store_screenshot(image_bytes: bytes, mime_type: str) -> str | None:
+    if os.getenv("CLOUDINARY_URL", "").strip():
+        uploaded_url = _upload_screenshot_to_cloudinary(image_bytes, mime_type)
+        if uploaded_url:
+            return uploaded_url
+        if _cloudinary_data_url_fallback_enabled():
+            logger.warning("Cloudinary screenshot upload failed; using inline data URL fallback.")
+            return _to_data_url(image_bytes, mime_type)
+        logger.warning(
+            "Cloudinary screenshot upload failed and inline fallback is disabled; "
+            "screenshot will be omitted."
+        )
+        return None
+    return _to_data_url(image_bytes, mime_type)
+
+
+def _cloudinary_data_url_fallback_enabled() -> bool:
+    return os.getenv("CLOUDINARY_SCREENSHOT_FALLBACK", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "data_url",
+    }
+
+
+def _upload_screenshot_to_cloudinary(image_bytes: bytes, mime_type: str) -> str | None:
+    try:
+        import cloudinary.uploader
+
+        folder = os.getenv("CLOUDINARY_SCREENSHOT_FOLDER", "accessaudit/issue-screenshots").strip()
+        upload_result = cloudinary.uploader.upload(
+            _to_data_url(image_bytes, mime_type),
+            folder=folder or "accessaudit/issue-screenshots",
+            resource_type="image",
+            overwrite=False,
+            unique_filename=True,
+        )
+    except Exception as exc:
+        logger.warning("Cloudinary screenshot upload failed: %s", exc)
+        return None
+
+    secure_url = upload_result.get("secure_url")
+    if isinstance(secure_url, str) and secure_url:
+        return secure_url
+
+    url = upload_result.get("url")
+    if isinstance(url, str) and url:
+        return url
+
+    logger.warning("Cloudinary screenshot upload response did not include a URL.")
+    return None
 
 
 def _prepare_html_for_screenshot(html: str, base_url: str) -> str:

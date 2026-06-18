@@ -57,6 +57,19 @@ export function IssueDetailPanel({ issue }: IssueDetailPanelProps) {
           </div>
         </section>
 
+        {issue.screenshotDataUrl && (
+          <section>
+            <SectionLabel>Screenshot</SectionLabel>
+            <div className="overflow-hidden rounded-lg border border-border bg-background">
+              <img
+                className="block max-h-[300px] w-full object-contain"
+                src={issue.screenshotDataUrl}
+                alt={`Screenshot for ${issue.title}`}
+              />
+            </div>
+          </section>
+        )}
+
         {/* WCAG reference */}
         <section>
           <SectionLabel>WCAG reference</SectionLabel>

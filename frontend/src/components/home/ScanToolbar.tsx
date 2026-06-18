@@ -12,7 +12,6 @@ type ScanToolbarProps = {
   isScanning: boolean
   onUrlChange: (value: string) => void
   onScanModeChange: (value: "single" | "multi") => void
-  onUseTestPage: () => void
   onScan: () => void
 }
 
@@ -22,7 +21,6 @@ export function ScanToolbar({
   isScanning,
   onUrlChange,
   onScanModeChange,
-  onUseTestPage,
   onScan,
 }: ScanToolbarProps) {
   return (
@@ -49,12 +47,6 @@ export function ScanToolbar({
           </SelectContent>
         </Select>
       </div>
-      <button
-        className="shrink-0 whitespace-nowrap bg-transparent text-[11px] text-muted-foreground underline underline-offset-2 hover:text-primary"
-        onClick={onUseTestPage}
-      >
-        Use test page
-      </button>
       <button
         className="inline-flex h-9 items-center justify-center whitespace-nowrap rounded-[var(--radius)] border-[0.5px] border-primary bg-primary px-5 text-sm font-medium text-white transition-[background] duration-150 hover:bg-accent-foreground disabled:cursor-not-allowed disabled:opacity-65"
         onClick={onScan}

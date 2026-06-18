@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "@/lib/api"
+import { API_BASE_URL, authHeaders } from "@/lib/api"
 
 export type SavedScanStatus = "queued" | "running" | "complete" | "error"
 export type SavedScanMode = "single" | "multi"
@@ -55,6 +55,7 @@ export type SavedScanIssue = {
   source_hint: string | null
   dom_path: string | null
   text_preview: string | null
+  screenshot_data_url: string | null
   wcag_criteria: string[] | null
   source: string | null
   page_url: string | null
@@ -94,6 +95,7 @@ export type IssueListItem = {
   sourceHint: string | null
   domPath: string | null
   textPreview: string | null
+  screenshotDataUrl: string | null
   pageUrl: string
   finderHint: string
 }
@@ -174,6 +176,48 @@ export type ReportAiSuggestion = {
   added: string
 }
 
+export type RepairSuggestion = {
+  id: string
+  group_key: string
+  provider: string
+  model: string
+  explanation: string
+  impact: string
+  recommended_fix: string
+  before_code: string | null
+  after_code: string | null
+  confidence: "high" | "medium" | "low" | string
+  limitations: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type RepairSuggestionExample = {
+  element: string
+  page_url: string | null
+  source_hint: string | null
+  dom_path: string | null
+  text_preview: string | null
+}
+
+export type RepairSuggestionGroup = {
+  group_key: string
+  rule_id: string
+  title: string
+  severity: IssueSeverity
+  recommendation: string
+  wcag_criteria: string[]
+  affected_count: number
+  affected_pages: string[]
+  examples: RepairSuggestionExample[]
+  suggestion: RepairSuggestion | null
+}
+
+export type RepairSuggestionGroupsResponse = {
+  scan_id: string
+  groups: RepairSuggestionGroup[]
+}
+
 export type ReportViewData = {
   meta: ReportMeta
   severityBreakdown: ReportSeverityBreakdownItem[]
@@ -184,6 +228,7 @@ export type ReportViewData = {
 }
 
 export async function fetchSavedScans(
+  token: string,
   query: SavedScanQuery = {}
 ): Promise<SavedScanListResponse> {
   const url = new URL("/scans", API_BASE_URL)
@@ -204,7 +249,10 @@ export async function fetchSavedScans(
     url.searchParams.set("q", query.q)
   }
 
-  const response = await fetch(url.toString(), { cache: "no-store" })
+  const response = await fetch(url.toString(), {
+    headers: authHeaders(token),
+    cache: "no-store",
+  })
 
   if (!response.ok) {
     throw new Error(await getApiErrorMessage(response))
@@ -213,8 +261,12 @@ export async function fetchSavedScans(
   return (await response.json()) as SavedScanListResponse
 }
 
-export async function fetchSavedScan(scanId: string): Promise<SavedScanDetail> {
+export async function fetchSavedScan(
+  scanId: string,
+  token: string
+): Promise<SavedScanDetail> {
   const response = await fetch(`${API_BASE_URL}/scans/${scanId}`, {
+    headers: authHeaders(token),
     cache: "no-store",
   })
 
@@ -223,6 +275,47 @@ export async function fetchSavedScan(scanId: string): Promise<SavedScanDetail> {
   }
 
   return (await response.json()) as SavedScanDetail
+}
+
+export async function fetchRepairSuggestionGroups(
+  scanId: string,
+  token: string
+): Promise<RepairSuggestionGroupsResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/scans/${scanId}/repair-suggestion-groups`,
+    {
+      headers: authHeaders(token),
+      cache: "no-store",
+    }
+  )
+
+  if (!response.ok) {
+    throw new Error(await getApiErrorMessage(response))
+  }
+
+  return (await response.json()) as RepairSuggestionGroupsResponse
+}
+
+export async function generateRepairSuggestionGroup(
+  scanId: string,
+  groupKey: string,
+  token: string,
+  options: { force?: boolean } = {}
+): Promise<RepairSuggestion> {
+  const response = await fetch(
+    `${API_BASE_URL}/scans/${scanId}/repair-suggestion-groups/${groupKey}/generate`,
+    {
+      method: "POST",
+      headers: authHeaders(token, { "Content-Type": "application/json" }),
+      body: JSON.stringify({ force: options.force ?? false }),
+    }
+  )
+
+  if (!response.ok) {
+    throw new Error(await getApiErrorMessage(response))
+  }
+
+  return (await response.json()) as RepairSuggestion
 }
 
 async function getApiErrorMessage(response: Response): Promise<string> {
@@ -272,6 +365,7 @@ export function mapSavedScanToIssueList(scan: SavedScanDetail): IssueListItem[] 
       sourceHint: issue.source_hint,
       domPath: issue.dom_path,
       textPreview: issue.text_preview,
+      screenshotDataUrl: issue.screenshot_data_url,
       pageUrl: issuePageUrl,
       finderHint: buildFinderHint(issue, issuePageUrl),
     }
@@ -280,26 +374,29 @@ export function mapSavedScanToIssueList(scan: SavedScanDetail): IssueListItem[] 
 
 export async function removeScanQueuePage(
   scanId: string,
-  pageUrl: string
+  pageUrl: string,
+  token: string
 ): Promise<SavedScanDetail> {
-  return updateScanQueue(scanId, "remove", pageUrl)
+  return updateScanQueue(scanId, "remove", pageUrl, token)
 }
 
 export async function prioritizeScanQueuePage(
   scanId: string,
-  pageUrl: string
+  pageUrl: string,
+  token: string
 ): Promise<SavedScanDetail> {
-  return updateScanQueue(scanId, "prioritize", pageUrl)
+  return updateScanQueue(scanId, "prioritize", pageUrl, token)
 }
 
 async function updateScanQueue(
   scanId: string,
   action: "remove" | "prioritize",
-  pageUrl: string
+  pageUrl: string,
+  token: string
 ): Promise<SavedScanDetail> {
   const response = await fetch(`${API_BASE_URL}/scans/${scanId}/queue/${action}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders(token, { "Content-Type": "application/json" }),
     body: JSON.stringify({ url: pageUrl }),
   })
 

@@ -51,7 +51,7 @@ interface PreferencesNavProps {
 
 export function PreferencesNav({ activeSection, onSectionClick }: PreferencesNavProps) {
   return (
-    <div className="sticky top-0 hidden w-48 shrink-0 p-6 md:block">
+    <div className="hidden h-full w-56 shrink-0 border-r border-border/70 bg-background p-6 md:block">
       <div className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
         Preferences
       </div>

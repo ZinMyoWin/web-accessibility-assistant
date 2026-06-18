@@ -19,6 +19,57 @@ This document is meant to support:
 - testing evidence
 - supervisor updates
 
+## 2026-05-23 - Persist Issue Screenshots For Worker Scans
+
+### Completed work
+
+Fixed production worker-mode scan results so captured issue screenshots survive after the scan worker saves the completed scan without storing image blobs directly in PostgreSQL:
+
+- added `screenshot_data_url` to persisted scan issue records
+- added an Alembic migration for the new `scan_issues.screenshot_data_url` column
+- added Cloudinary upload support for captured screenshots when `CLOUDINARY_URL` is configured
+- saved Cloudinary image URLs when direct and worker-completed scans are persisted
+- added explicit Cloudinary failure logging and an opt-in data URL fallback for failed uploads
+- returned screenshot data URLs from saved scan detail responses
+- preserved saved screenshot data URLs when the dashboard maps queued scan results back into live scan cards
+- moved Docker Compose auth secrets to required environment variables instead of hardcoded values
+- added backend repository coverage for screenshot persistence
+
+### Why this was done
+
+Production worker mode queues single-page scans and the dashboard reads the completed result from the saved scan API. The scanner already captured per-issue screenshots, but the repository dropped `screenshot_data_url` when writing issue records, so production results could appear to have no screenshots. Storing raw base64 screenshots in PostgreSQL would make scan records heavy, so configured production environments upload screenshots to Cloudinary and save only the returned image URL.
+
+### Files changed
+
+- `backend/app/models/scan.py`
+- `backend/app/repositories/scan_repository.py`
+- `backend/app/services/page_scanner.py`
+- `backend/alembic/versions/9848b576f070_persist_issue_screenshots.py`
+- `backend/requirements.txt`
+- `backend/tests/test_scan_repository_unit.py`
+- `backend/tests/test_page_scanner_unit.py`
+- `docker-compose.yml`
+- `docker-compose.dev.yml`
+- `frontend/src/hooks/useDashboardScan.ts`
+- `frontend/src/lib/saved-scans.ts`
+- `frontend/src/components/issues/IssueDetailPanel.tsx`
+- `frontend/src/test/saved-scan-fixtures.ts`
+- `frontend/src/lib/saved-scans.test.ts`
+- `README.md`
+- `docs/architecture/system-architecture.md`
+- `docs/tracking/feature-checklist.md`
+- `docs/tracking/implementation-log.md`
+
+### Verification
+
+- `python -m pytest -q` passed for the backend suite.
+- `npx tsc --noEmit` passed for the frontend.
+- `npm test -- --run` passed for the frontend Vitest suite.
+
+### Next step
+
+Add `CLOUDINARY_URL` to both Render backend services, redeploy the backend and worker so dependencies install and Alembic applies the new column, then run a production scan and confirm saved scan issue cards include Cloudinary-hosted screenshots.
+
 ## 2026-03-12 - Backend Foundation
 
 ### Completed work
@@ -2330,3 +2381,278 @@ Production deployments should now keep the migration-running entrypoint. After r
 ### Next step
 
 Redeploy the backend service and confirm the Render logs show `Running upgrade ... 9848b576f066` or `alembic upgrade head` completing before Uvicorn starts.
+
+## 2026-05-09 - User-Scoped Scans and Preferences
+
+### Completed work
+
+Scoped saved audit data to the authenticated account:
+
+- added a migration that links `scan_runs` and `app_preferences` to `users`
+- saved new single-page scans, failed scans, and queued multi-page jobs with the current user's ID
+- filtered scan history, scan detail, queue-control, clear-history, and crawl-memory lookups by the current user
+- changed preferences from one global row to one row per authenticated user
+- required bearer-token authentication for scan creation, saved scans, queue controls, scan-history clearing, and preferences
+- updated frontend scan, history, reports, issues, compare, queue-control, danger-zone, and preferences requests to send the logged-in user's token
+- added repository coverage that verifies users cannot read or modify another user's scan rows
+
+### Why this was done
+
+Authentication was already implemented, but scan history and preferences were still effectively global. This change makes each user's audit history, crawl memory, and settings private to that account.
+
+### Files involved
+
+- `backend/app/main.py`
+- `backend/app/models/scan.py`
+- `backend/app/models/preferences.py`
+- `backend/app/repositories/scan_repository.py`
+- `backend/app/repositories/preferences_repository.py`
+- `backend/alembic/versions/9848b576f067_scope_data_by_user.py`
+- `backend/tests/test_api_smoke.py`
+- `backend/tests/test_scan_repository_unit.py`
+- `frontend/src/lib/api.ts`
+- `frontend/src/lib/saved-scans.ts`
+- `frontend/src/lib/contexts/PreferencesContext.tsx`
+- `frontend/src/hooks/useDashboardScan.ts`
+- `frontend/src/app/(dashboard)/issues/page.tsx`
+- `frontend/src/app/(dashboard)/reports/page.tsx`
+- `frontend/src/app/(dashboard)/scan-history/page.tsx`
+- `frontend/src/components/scan-history/ScanHistoryCompareView.tsx`
+- `README.md`
+- `docs/architecture/system-architecture.md`
+- `docs/tracking/feature-checklist.md`
+- `docs/tracking/implementation-log.md`
+
+### Verification
+
+- backend compile check passed with `python -m compileall app`
+- backend test suite passed with `pytest -q tests` (`33 passed`)
+- frontend typecheck passed with `npx tsc --noEmit`
+
+### Outcome
+
+New scans, scan history, reports, queue edits, crawl-memory lookup, danger-zone history clearing, and preferences now operate against the authenticated user's data. A scan ID from another account returns as not found through the user-scoped detail and queue-control paths.
+
+### Next step
+
+Add a full automated frontend test suite for dashboard queue controls, report page grouping, and scan-state rendering.
+
+## 2026-05-09 - Frontend Automated Test Suite
+
+### Completed work
+
+Added a frontend test gate for the core dashboard/report surfaces:
+
+- installed Vitest, jsdom, Vite React plugin, and Testing Library dependencies
+- added `npm test` and `npm run test:watch` frontend scripts
+- added shared Vitest setup and saved-scan fixtures
+- covered scan-state rendering through `ProgressPanel`
+- covered dashboard queue visibility, first-page prioritization disabling, remove action, and prioritize action through `QueuePanel`
+- covered report mapping from saved scan detail into page-level report rows
+- covered `PagesTab` rendering for scanned pages, issue pages, skipped pages, and empty page data
+- added `npm test` to the GitHub Actions frontend quality gate
+
+### Why this was done
+
+The backend already had a full pytest suite, but the frontend only had a TypeScript smoke gate. These tests cover the highest-risk UI contracts around queued scans, report grouping, and scan-state rendering without requiring a full browser server in CI.
+
+### Files involved
+
+- `.github/workflows/quality-gate.yml`
+- `frontend/package.json`
+- `frontend/package-lock.json`
+- `frontend/vitest.config.mts`
+- `frontend/src/test/setup.ts`
+- `frontend/src/test/saved-scan-fixtures.ts`
+- `frontend/src/components/home/ProgressPanel.test.tsx`
+- `frontend/src/components/home/QueuePanel.test.tsx`
+- `frontend/src/components/reports/PagesTab.test.tsx`
+- `frontend/src/lib/saved-scans.test.ts`
+- `README.md`
+- `docs/architecture/system-architecture.md`
+- `docs/tracking/feature-checklist.md`
+- `docs/tracking/implementation-log.md`
+
+### Verification
+
+- frontend test suite passed with `npm test` (`4 passed`, `7 tests`)
+- frontend typecheck passed with `npx tsc --noEmit`
+
+### Outcome
+
+The frontend now has an automated test suite in addition to TypeScript checking, and CI will run both before accepting frontend changes.
+
+### Next step
+
+Add formal deployment verification evidence for the hosted frontend and backend, or start the generative AI repair-suggestion feature.
+
+## 2026-05-09 - Grouped AI Repair Suggestions
+
+### Completed work
+
+Implemented the first generative AI repair-suggestion workflow:
+
+- added a `repair_suggestions` table with user, scan, and group ownership fields
+- added grouped issue-pattern APIs for saved scans
+- grouped similar issues by rule, severity, message, recommendation, WCAG criteria, and detection source so repeated page/DOM instances share one suggestion
+- added an OpenAI Responses API generation service that requests structured repair-suggestion JSON
+- persisted generated suggestions and returned saved suggestions on repeat requests
+- wired the Reports AI tab to load groups, show representative examples, generate one suggestion per group, and display the saved result
+- added backend tests for grouping, persistence, scoped endpoints, and cached suggestion reuse
+- added a frontend test for loading groups and generating a saved suggestion
+
+### Why this was done
+
+Repeated accessibility failures, such as missing image alt text across many pages, should not require one AI call per individual issue. The new flow lets the user generate one reusable suggestion for the repeated pattern and stores it under that user's scan.
+
+### Files involved
+
+- `backend/app/models/repair_suggestion.py`
+- `backend/app/repositories/repair_suggestion_repository.py`
+- `backend/app/schemas/repair_suggestion.py`
+- `backend/app/services/repair_suggestion_service.py`
+- `backend/app/main.py`
+- `backend/alembic/env.py`
+- `backend/alembic/versions/9848b576f068_create_repair_suggestions.py`
+- `backend/tests/test_api_smoke.py`
+- `backend/tests/test_repair_suggestion_repository_unit.py`
+- `frontend/src/lib/saved-scans.ts`
+- `frontend/src/app/(dashboard)/reports/page.tsx`
+- `frontend/src/components/reports/AiSuggestionsTab.tsx`
+- `frontend/src/components/reports/AiSuggestionsTab.test.tsx`
+- `README.md`
+- `docs/architecture/system-architecture.md`
+- `docs/tracking/feature-checklist.md`
+- `docs/tracking/implementation-log.md`
+
+### Verification
+
+- backend compile check passed with `python -m compileall app`
+- backend test suite passed with `pytest -q tests` (`37 passed`)
+- frontend test suite passed with `npm test -- --run` (`5 passed`, `9 tests`)
+- frontend typecheck passed with `npx tsc --noEmit`
+
+### Outcome
+
+The Reports page now supports grouped AI repair suggestions backed by persisted user-owned data. Users with an API key in Preferences can generate a suggestion once for a repeated issue pattern and revisit the saved suggestion later.
+
+### Next step
+
+Add a regeneration option or export-all patch workflow for grouped suggestions.
+
+## 2026-05-09 - Scan Worker Startup Fix
+
+### Completed work
+
+Fixed a multi-page scan startup failure where jobs stayed queued with "Waiting for the scan worker to claim this job."
+
+- traced the failure to the `scan-worker` container exiting during queued-job claim
+- found SQLAlchemy could not resolve `scan_runs.user_id` because the isolated worker process imported `ScanRun` without registering the `User` model
+- imported the auth model in `backend/app/scan_worker.py` so the `users` table is present in SQLAlchemy metadata
+- added a regression test that imports `app.scan_worker` in a fresh Python process and confirms the `users` table is registered
+- restarted the dev `scan-worker` service and confirmed it claimed and completed the previously stuck scan job
+
+### Verification
+
+- backend compile check passed with `python -m compileall app`
+- backend test suite passed with `pytest -q tests` (`38 passed`)
+- `docker compose -f docker-compose.dev.yml ps scan-worker` showed the worker running
+- scan-worker logs showed `claimed scan job 27c6dbc4-a02d-431d-a20a-dd43ebf2ad12` and `completed scan job 27c6dbc4-a02d-431d-a20a-dd43ebf2ad12`
+
+### Outcome
+
+Queued multi-page scans can now be claimed by the dedicated scan-worker process again.
+
+## 2026-05-11 - DeepSeek Repair Suggestion Provider
+
+### Completed work
+
+Added DeepSeek as a working provider for grouped AI repair suggestions:
+
+- added a DeepSeek provider path in `backend/app/services/repair_suggestion_service.py`
+- used DeepSeek Chat Completions at `https://api.deepseek.com/chat/completions`
+- enabled DeepSeek JSON mode with `response_format: {"type": "json_object"}`
+- normalized provider/model combinations so selecting DeepSeek with an older OpenAI model falls back to `deepseek-v4-flash`
+- updated the Preferences UI to offer current DeepSeek models first: `deepseek-v4-flash` and `deepseek-v4-pro`
+- kept legacy `deepseek-chat` and `deepseek-reasoner` visible for existing keys/workflows
+- added backend unit tests for DeepSeek payload shape and provider/model fallback
+
+### Verification
+
+- backend compile check passed with `python -m compileall app`
+- backend test suite passed with `pytest -q tests` (`41 passed`)
+- frontend test suite passed with `npm test -- --run` (`5 passed`, `9 tests`)
+- frontend typecheck passed with `npx tsc --noEmit`
+
+### Outcome
+
+Users can now select DeepSeek in Preferences, save a DeepSeek API key, choose a DeepSeek model, and generate grouped repair suggestions from Reports.
+
+## 2026-05-12 - Auth.js Frontend Session Integration
+
+### Completed work
+
+Replaced the frontend-owned localStorage auth token flow with Auth.js credentials sessions while keeping the existing FastAPI user/session APIs as the backend source of truth.
+
+- added `next-auth` to the frontend package
+- added the Auth.js route handler at `frontend/src/app/api/auth/[...nextauth]/route.ts`
+- delegated login and sign-up credentials to `POST /auth/login` and `POST /auth/signup`
+- stored the backend bearer token inside the Auth.js JWT session for existing backend API calls
+- updated the shared auth context and dashboard logout flow to use Auth.js session state
+- added Auth.js middleware protection for dashboard routes
+- documented frontend auth environment variables
+
+### Verification
+
+- frontend typecheck passed with `npx tsc --noEmit`
+- frontend production build passed with `npm run build`
+
+### Outcome
+
+The browser-facing authentication layer now uses Auth.js, and the backend still enforces authorization with its signed JWT plus persisted session records.
+
+## 2026-05-22 - Worker-Backed Single-Page Scan Execution
+
+### Completed work
+
+Moved production worker-mode single-page scans off the web request path:
+
+- updated `POST /scan/page` so `SCAN_EXECUTION_MODE=worker` queues both single-page and multi-page scans
+- kept direct local single-page scans synchronous when worker mode is not enabled
+- reused the existing scan-worker polling contract for queued single-page scans
+- updated dashboard progress/error copy so queued worker scans are not described as multi-page-only
+- added backend regression coverage for worker-mode single-page scan enqueueing
+- updated project docs to describe the Render web-service plus scan-worker deployment requirement
+
+### Verification
+
+- backend compile check passed with `python -m compileall app`
+- focused backend smoke tests passed with `pytest -q tests/test_api_smoke.py` (`20 passed`)
+- frontend typecheck passed with `npx tsc --noEmit`
+
+### Outcome
+
+Production-style deployments can keep Playwright/Chromium work in the scan-worker process instead of blocking the Render web service. This is intended to prevent heavy single-page scans from causing web health-check timeouts and request disconnects.
+
+## 2026-05-29 - Public Marketing Landing Page
+
+### Completed work
+
+Added the public AccessAudit home landing page and moved the authenticated dashboard home to `/dashboard`:
+
+- implemented the marketing route group at `frontend/src/app/(marketing)/page.tsx`
+- added reusable `SiteHeader` and `SiteFooter` components with public navigation, mobile menu state, and scroll shadow behavior
+- split the landing page into Hero, TrustStrip, Features, HowItWorks, AccessibilityBand, and FinalCta components
+- added central marketing tokens for brand shades, surface colors, spacing, shadows, preview width, and landing typography
+- added `/register` as the public signup route used by marketing CTAs
+- removed `/` from the Auth.js middleware matcher and protected `/dashboard` instead
+
+### Verification
+
+- frontend typecheck passed with `npx tsc --noEmit`
+- frontend production build passed with `npm run build`
+- Playwright/Chrome screenshots were captured for the HTML reference and implementation at desktop `1440x1200` and mobile `390x1000`
+
+### Outcome
+
+Unauthenticated visitors now see a public AccessAudit landing page at `/`, while signed-in users continue to use the guarded dashboard at `/dashboard`.

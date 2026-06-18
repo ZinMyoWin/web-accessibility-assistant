@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { fetchSavedScan, type SavedScanDetail, type SavedScanIssue } from "@/lib/saved-scans"
+import { useAuth } from "@/lib/contexts/AuthContext"
 import { cn } from "@/lib/utils"
 
 interface ScanHistoryCompareViewProps {
@@ -30,6 +31,7 @@ function getIssueKey(issue: SavedScanIssue) {
 }
 
 export function ScanHistoryCompareView({ compareIds, onBack }: ScanHistoryCompareViewProps) {
+  const { token } = useAuth()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [scans, setScans] = useState<[SavedScanDetail, SavedScanDetail] | null>(null)
@@ -41,12 +43,18 @@ export function ScanHistoryCompareView({ compareIds, onBack }: ScanHistoryCompar
         setLoading(false)
         return
       }
+      if (!token) {
+        setError("Authentication required.")
+        setLoading(false)
+        return
+      }
+      const authToken = token
 
       setLoading(true)
       try {
         const [scan1, scan2] = await Promise.all([
-          fetchSavedScan(compareIds[0]),
-          fetchSavedScan(compareIds[1]),
+          fetchSavedScan(compareIds[0], authToken),
+          fetchSavedScan(compareIds[1], authToken),
         ])
 
         // Sort older first, newer second
@@ -63,7 +71,7 @@ export function ScanHistoryCompareView({ compareIds, onBack }: ScanHistoryCompar
     }
 
     void load()
-  }, [compareIds])
+  }, [compareIds, token])
 
   if (loading) {
     return (

@@ -13,6 +13,11 @@ class ScanRun(Base):
     __tablename__ = "scan_runs"
 
     id: Mapped[uuid.UUID] = mapped_column(sa.Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+        nullable=True,
+    )
     requested_url: Mapped[str] = mapped_column(sa.Text)
     final_url: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
     status: Mapped[str] = mapped_column(sa.String(32))
@@ -69,6 +74,7 @@ class ScanIssueRecord(Base):
     source_hint: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
     dom_path: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
     text_preview: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    screenshot_data_url: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
     page_url: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
     wcag_criteria: Mapped[list[str] | None] = mapped_column(sa.JSON, nullable=True)
     source: Mapped[str | None] = mapped_column(sa.String(32), nullable=True)

@@ -61,25 +61,25 @@ export default function PreferencesPage() {
 
   if (isLoading || !draft) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex h-full items-center justify-center">
         <p className="text-sm text-muted-foreground">Loading preferences...</p>
       </div>
     )
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex h-screen min-h-0 flex-col overflow-hidden">
       {/* Topbar */}
       <header className="flex shrink-0 items-center gap-3 border-b border-border bg-card px-6 py-3 pl-14 md:pl-6">
         <h1 className="text-sm font-semibold text-foreground">Preferences</h1>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         {/* Side nav */}
         <PreferencesNav activeSection={activeSection} onSectionClick={scrollToSection} />
 
         {/* Settings body */}
-        <div className="flex flex-1 flex-col overflow-y-auto">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           <div className="mx-auto flex w-full max-w-[680px] flex-col gap-5 p-6">
             <AiProviderSection draft={draft} updateDraft={updateDraft} />
             <CrawlDefaultsSection draft={draft} updateDraft={updateDraft} />

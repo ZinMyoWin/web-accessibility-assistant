@@ -16,12 +16,16 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Preferences endpoints `GET /preferences` and `PUT /preferences`
 - [x] Clear scan history endpoint `DELETE /scans`
 - [x] Reset preferences endpoint `POST /preferences/reset`
+- [x] Repair suggestion group endpoint `GET /scans/{scan_id}/repair-suggestion-groups`
+- [x] Repair suggestion generation endpoint `POST /scans/{scan_id}/repair-suggestion-groups/{group_key}/generate`
 - [x] User sign-up endpoint `POST /auth/signup`
 - [x] User login endpoint `POST /auth/login`
 - [x] Current-user endpoint `GET /auth/me`
 - [x] Logout endpoint `POST /auth/logout`
 - [x] Password hashing for stored user records
 - [x] Persisted user session tokens
+- [x] Authenticated-user ownership for scan records
+- [x] Authenticated-user ownership for preferences
 - [x] Public URL validation
 - [x] Raw HTML fetch for submitted pages
 - [x] Custom HTML-based accessibility checks
@@ -37,6 +41,7 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] CORS configuration for local and hosted frontends
 - [x] Database connection layer with SQLAlchemy sessions
 - [x] SQLAlchemy models for scan runs and scan issues
+- [x] SQLAlchemy model for persisted AI repair suggestions
 - [x] Alembic migration setup for database schema changes
 - [x] Persist successful scan results to PostgreSQL
 - [x] Persist failed scan attempts to PostgreSQL
@@ -48,7 +53,7 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Persist scanned and skipped page URL lists for scan runs
 - [x] Full axe-core analysis for background multi-page scans
 - [x] In-process background jobs for bounded multi-page scans
-- [x] Dedicated scan-worker service for queued multi-page scans
+- [x] Dedicated scan-worker service for queued single-page and multi-page scans
 - [x] Worker retry policy and stale-job recovery
 - [x] Persist current page, queued page URLs, and user-excluded queue URLs for running scans
 - [x] Full automated backend test suite
@@ -59,9 +64,11 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Next.js frontend scaffold
 - [x] `src/`-based frontend source structure
 - [x] Shared root layout in `src/app/layout.tsx`
-- [x] Home dashboard scan page
+- [x] Public marketing landing page at `/`
+- [x] Home dashboard scan page at `/dashboard`
 - [x] Login page
 - [x] Sign-up page
+- [x] Auth.js credentials session integration for login and sign-up
 - [x] Dashboard route guard for anonymous users
 - [x] Sidebar user identity and logout control
 - [x] Shared dashboard shell with sidebar and mobile toggle
@@ -89,8 +96,9 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Report route accepts `scanId` query parameter
 - [x] Preferences applied to dashboard scan defaults
 - [x] Danger-zone actions wired to backend APIs
+- [x] Frontend sends Auth.js session-backed bearer tokens for scan, history, report, issue, queue, and preference API calls
 - [x] Multi-page scan UI
-- [x] Dashboard polls queued/running background multi-page scans until completion
+- [x] Dashboard polls queued/running background scans until completion
 - [x] Dashboard shows the running scan queue, current page, removed pages, and retry attempt count
 - [x] Dashboard can remove or prioritize queued pages before the worker scans them
 - [x] Report issue cards show "Where to find it" locator guidance
@@ -101,7 +109,10 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Reports provide selectable page-level issue views
 - [x] Issues page provides scanned-page filtering and page-specific issue lists
 - [x] Dashboard scan details show scanned and skipped page coverage
-- [ ] Full automated frontend test suite
+- [x] Reports group similar issues for AI repair suggestions
+- [x] Reports can generate and display a saved AI repair suggestion per issue group
+- [x] Preferences expose current DeepSeek model choices for repair suggestions
+- [x] Full automated frontend test suite
 - [x] Minimal frontend smoke check via TypeScript gate
 
 ## AI / Intelligent Analysis
@@ -112,8 +123,9 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Automated WCAG criteria tagging for issues
 - [x] Automated locator guidance using source hints, DOM paths, and text previews
 - [x] Actionable locator guidance by issue type for links, images, DOM paths, source snippets, and affected pages
-- [x] Automated contextual screenshot capture for issue review
-- [ ] Generative AI / LLM-based fix generation
+- [x] Automated contextual screenshot capture and persistence for issue review
+- [x] Grouped generative AI / LLM-based repair suggestions
+- [x] DeepSeek API support for grouped AI repair suggestions
 - [ ] Automatic code repair suggestions per issue
 - [ ] Conversational remediation assistant
 
@@ -123,6 +135,9 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Stored user records
 - [x] Stored user session records
 - [x] Stored scan sessions
+- [x] Stored scan sessions scoped to the authenticated user
+- [x] Stored preferences scoped to the authenticated user
+- [x] Stored AI repair suggestions scoped to the authenticated user
 - [x] Stored page-level issue records
 - [x] Historical comparison views
 - [x] Compare identity uses rule plus locator context
@@ -144,6 +159,7 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [ ] Formal deployment verification evidence for hosted frontend and backend
 - [x] CI pipeline
 - [x] Lint/test/build quality gate automation
+- [x] Frontend component/unit test gate in CI
 
 ## Current Gaps Worth Addressing Next
 
@@ -152,7 +168,9 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Decide how reports should be generated from persisted scan records
 - [x] Add at least a minimal automated smoke test path for backend and frontend
 - [x] Add queue/background processing for multi-page scans
-- [x] Move background multi-page scans to a dedicated external worker queue
+- [x] Move background scans to a dedicated external worker queue
 - [x] Add worker retry policy and stale-job recovery
 - [x] Add user-controlled queued-page removal and prioritization during running multi-page scans
 - [x] Add full JavaScript page rendering for SPA-heavy sites before analysis
+- [x] Scope saved scans and preferences by authenticated user
+- [x] Generate one AI repair suggestion for grouped similar issues

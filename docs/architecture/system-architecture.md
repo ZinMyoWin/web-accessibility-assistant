@@ -12,7 +12,9 @@ The current system is designed to do these main jobs:
 4. Let the frontend show summaries, issues, scan history, and persisted reports.
 5. Give users actionable locator guidance so they can find the affected element on the original webpage.
 6. Let users create accounts, log in, and store session records.
-7. Prepare the project for later work such as larger full-site scan orchestration and AI-generated repair guidance.
+7. Keep saved scan history and preferences scoped to the authenticated user.
+8. Group similar accessibility issues and generate one persisted AI repair suggestion per issue pattern.
+9. Prepare the project for later work such as larger full-site scan orchestration and broader AI remediation workflows.
 
 ## 2. High-Level Architecture
 
@@ -39,6 +41,12 @@ FastAPI Backend
   |       +--> axe-core standards-based checks
   |       +--> Issue merge and deduplication
   |
+  +--> AI Repair Suggestions
+  |       |
+  |       +--> Similar issue grouping
+  |       +--> OpenAI or DeepSeek API call using the user's stored provider key
+  |       +--> Persisted suggestion per user, scan, and group
+  |
   +--> Persistence Layer
   |       |
   |       +--> SQLAlchemy models and sessions
@@ -60,6 +68,7 @@ Contains the web interface.
 
 Current frontend responsibilities:
 
+- show a public AccessAudit landing page before authentication
 - create an account and log in
 - enter a URL
 - start a scan
@@ -68,7 +77,9 @@ Current frontend responsibilities:
 - open the dashboard issues page
 - open the scan history page UI
 - open persisted reports with per-page issue grouping
+- generate grouped AI repair suggestions from the report view
 - show issue locator guidance using affected page URLs, DOM paths, line/column data, source snippets, and text previews
+- send the logged-in user's bearer token for scan, history, report, queue-control, and preferences API calls
 
 Current technologies:
 
@@ -79,19 +90,24 @@ Current technologies:
 Current status:
 
 - frontend source is organized under `frontend/src/`
+- `/` renders the unauthenticated public marketing landing page
+- `/dashboard` renders the authenticated home dashboard scan flow
 - login and sign-up pages are implemented
-- dashboard routes are guarded client-side for anonymous users
+- dashboard routes are guarded by Auth.js middleware and the client dashboard shell for anonymous users
+- Auth.js manages the frontend session and stores the backend bearer token in its JWT session for API calls
 - home dashboard scan flow is implemented
 - issues page loads real saved scan details from the backend
 - scan history page loads real saved scan summaries from the backend
 - shared dashboard shell with sidebar is implemented
 - reports page loads persisted scan data using `scanId`
 - preferences page persists settings through backend APIs
+- scan history, reports, issues, and preferences now read and write account-scoped data
 - multi-page scan mode is enabled as a queued scan-worker job with a 5-page dashboard cap
 - queued multi-page scans expose current page, queued page URLs, removed page URLs, retry attempts, and stale-worker recovery state
 - users can remove queued pages or prioritize a queued page before it is scanned
 - multi-page scans can skip previously scanned internal pages when the user enables crawl memory in Preferences
 - reports show a computed accessibility score when persisted score data exists or can be derived from issue totals
+- reports group similar issues for AI repair suggestions and show the saved suggestion after generation
 
 ### `backend/`
 
@@ -106,9 +122,13 @@ Current backend responsibilities:
 - save scan results
 - return structured JSON for both live and saved scan views
 - create users, verify credentials, issue sessions, and revoke sessions
+- require bearer-token authentication for scan creation, saved scans, queue controls, scan-history clearing, and preferences
+- continue to own persisted user/session records while the Next.js frontend uses Auth.js credentials sessions as the browser-facing auth layer
 - create queued scan jobs for bounded multi-page dashboard scans
 - track queue state, current page, removed pages, worker lock/heartbeat metadata, and retry attempts for running multi-page scans
 - persist score, mode, pages scanned, pages skipped, scanned/skipped page URL lists, issue page URLs, and element locator metadata
+- persist scan runs, preferences, and AI repair suggestions with the authenticated user's ID
+- generate one AI repair suggestion for a group of similar issues, then reuse the saved suggestion unless regeneration is requested later
 
 Current technologies:
 
@@ -135,7 +155,7 @@ Current coverage includes:
 
 ### Frontend tests
 
-The current frontend automated gate is TypeScript typechecking. A fuller component or browser-level frontend test suite is still planned.
+The frontend automated gate now includes TypeScript typechecking plus a Vitest and Testing Library suite for scan-state rendering, dashboard queue controls, saved-scan report mapping, and report page grouping.
 
 ### `README.md`
 
@@ -177,6 +197,8 @@ Current routes:
 - `GET /preferences`
 - `PUT /preferences`
 - `POST /preferences/reset`
+- `GET /scans/{scan_id}/repair-suggestion-groups`
+- `POST /scans/{scan_id}/repair-suggestion-groups/{group_key}/generate`
 
 ### `backend/app/schemas/scan.py`
 
@@ -223,7 +245,7 @@ Responsibilities:
 
 Current behavior:
 
-- single-page scans run the full rendered-page custom plus axe-core pipeline with screenshots when available
+- single-page scans run the full rendered-page custom plus axe-core pipeline with screenshots when available; in worker mode they are queued for the scan-worker instead of running inside the web request
 - multi-page scans create a queued saved scan record, then the scan-worker service runs rendered-page custom checks plus axe-core
 - multi-page scans are capped at 5 pages in the dashboard flow while larger scan orchestration remains future work
 - repeat multi-page scans can skip previously scanned discovered internal pages while always scanning the submitted start URL
@@ -263,6 +285,30 @@ Current models:
 - `UserSession`
 - `ScanRun`
 - `ScanIssueRecord`
+- `AppPreferences`
+- `RepairSuggestion`
+
+### `backend/app/repositories/repair_suggestion_repository.py`
+
+Contains grouping and persistence logic for AI repair suggestions.
+
+Current responsibilities:
+
+- group similar scan issues by rule, severity, message, recommendation, WCAG criteria, and detection source
+- intentionally ignore page URL and DOM path when building the group key so repeated instances of the same issue share one suggestion
+- load existing saved suggestions for the authenticated user, scan, and group
+- persist generated suggestions with a unique `(user_id, scan_run_id, group_key)` key
+
+### `backend/app/services/repair_suggestion_service.py`
+
+Contains provider-backed generation calls for grouped repair guidance.
+
+Current responsibilities:
+
+- build a compact prompt from group metadata and representative examples
+- request structured JSON from the OpenAI Responses API or JSON-mode chat completions from DeepSeek
+- normalize provider/model combinations so DeepSeek suggestions use a DeepSeek model even when older preferences contain an OpenAI model
+- validate the returned explanation, impact, recommended fix, optional before/after code, confidence, and limitations fields before persistence
 
 ### `backend/app/repositories/auth_repository.py`
 
@@ -295,8 +341,8 @@ Responsibilities:
 
 - save successful scans
 - save failed scans
-- list saved scans
-- load one saved scan with its issues
+- list saved scans for the current user
+- load one saved scan with its issues only when it belongs to the current user
 - convert ORM objects into API response models
 
 ### `backend/alembic/`
@@ -305,7 +351,7 @@ Contains database migration files.
 
 Current responsibility:
 
-- create and track the PostgreSQL schema for saved scans, issues, preferences, users, and sessions
+- create and track the PostgreSQL schema for saved scans, issues, preferences, users, sessions, user ownership fields, and repair suggestions
 
 Production startup rule:
 
@@ -315,27 +361,35 @@ Production startup rule:
 
 ## 5. Current Scan Flow
 
-The current single-page scan flow is:
+The current single-page scan flow in direct local mode is:
 
-1. The frontend or API client sends `POST /scan/page` with a URL.
-2. FastAPI validates the request body.
+1. The frontend or API client sends `POST /scan/page` with a bearer token and URL.
+2. FastAPI resolves the current user from the token and validates the request body.
 3. The backend validates the URL format.
 4. The scanner navigates to the page in Playwright, waits for rendered JavaScript content, and captures rendered HTML.
 5. If rendering is unavailable, the scanner falls back to raw HTTP HTML fetch.
 6. The backend runs custom checks against the rendered or fallback HTML.
 7. The backend runs axe-core in Playwright.
 8. The backend merges issues and captures screenshots.
-9. The backend saves the finished scan in PostgreSQL.
+9. The backend saves the finished scan in PostgreSQL with the current user's ID.
 10. The API returns the live scan result plus `scan_id`.
+
+In worker mode, including production-style deployments:
+
+1. The frontend sends `POST /scan/page` with a bearer token, URL, and `mode="single"`.
+2. The backend creates a user-owned scan record with `status="queued"` and returns the scan ID immediately.
+3. The dashboard polls `GET /scans/{scan_id}` while the scan is queued or running.
+4. The scan-worker claims the row, runs the rendered-page custom plus axe-core pipeline, saves the final result, and marks the row `status="complete"` or `status="error"`.
+5. The web API remains available for `/health`, auth, history, and polling while Chromium runs in the worker process.
 
 The current multi-page scan flow is:
 
-1. The frontend sends `POST /scan/page` with `mode="multi"` and crawl preferences.
-2. The backend creates a saved scan record with `status="queued"` and clamps the page limit to a maximum of 5 pages.
+1. The frontend sends `POST /scan/page` with a bearer token, `mode="multi"`, and crawl preferences.
+2. The backend creates a user-owned saved scan record with `status="queued"` and clamps the page limit to a maximum of 5 pages.
 3. The crawler follows allowed internal links while respecting depth, ignore patterns, same-domain settings, and robots settings.
 4. Each page is rendered in Playwright when available, then analyzed with custom HTML checks plus axe-core.
 5. Issues are tagged with their affected `page_url` and locator metadata.
-6. When crawl memory is enabled, discovered internal URLs that were previously scanned on the same domain are skipped.
+6. When crawl memory is enabled, discovered internal URLs that were previously scanned by the same user on the same domain are skipped.
 7. The scan-worker claims the queued row, marks it `status="running"`, and increments worker attempt metadata.
 8. As links are discovered, the worker persists `current_page_url`, `queued_page_urls`, `excluded_page_urls`, scanned URLs, skipped URLs, and heartbeat timestamps.
 9. The dashboard polls the saved scan, shows the current queue, and can call queue-control routes to remove or prioritize waiting pages.
@@ -351,7 +405,7 @@ If a scan fails after request validation:
 
 ## 6. Persistence Flow
 
-The current persistence layer stores two kinds of records.
+The current persistence layer stores scan, issue, preference, auth, and repair-suggestion records.
 
 ### `scan_runs`
 
@@ -360,6 +414,7 @@ Stores one row per scan attempt.
 Important fields:
 
 - scan ID
+- user ID
 - requested URL
 - final URL
 - status
@@ -390,12 +445,32 @@ Important fields:
 - source-location hints
 - affected page URL
 - DOM path and text preview
+- contextual screenshot URL or local data URL
 - WCAG criteria
 - detection source
 
 Current rule:
 
-- issue screenshots are returned in the live scan response, but they are not stored in PostgreSQL yet.
+- issue screenshots are uploaded to Cloudinary when `CLOUDINARY_URL` is configured, and saved issue records store the returned URL; local runs without Cloudinary still use inline data URLs. Production omits the screenshot when Cloudinary upload fails unless `CLOUDINARY_SCREENSHOT_FALLBACK=data_url` is explicitly enabled.
+
+### `repair_suggestions`
+
+Stores one generated AI suggestion per authenticated user, scan, and grouped issue pattern.
+
+Important fields:
+
+- suggestion ID
+- user ID
+- scan run ID
+- group key
+- rule ID
+- severity
+- affected count
+- affected page URLs
+- provider and model
+- explanation, impact, and recommended fix
+- optional before and after code examples
+- confidence and limitations
 
 ## 7. Current Accessibility Checks
 
@@ -480,14 +555,21 @@ Planned future stages include:
 
 ### AI recommendation layer
 
-Planned AI features from the project overview:
+Current implemented AI behavior:
 
-- plain-English explanation of each issue
-- why the issue matters
-- suggested fix
-- corrected code examples where useful
+- the Reports page groups similar issues so users generate one suggestion for many repeated instances
+- each generated suggestion is saved to PostgreSQL by authenticated user, scan, and issue group
+- the backend uses the user's stored Preferences API key and active provider/model settings
+- OpenAI suggestions use the Responses API with JSON schema output, while DeepSeek suggestions use Chat Completions JSON mode
+- generated responses include a plain-English explanation, why the issue matters, a suggested fix, optional corrected code examples, confidence, and limitations
 
-These LLM-based features are not implemented yet.
+Future AI work from the project overview:
+
+- conversational remediation assistant
+- exportable patch bundles
+- broader code-repair workflows outside the current grouped report suggestion flow
+
+The current AI layer does not generate a separate suggestion for every individual issue instance.
 
 ## 10. Current API Summary
 
@@ -562,7 +644,7 @@ Important response fields:
 
 Purpose:
 
-- return saved scan summaries for the history page
+- return saved scan summaries for the authenticated user's history page
 
 Example use cases:
 
@@ -575,7 +657,22 @@ Example use cases:
 
 Purpose:
 
-- return one saved scan with its saved issue records
+- return one saved scan with its saved issue records when it belongs to the authenticated user
+
+### `GET /scans/{scan_id}/repair-suggestion-groups`
+
+Purpose:
+
+- return grouped issue patterns for a saved scan when it belongs to the authenticated user
+- include any existing saved AI suggestion for each group
+
+### `POST /scans/{scan_id}/repair-suggestion-groups/{group_key}/generate`
+
+Purpose:
+
+- generate one AI repair suggestion for the selected issue group
+- persist the suggestion by authenticated user, scan, and group key
+- return the saved suggestion on repeat calls unless forced regeneration is added by a future UI flow
 
 ## 11. Current Status
 
@@ -583,11 +680,13 @@ Implemented today:
 
 - backend single-page scanning
 - rendered-page custom HTML checks plus axe-core checks
-- contextual issue screenshots in live scan results
+- contextual issue screenshots in live and saved scan results, backed by Cloudinary when configured
 - PostgreSQL persistence for successful and failed scan attempts
 - persisted accessibility score calculation for saved scans
 - saved scan list API
 - saved scan detail API
+- authenticated user ownership for saved scans and preferences
+- Auth.js credentials authentication in the frontend, backed by the existing FastAPI user/session APIs
 - dashboard home scan UI
 - bounded worker-backed multi-page crawl mode with a 5-page dashboard cap, full axe-core checks, and per-page issue attribution
 - running crawl queue visibility, queued-page removal, queued-page prioritization, retry attempts, and stale-job recovery
@@ -595,6 +694,8 @@ Implemented today:
 - dedicated issues screen backed by saved scan data
 - scan history screen backed by saved scan data
 - reports screen backed by saved scan data, including issue locator guidance
+- grouped AI repair suggestions in reports, persisted by user, scan, and issue pattern, with OpenAI and DeepSeek provider support
+- frontend component/unit tests for scan progress state, queue controls, saved-scan report mapping, and report page grouping
 - Docker setup for production-style and development workflows
 
 Implemented intelligent-analysis features:
@@ -605,18 +706,19 @@ Implemented intelligent-analysis features:
 - automated WCAG tagging for detected issues
 - automated locator guidance using affected page URLs, source hints, line/column data, DOM paths, source snippets, and text previews
 - automated contextual screenshot capture to support issue review
+- grouped generative AI repair suggestions for repeated issue patterns through OpenAI or DeepSeek
 
 Not built yet:
 
 - worker scaling controls for larger multi-page scans
-- full automated frontend test suite
-- generative AI / LLM-based repair suggestions
+- conversational remediation assistant
+- export-all patch generation for grouped suggestions
 
 ## 12. How To Explain This In The Final Report
 
 You can describe the architecture like this:
 
-> The system uses a client-server architecture. The Next.js frontend provides the user interface for starting scans and viewing results. The FastAPI backend validates input, fetches pages, runs accessibility analysis, stores scan records in PostgreSQL, and returns structured JSON responses. The design separates API routing, schemas, scan services, database models, repositories, and migrations so the project can grow toward multi-page crawling, reporting, and AI-generated repair guidance.
+> The system uses a client-server architecture. The Next.js frontend provides the user interface for starting scans, viewing results, and generating grouped repair suggestions. The FastAPI backend validates input, fetches pages, runs accessibility analysis, groups similar issues for AI repair suggestions, stores scan and suggestion records in PostgreSQL, and returns structured JSON responses. The design separates API routing, schemas, scan services, database models, repositories, and migrations so the project can grow toward larger multi-page crawling, reporting, and broader AI remediation workflows.
 
 ## 13. Documentation Maintenance Rule
 

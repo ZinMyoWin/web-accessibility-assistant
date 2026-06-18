@@ -108,3 +108,44 @@ def test_issue_page_url_and_source_are_assigned():
 
     assert issues[0].page_url == "https://example.com/about"
     assert issues[0].source == "custom"
+
+
+def test_store_screenshot_uses_data_url_without_cloudinary(monkeypatch):
+    monkeypatch.delenv("CLOUDINARY_URL", raising=False)
+
+    stored_value = page_scanner._store_screenshot(b"image-bytes", "image/jpeg")
+
+    assert stored_value == "data:image/jpeg;base64,aW1hZ2UtYnl0ZXM="
+
+
+def test_store_screenshot_uploads_to_cloudinary_when_configured(monkeypatch):
+    monkeypatch.setenv("CLOUDINARY_URL", "cloudinary://key:secret@example")
+    monkeypatch.setattr(
+        page_scanner,
+        "_upload_screenshot_to_cloudinary",
+        lambda image_bytes, mime_type: "https://res.cloudinary.com/example/image/upload/demo.jpg",
+    )
+
+    stored_value = page_scanner._store_screenshot(b"image-bytes", "image/jpeg")
+
+    assert stored_value == "https://res.cloudinary.com/example/image/upload/demo.jpg"
+
+
+def test_store_screenshot_omits_value_when_cloudinary_upload_fails(monkeypatch):
+    monkeypatch.setenv("CLOUDINARY_URL", "cloudinary://key:secret@example")
+    monkeypatch.delenv("CLOUDINARY_SCREENSHOT_FALLBACK", raising=False)
+    monkeypatch.setattr(page_scanner, "_upload_screenshot_to_cloudinary", lambda *_args: None)
+
+    stored_value = page_scanner._store_screenshot(b"image-bytes", "image/jpeg")
+
+    assert stored_value is None
+
+
+def test_store_screenshot_can_fallback_to_data_url_when_cloudinary_upload_fails(monkeypatch):
+    monkeypatch.setenv("CLOUDINARY_URL", "cloudinary://key:secret@example")
+    monkeypatch.setenv("CLOUDINARY_SCREENSHOT_FALLBACK", "data_url")
+    monkeypatch.setattr(page_scanner, "_upload_screenshot_to_cloudinary", lambda *_args: None)
+
+    stored_value = page_scanner._store_screenshot(b"image-bytes", "image/jpeg")
+
+    assert stored_value == "data:image/jpeg;base64,aW1hZ2UtYnl0ZXM="
