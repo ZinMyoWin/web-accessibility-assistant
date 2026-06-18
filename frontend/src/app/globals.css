@@ -40,6 +40,10 @@
   --width-sidebar: 200px;
   --width-detail-panel: 340px;
   --container-marketing: var(--max-content-width);
+  --container-auth-card: 24.5rem;
+  --container-auth-copy: 26.25rem;
+  --grid-template-columns-auth: 1.05fr 1fr;
+  --breakpoint-auth: 53.75rem;
   --spacing-sp1: 4px;
   --spacing-sp2: 8px;
   --spacing-sp3: 12px;
@@ -75,6 +79,7 @@
   --shadow-card: var(--shadow-card);
   --shadow-float: var(--shadow-float);
   --shadow-nav: var(--shadow-nav);
+  --shadow-logo: 0 2px 8px rgba(15, 110, 86, 0.3);
   --color-severity-critical: var(--severity-critical);
   --color-severity-critical-bg: var(--severity-critical-bg);
   --color-severity-critical-text: var(--severity-critical-text);
@@ -369,6 +374,24 @@
       animation: none;
       transition: none;
     }
+  }
+
+  /* ── Auth brand panel decoration (named, central — used as utilities) ── */
+  .auth-brand-panel {
+    background: linear-gradient(150deg, var(--brand-900), var(--brand-700));
+  }
+
+  .auth-brand-glow {
+    background:
+      radial-gradient(42% 60% at 88% 12%, rgba(93, 202, 165, 0.34) 0%, transparent 60%),
+      radial-gradient(50% 55% at 8% 92%, rgba(29, 158, 117, 0.3) 0%, transparent 60%);
+  }
+
+  .auth-brand-dots {
+    background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 24px 24px;
+    -webkit-mask-image: radial-gradient(80% 80% at 50% 50%, #000, transparent 80%);
+    mask-image: radial-gradient(80% 80% at 50% 50%, #000, transparent 80%);
   }
 }
 

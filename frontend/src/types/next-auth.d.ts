@@ -15,12 +15,15 @@ declare module "next-auth" {
   interface User {
     accessToken: string
     createdAt: string
+    remember?: boolean
   }
 }
 
 declare module "next-auth/jwt" {
   interface JWT {
     accessToken: string
+    remember?: boolean
+    expiresAt?: number
     user: DefaultSession["user"] & {
       id: string
       name: string
