@@ -129,6 +129,128 @@ def test_auth_signup_login_me_and_logout(monkeypatch):
     app.dependency_overrides.clear()
 
 
+def test_auth_google_requires_secret_and_mints_token(monkeypatch):
+    app.dependency_overrides[get_db_session] = lambda: _fake_db()
+    monkeypatch.setenv("OAUTH_PROXY_SECRET", "shared-secret")
+
+    user = SimpleNamespace(
+        id=uuid4(),
+        name="Jane Google",
+        email="jane@example.com",
+        created_at=datetime.now(UTC),
+    )
+    monkeypatch.setattr(
+        "app.main.get_or_create_oauth_user",
+        lambda _db, *, name, email: user,
+    )
+    monkeypatch.setattr(
+        "app.main.create_session_token",
+        lambda _user_id: ("google-token", "google-jti", datetime.now(UTC)),
+    )
+    monkeypatch.setattr(
+        "app.main.create_user_session",
+        lambda _db, *, user, token_jti, expires_at: SimpleNamespace(user_id=user.id),
+    )
+
+    client = TestClient(app)
+    payload = {
+        "email": "jane@example.com",
+        "name": "Jane Google",
+        "google_sub": "google-123",
+    }
+
+    missing_secret = client.post("/auth/google", json=payload)
+    wrong_secret = client.post(
+        "/auth/google", json=payload, headers={"X-OAuth-Proxy-Secret": "nope"}
+    )
+    ok = client.post(
+        "/auth/google",
+        json=payload,
+        headers={"X-OAuth-Proxy-Secret": "shared-secret"},
+    )
+
+    assert missing_secret.status_code == 401
+    assert wrong_secret.status_code == 401
+    assert ok.status_code == 200
+    assert ok.json()["token"] == "google-token"
+    assert ok.json()["user"]["email"] == "jane@example.com"
+    app.dependency_overrides.clear()
+
+
+def test_auth_forgot_and_reset_password(monkeypatch, capsys):
+    app.dependency_overrides[get_db_session] = lambda: _fake_db()
+    monkeypatch.delenv("PASSWORD_RESET_LOG_LINKS", raising=False)
+
+    user = SimpleNamespace(
+        id=uuid4(),
+        name="Reset User",
+        email="reset@example.com",
+        password_hash="hashed:old",
+        created_at=datetime.now(UTC),
+    )
+    created_tokens: list[str] = []
+    invalidated_users: list[str] = []
+    monkeypatch.setattr(
+        "app.main.get_user_by_email",
+        lambda _db, email: user if email == "reset@example.com" else None,
+    )
+    monkeypatch.setattr(
+        "app.main.generate_reset_token",
+        lambda: ("raw-token", "hashed-token", datetime.now(UTC)),
+    )
+
+    def fake_create_reset_token(_db, *, user, token_hash, expires_at):
+        created_tokens.append(token_hash)
+        return SimpleNamespace(user=user)
+
+    monkeypatch.setattr("app.main.create_password_reset_token", fake_create_reset_token)
+    monkeypatch.setattr("app.main.hash_session_token", lambda token: f"hashed:{token}")
+    monkeypatch.setattr("app.main.hash_password", lambda password: f"hashed:{password}")
+    monkeypatch.setattr(
+        "app.main.invalidate_unused_password_reset_tokens",
+        lambda _db, *, user: invalidated_users.append(user.email) or 1,
+    )
+
+    reset_record = SimpleNamespace(user=user)
+    monkeypatch.setattr(
+        "app.main.get_valid_reset_token",
+        lambda _db, token_hash: reset_record
+        if token_hash == "hashed:valid-token"
+        else None,
+    )
+
+    def fake_update_password(_db, *, user, password_hash):
+        user.password_hash = password_hash
+        return user
+
+    monkeypatch.setattr("app.main.update_user_password", fake_update_password)
+
+    client = TestClient(app)
+
+    known = client.post("/auth/forgot-password", json={"email": "reset@example.com"})
+    unknown = client.post("/auth/forgot-password", json={"email": "ghost@example.com"})
+    bad_reset = client.post(
+        "/auth/reset-password",
+        json={"token": "wrong-token", "password": "newpassword1"},
+    )
+    good_reset = client.post(
+        "/auth/reset-password",
+        json={"token": "valid-token", "password": "newpassword1"},
+    )
+
+    # Both responses are identical so registered emails cannot be probed.
+    assert known.status_code == 200
+    assert unknown.status_code == 200
+    assert known.json() == unknown.json()
+    assert created_tokens == ["hashed-token"]
+    assert invalidated_users == ["reset@example.com", "reset@example.com"]
+    assert "[password-reset]" not in capsys.readouterr().out
+    assert bad_reset.status_code == 400
+    assert good_reset.status_code == 200
+    assert user.password_hash == "hashed:newpassword1"
+    app.dependency_overrides.clear()
+
+
 def test_delete_scans_endpoint(monkeypatch):
     app.dependency_overrides[get_db_session] = lambda: _fake_db()
     current_user = _auth_user()

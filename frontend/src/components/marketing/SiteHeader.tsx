@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { Menu, X } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -8,12 +9,17 @@ import { cn } from "@/lib/utils"
 import { MarketingLogo } from "./Logo"
 
 const navLinks = [
-  { href: "#features", label: "Features" },
-  { href: "#how", label: "How it works" },
-  { href: "#about", label: "About" },
+  { href: "/#features", label: "Features" },
+  { href: "/#how", label: "How it works" },
+  { href: "/about", label: "About" },
 ]
 
+// Active only matches dedicated routes, never the home-anchor links.
+const isActiveLink = (href: string, pathname: string) =>
+  !href.includes("#") && pathname === href
+
 export function SiteHeader() {
+  const pathname = usePathname()
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -46,15 +52,22 @@ export function SiteHeader() {
         </Link>
 
         <nav aria-label="Primary" className="ml-sp4 hidden gap-sp6 md:flex">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="text-label font-medium text-text-muted transition-colors hover:text-text-pri focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              {link.label}
-            </Link>
-          ))}
+          {navLinks.map((link) => {
+            const active = isActiveLink(link.href, pathname)
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "text-label font-medium transition-colors hover:text-text-pri focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  active ? "text-text-pri" : "text-text-muted"
+                )}
+              >
+                {link.label}
+              </Link>
+            )
+          })}
         </nav>
 
         <div className="ml-auto flex items-center gap-sp3">
@@ -92,16 +105,23 @@ export function SiteHeader() {
         )}
       >
         <nav aria-label="Mobile primary" className="flex flex-col gap-sp1">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="rounded-md py-sp3 text-label font-medium text-text-pri transition-colors hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              onClick={closeMenu}
-            >
-              {link.label}
-            </Link>
-          ))}
+          {navLinks.map((link) => {
+            const active = isActiveLink(link.href, pathname)
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "rounded-md py-sp3 text-label font-medium transition-colors hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  active ? "text-brand-700" : "text-text-pri"
+                )}
+                onClick={closeMenu}
+              >
+                {link.label}
+              </Link>
+            )
+          })}
           <Button asChild variant="outline" className="mt-sp3 w-full">
             <Link href="/login" onClick={closeMenu}>
               Log in

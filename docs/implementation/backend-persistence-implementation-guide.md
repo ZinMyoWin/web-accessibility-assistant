@@ -1,5 +1,7 @@
 # Backend Persistence Implementation Guide
 
+> Historical implementation plan. Persistence is now implemented and has expanded beyond this original single-page design. Current behavior includes user-owned scans, multi-page worker jobs, preferences, screenshots, auth records, password reset tokens, and repair suggestions. Use `../architecture/system-architecture.md` for the current design and `../tracking/feature-checklist.md` for current status.
+
 ## Feature Overview
 
 ### 1. What

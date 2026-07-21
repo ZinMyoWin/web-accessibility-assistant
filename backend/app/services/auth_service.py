@@ -14,6 +14,7 @@ PASSWORD_ALGORITHM = "pbkdf2_sha256"
 PASSWORD_ITERATIONS = 260_000
 JWT_ALGORITHM = "HS256"
 JWT_TTL_DAYS = 7
+PASSWORD_RESET_TTL_HOURS = 1
 
 
 def hash_password(password: str) -> str:
@@ -28,6 +29,32 @@ def hash_password(password: str) -> str:
         f"{PASSWORD_ALGORITHM}${PASSWORD_ITERATIONS}$"
         f"{_b64encode(salt)}${_b64encode(digest)}"
     )
+
+
+def unusable_password_hash() -> str:
+    """Return a syntactically valid hash that no password can match.
+
+    Used for accounts created through external identity providers (e.g. Google)
+    that have no local password. ``verify_password`` will always reject it
+    because the stored digest is random and unrelated to any input.
+    """
+    salt = os.urandom(16)
+    digest = os.urandom(32)
+    return (
+        f"{PASSWORD_ALGORITHM}${PASSWORD_ITERATIONS}$"
+        f"{_b64encode(salt)}${_b64encode(digest)}"
+    )
+
+
+def generate_reset_token() -> tuple[str, str, datetime]:
+    """Create a single-use password-reset token.
+
+    Returns the raw token (emailed to the user), its sha256 hash (persisted),
+    and the expiry timestamp.
+    """
+    raw_token = secrets.token_urlsafe(32)
+    expires_at = datetime.now(UTC) + timedelta(hours=PASSWORD_RESET_TTL_HOURS)
+    return raw_token, hash_session_token(raw_token), expires_at
 
 
 def verify_password(password: str, password_hash: str) -> bool:

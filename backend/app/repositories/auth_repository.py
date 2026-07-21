@@ -5,9 +5,13 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
-from app.models.auth import User, UserSession
+from app.models.auth import PasswordResetToken, User, UserSession
 from app.schemas.auth import UserResponse
-from app.services.auth_service import decode_session_token, hash_session_token
+from app.services.auth_service import (
+    decode_session_token,
+    hash_session_token,
+    unusable_password_hash,
+)
 
 
 def get_user_by_email(session: Session, email: str) -> User | None:
@@ -26,6 +30,98 @@ def create_user(
     session.commit()
     session.refresh(user)
     return user
+
+
+def get_or_create_oauth_user(
+    session: Session,
+    *,
+    name: str,
+    email: str,
+) -> User:
+    """Return the existing account for ``email`` or create a passwordless one.
+
+    Google sign-in is keyed on the verified email. If a credentials account
+    already exists for the email it is reused (account linking); otherwise a new
+    account is created with an unusable password hash so it cannot be used for
+    credentials login until the user sets a password via the reset flow.
+    """
+    existing = get_user_by_email(session, email)
+    if existing is not None:
+        return existing
+
+    user = User(
+        name=name,
+        email=email.lower(),
+        password_hash=unusable_password_hash(),
+    )
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
+
+
+def update_user_password(session: Session, *, user: User, password_hash: str) -> User:
+    user.password_hash = password_hash
+    session.commit()
+    session.refresh(user)
+    return user
+
+
+def create_password_reset_token(
+    session: Session,
+    *,
+    user: User,
+    token_hash: str,
+    expires_at: datetime,
+) -> PasswordResetToken:
+    reset_token = PasswordResetToken(
+        user_id=user.id,
+        token_hash=token_hash,
+        expires_at=expires_at,
+    )
+    session.add(reset_token)
+    session.commit()
+    session.refresh(reset_token)
+    return reset_token
+
+
+def invalidate_unused_password_reset_tokens(
+    session: Session,
+    *,
+    user: User,
+) -> int:
+    consumed_at = datetime.now(UTC)
+    reset_tokens = list(
+        session.scalars(
+            select(PasswordResetToken).where(
+                PasswordResetToken.user_id == user.id,
+                PasswordResetToken.used_at.is_(None),
+            )
+        )
+    )
+    for reset_token in reset_tokens:
+        reset_token.used_at = consumed_at
+    session.commit()
+    return len(reset_tokens)
+
+
+def get_valid_reset_token(
+    session: Session, token_hash: str
+) -> PasswordResetToken | None:
+    return session.scalar(
+        select(PasswordResetToken)
+        .options(joinedload(PasswordResetToken.user))
+        .where(
+            PasswordResetToken.token_hash == token_hash,
+            PasswordResetToken.used_at.is_(None),
+            PasswordResetToken.expires_at > datetime.now(UTC),
+        )
+    )
+
+
+def consume_reset_token(session: Session, reset_token: PasswordResetToken) -> None:
+    reset_token.used_at = datetime.now(UTC)
+    session.commit()
 
 
 def create_user_session(

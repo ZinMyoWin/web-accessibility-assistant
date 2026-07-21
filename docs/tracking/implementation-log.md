@@ -19,6 +19,46 @@ This document is meant to support:
 - testing evidence
 - supervisor updates
 
+## 2026-06-18 - Junior Developer Documentation Refresh
+
+### Completed work
+
+- rewrote the root README as the beginner entry point for purpose, stack, setup, commands, API/data overview, safe changes, risks, and troubleshooting
+- expanded the documentation index so each document has one clear role
+- added an architecture change map, configuration reference, testing/debugging strategy, risk notes, glossary, deployment reference, and open questions
+- marked the database and backend-persistence guides as historical instead of letting future-tense wording appear current
+- aligned the feature checklist with the implemented Google auth route and the actual CI gates
+- replaced stale Next.js 14 and `tailwind.config.js` guidance in `CLAUDE.md` with the current Next.js 15/Tailwind v4 structure
+- replaced the generic Alembic README with project-specific migration instructions
+- normalized the frontend environment example and documented the Google OAuth secret relationship
+
+### Files changed
+
+- `README.md`
+- `CLAUDE.md`
+- `frontend/.env.example`
+- `backend/alembic/README`
+- `docs/README.md`
+- `docs/architecture/system-architecture.md`
+- `docs/guides/database-setup-guide.md`
+- `docs/guides/docker-setup-guide.md`
+- `docs/implementation/backend-persistence-implementation-guide.md`
+- `docs/tracking/feature-checklist.md`
+- `docs/tracking/implementation-log.md`
+
+### Verification
+
+- compared routes, schemas, models, worker behavior, configuration, frontend callers, tests, Compose files, and CI against the updated docs
+- `git diff --check` passed; Git reported line-ending conversion warnings only
+- no application test suite was run because this change only updates documentation and the environment example
+
+### Open questions
+
+- confirm production secrets, migration state, Cloudinary, and Google OAuth configuration in the deployed environments
+- choose a transactional email provider for password reset links
+- decide whether public URL scanning needs private-network and metadata-address blocking
+- choose the first browser end-to-end flows and add build/coverage gates to CI
+
 ## 2026-05-23 - Persist Issue Screenshots For Worker Scans
 
 ### Completed work
@@ -2656,3 +2696,119 @@ Added the public AccessAudit home landing page and moved the authenticated dashb
 ### Outcome
 
 Unauthenticated visitors now see a public AccessAudit landing page at `/`, while signed-in users continue to use the guarded dashboard at `/dashboard`.
+
+## 2026-05-30 - Public Auth Pages (Login / Register)
+
+### Completed work
+
+Added a shared public auth route group with pixel-faithful Login and Register pages reimplemented from the `accessaudit_auth.html` reference as React/Next + Tailwind (no ported CSS):
+
+- added `frontend/src/app/(auth)/layout.tsx` with the left teal brand panel (logo, headline, 3 trust points, footer) that collapses to a slim header at <=860px, plus the shared "Back to home" link and segmented control
+- added `frontend/src/app/(auth)/login/page.tsx` and `register/page.tsx` as client pages with controlled inputs and no-op stubbed submit handlers (no real auth wiring)
+- added auth components: `AuthSegmentedControl` (Next `<Link>`s with route-based active state and `aria-current="page"`), `GoogleButton` (UI-only, inline multicolour brand "G"), `PasswordField` (show/hide toggle), `PasswordStrengthMeter` (token-driven 3-segment meter)
+- added shadcn `ui/label.tsx` and `ui/checkbox.tsx` primitives (existing `radix-ui` dependency; no new deps)
+- added `lib/types/auth.ts` (`LoginInput`, `RegisterInput`)
+- registered central tokens/utilities in `globals.css`: `--container-auth-card`, `--container-auth-copy`, `--grid-template-columns-auth`, `--breakpoint-auth` (860px), `--shadow-logo`, and `auth-brand-panel`/`auth-brand-glow`/`auth-brand-dots` decorative classes
+- removed the old `/login` and `/register` AuthCard routes that collided with the new group (the separate `/signup` route still uses `AuthCard`)
+
+### Verification
+
+- frontend typecheck and lint passed via `npx next build` ("Compiled successfully", "Linting and checking validity of types")
+- production build passed; `/login` and `/register` prerender as static routes
+- confirmed all custom tokens/utilities emit CSS in the built stylesheet, including the `auth:` responsive variant under `@media (min-width:53.75rem)`
+
+### Outcome
+
+Unauthenticated visitors get a consistent, accessible Login/Register experience sharing one brand-panel layout, styled entirely with Tailwind token utilities (no hex, no arbitrary values, no inline styles).
+
+## 2026-05-30 - Public About Page
+
+### Completed work
+
+Added the public `/about` marketing page inside the existing `(marketing)` route group:
+
+- implemented `frontend/src/app/(marketing)/about/page.tsx` with page metadata, rendered inside the shared marketing layout (no `DashboardShell`)
+- added section components under `frontend/src/components/marketing/about/`: `AboutHero`, `ProblemStats`, `MissionProse`, `Principles`, `StoryBand`
+- reused the shared `SiteHeader`, `SiteFooter`, `Reveal`, `SectionHeading`, and `FinalCta` components
+- reused central marketing utilities (`marketing-wrap`, `marketing-section-pad`, `marketing-hero-mesh`, `marketing-hero-fade`, `marketing-band-card`) so all styling stays Tailwind-only with no hex, arbitrary values, or inline styles
+- isolated the origin-story copy inside `StoryBand` and the statistic figures inside `ProblemStats`, with a code comment flagging the stats as illustrative pending source verification before public launch
+- updated `SiteHeader` to mark the active route link with `aria-current="page"` and an active text style, and pointed the home-anchor nav/footer links at `/#features` and `/#how` so they work cross-page; `About` now links to `/about`
+
+### Verification
+
+- frontend typecheck passed with `npx tsc --noEmit`
+- frontend production build passed with `npm run build` (`/about` prerendered as static content)
+- Playwright reduced-motion screenshots captured at 1440, 900, and 560 px confirmed pixel-faithful layout against the HTML reference and correct responsive collapse
+
+### Outcome
+
+Visitors can reach a public About page at `/about` describing the problem, mission, guiding principles, and origin story, with the shared header showing the active About state.
+
+### Next step
+
+Replace the illustrative ProblemStats figures with source-verified statistics and live citation links before public launch.
+
+## 2026-05-30 - Functional Auth Wiring (credentials, remember-me, Google + reset scaffolds)
+
+### Completed work
+
+Made the public Login/Register pages fully interactive and added scaffolds for the two flows that had no existing backend (Google OAuth and password reset):
+
+Frontend
+- login/register now submit through `useAuth()` (Auth.js credentials), with client-side validation, inline accessible error/success alerts (`AuthAlert`, role=alert/status), loading + disabled button states to prevent double submit, and post-auth redirect to `/dashboard`
+- "Remember me" is threaded credentials -> Auth.js (`remember` flag); session lifetime is capped at the backend 7-day token TTL when remembered, otherwise a short 12h logical lifetime enforced in the jwt/session callbacks
+- register gates "Create account" behind the required Terms/Privacy checkbox and auto-logs-in the new account
+- `GoogleButton` triggers the Auth.js Google provider; added `signInWithGoogle` to `AuthContext`
+- new `(auth)` pages `/forgot-password` and `/reset-password` (token from query, `Suspense`-wrapped `useSearchParams`)
+- `auth-options.ts` adds an env-gated `GoogleProvider` and exchanges the Google-verified profile for a backend session token via `POST /auth/google` (using the shared `OAUTH_PROXY_SECRET`); without the token exchange the app's bearer-token API contract would break
+- added `lib/auth.ts` helpers `requestPasswordReset` / `resetPassword`; extended next-auth type augmentation
+
+Backend
+- `POST /auth/google` (create-or-link a passwordless account, mint a session token; guarded by `OAUTH_PROXY_SECRET`)
+- `POST /auth/forgot-password` (generic response to avoid email enumeration; issues a single-use reset token; reset-link logging is local-dev only behind `PASSWORD_RESET_LOG_LINKS=true` - email delivery is a TODO)
+- `POST /auth/reset-password` (validates the token, updates the password, and invalidates remaining unused reset tokens for the user)
+- new `password_reset_tokens` table (model + alembic `9848b576f071`), repository helpers (`get_or_create_oauth_user`, reset-token CRUD, `update_user_password`), and service helpers (`unusable_password_hash`, `generate_reset_token`)
+- wired optional `GOOGLE_CLIENT_ID/SECRET`, `OAUTH_PROXY_SECRET`, `FRONTEND_BASE_URL` env into both compose files and the frontend `.env.example`
+
+### Verification
+
+- frontend production build passed with `npx next build` (routes `/login`, `/register`, `/forgot-password`, `/reset-password` all generated)
+- backend compiled with `compileall`; `app.main` imports cleanly
+- `pytest tests/test_api_smoke.py tests/test_auth_unit.py` -> 27 passed, including new smoke tests for `/auth/google` (secret enforcement + token mint) and the forgot/reset flow (no email enumeration, token consume, password update)
+
+### Outcome
+
+Email/password login and registration are production-ready against the existing backend. Google sign-in and password reset are coherent end-to-end scaffolds: they compile, are tested, and need only real Google credentials and a transactional-email integration to go live.
+
+### Follow-ups (not yet wired)
+- send the password-reset link by email instead of relying on local-only log output
+- supply real `GOOGLE_CLIENT_ID/SECRET` + `OAUTH_PROXY_SECRET` and finish Google account-linking policy
+- run `alembic upgrade head` to create `password_reset_tokens` in each environment
+
+## 2026-06-17 - Password Reset Token Safety and Logging Guard
+
+### Completed work
+
+Tightened the password reset scaffold so reset links are safer before email delivery is implemented:
+
+- added repository support to invalidate all unused password reset tokens for a user with one shared consumed timestamp
+- updated `/auth/forgot-password` so requesting a new reset link invalidates older unused links before storing the new token
+- updated `/auth/reset-password` so a successful password change invalidates every remaining unused reset token for that user
+- changed reset-link console output to require `PASSWORD_RESET_LOG_LINKS=true`; the default is no reset-link logging
+- added `PASSWORD_RESET_LOG_LINKS: ${PASSWORD_RESET_LOG_LINKS:-false}` to both Compose backend services
+- updated README, architecture, and checklist documentation with the new reset-token lifecycle and local-only logging flag
+
+### Verification
+
+- `pytest -q tests/test_auth_unit.py tests/test_api_smoke.py` -> 30 passed
+- `pytest -q` -> 55 passed
+- `python -m compileall app` -> passed after rerunning outside the sandbox because the sandbox could not write `.pyc` files
+- `git diff --check` -> passed, with line-ending warnings only
+
+### Manual setup
+
+For local password-reset testing before transactional email is wired, set `PASSWORD_RESET_LOG_LINKS=true` in an uncommitted local `.env` and confirm `FRONTEND_BASE_URL` points to the frontend URL. Keep `PASSWORD_RESET_LOG_LINKS` unset or `false` in shared and production environments.
+
+### Follow-up
+
+Wire transactional email delivery for password reset links so local-only log output is no longer needed.

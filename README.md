@@ -1,50 +1,61 @@
 # Web Accessibility Audit and Repair Assistant
 
-A web-based system for scanning webpages, detecting accessibility issues, and presenting repair guidance through a browser UI.
+A full-stack web app for scanning webpages, finding accessibility issues, saving scan history, and giving repair guidance through a browser dashboard.
 
-## Current Scope
+Start here when you are new to the project. Deeper explanations live in `docs/`.
 
-The project currently includes:
+## What The Project Does
 
-- a FastAPI backend
-- a Next.js frontend
-- a public AccessAudit landing page at `/` with unauthenticated login/register entry points
-- a Tailwind CSS v4 + shadcn/ui component layer for polished frontend controls
-- worker-backed one-page accessibility scanning in production-style deployments
-- JavaScript-rendered accessibility analysis for SPA-heavy pages
-- worker-backed single-page and bounded multi-page crawling with rendered-page axe-core checks, retry recovery, and visible queue controls
-- login and sign-up pages backed by persisted user/session records
-- authenticated scan history and preferences scoped to each user account
-- crawl memory that can skip previously scanned internal pages on repeat domain scans
-- PostgreSQL persistence for saved scan records
-- saved scan history APIs
-- screenshot support for detected issues
-- persisted report data with score, selectable per-page grouping, skipped-page visibility, and issue-location guidance
-- grouped AI repair suggestions that persist one generated suggestion per authenticated user, scan, and similar issue pattern, with OpenAI and DeepSeek provider support
+AccessAudit lets a signed-in user:
 
-## Project Structure
+1. enter a public webpage URL
+2. run a single-page scan or a bounded multi-page crawl
+3. review accessibility issues, screenshots, page URLs, DOM paths, and WCAG tags
+4. save scan results in PostgreSQL
+5. compare, review, and report on saved scans
+6. generate one AI repair suggestion for a group of similar issues
+
+The scanner combines custom checks in `backend/app/services/page_scanner.py` with axe-core checks in `backend/app/services/axe_scanner.py`. API routes are defined in `backend/app/main.py`.
+
+## Tech Stack
+
+- Frontend: Next.js 15, React 19, Auth.js, Tailwind CSS v4, Vitest, Testing Library
+- Backend: FastAPI, Pydantic, SQLAlchemy, Alembic, pytest
+- Scanning: Playwright/Chromium, axe-core, custom HTML checks
+- Data: PostgreSQL
+- Background work: `backend/app/scan_worker.py`
+- CI: `.github/workflows/quality-gate.yml`
+
+## Repository Structure
 
 ```text
 web-accessibility-assistant/
 |- backend/
+|  |- app/                  FastAPI routes, services, repositories, models, schemas
+|  |- alembic/              database migration setup and versions
+|  `- tests/                backend pytest suite
 |- frontend/
-|- database/
-|- docs/
-|- tests/
-|- docker-compose.yml
-|- docker-compose.dev.yml
+|  `- src/                  Next.js routes, components, hooks, libraries, tests
+|- docs/                    architecture, guides, implementation notes, tracking
+|- docker-compose.yml       production-style local stack
+|- docker-compose.dev.yml   hot-reload development stack
+|- AGENTS.md                contributor workflow notes
 `- README.md
 ```
 
-## Documentation
+Why this matters: route handlers live in `backend/app/main.py`; database work usually belongs in `backend/app/repositories/`; scanning logic belongs in `backend/app/services/`; shared frontend API mapping belongs in `frontend/src/lib/`.
 
-- `docs/README.md`
-- `docs/architecture/system-architecture.md`
-- `docs/guides/docker-setup-guide.md`
-- `docs/guides/database-setup-guide.md`
-- `docs/implementation/backend-persistence-implementation-guide.md`
-- `docs/tracking/feature-checklist.md`
-- `docs/tracking/implementation-log.md`
+## Documentation Map
+
+- `docs/README.md`: documentation index and maintenance rules
+- `docs/architecture/system-architecture.md`: architecture, flows, APIs, data model, risks, glossary, open questions
+- `docs/guides/docker-setup-guide.md`: Docker setup walkthrough
+- `docs/guides/database-setup-guide.md`: historical PostgreSQL/Alembic bootstrap guide
+- `docs/implementation/backend-persistence-implementation-guide.md`: historical persistence implementation plan
+- `docs/tracking/feature-checklist.md`: current implemented vs pending feature status
+- `docs/tracking/implementation-log.md`: chronological implementation evidence
+
+Avoid duplicating details. Put quick setup here, feature status in `docs/tracking/feature-checklist.md`, and deep technical explanations in `docs/architecture/system-architecture.md`.
 
 ## Prerequisites
 
@@ -53,313 +64,229 @@ For local development without Docker:
 - Python 3.11
 - Node.js 22 or later
 - npm
-- PostgreSQL access through Docker Compose or another reachable PostgreSQL instance
+- PostgreSQL, usually through Docker Compose
 
-For containerized development:
+For Docker development:
 
 - Docker Desktop
 
-## Environment Variables
+## Environment Setup
 
-### Frontend
+Create an uncommitted `.env` at the project root when using Docker Compose. Compose requires:
 
-The frontend reads:
+```text
+AUTH_JWT_SECRET=replace-with-a-long-random-backend-secret
+AUTH_SECRET=replace-with-a-long-random-frontend-secret
+```
 
-- `NEXT_PUBLIC_API_BASE_URL`
-- `AUTH_API_BASE_URL` for server-side Auth.js calls when it differs from the browser API URL
-- `AUTH_SECRET` or `NEXTAUTH_SECRET`
-- `NEXTAUTH_URL` for hosted deployments
+Common backend variables:
 
-Example:
+```text
+DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/accessibility_assistant
+FRONTEND_URL=http://localhost:3000
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+CORS_ALLOWED_ORIGIN_REGEX=
+SCAN_EXECUTION_MODE=worker
+SCAN_WORKER_STALE_AFTER_SECONDS=300
+AUTH_JWT_SECRET=replace-with-a-long-random-backend-secret
+FRONTEND_BASE_URL=http://localhost:3000
+PASSWORD_RESET_LOG_LINKS=false
+CLOUDINARY_URL=
+CLOUDINARY_SCREENSHOT_FOLDER=accessaudit/issue-screenshots
+CLOUDINARY_SCREENSHOT_FALLBACK=
+OAUTH_PROXY_SECRET=
+ENCRYPTION_KEY=
+```
+
+Common frontend variables are shown in `frontend/.env.example`:
 
 ```text
 NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
 AUTH_API_BASE_URL=http://127.0.0.1:8000
-AUTH_SECRET=replace-with-a-long-random-secret
+AUTH_SECRET=replace-with-a-long-random-frontend-secret
 NEXTAUTH_URL=http://localhost:3000
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+OAUTH_PROXY_SECRET=
 ```
 
-If `NEXT_PUBLIC_API_BASE_URL` is not set, the frontend falls back to `http://127.0.0.1:8000`.
-When running the frontend in Docker, set `AUTH_API_BASE_URL` to the backend service URL, for example `http://backend:8000`, because Auth.js login runs server-side inside the frontend container.
-Auth.js uses the frontend secret to sign its session JWT; keep it stable across restarts and set `NEXTAUTH_URL` to the deployed frontend URL in production.
-Docker Compose reads `AUTH_JWT_SECRET`, `AUTH_SECRET`, `CLOUDINARY_URL`, and `CLOUDINARY_SCREENSHOT_FOLDER` from your shell environment or an uncommitted `.env` file in the project root. Compose now fails fast if the required auth secrets are missing.
+Common mistakes:
 
-### Backend
+- `AUTH_API_BASE_URL` is server-side. In Docker it should be `http://backend:8000`.
+- `NEXT_PUBLIC_API_BASE_URL` is browser-facing. In local Docker it should be `http://localhost:8000`.
+- Keep `AUTH_SECRET` and `AUTH_JWT_SECRET` stable across restarts or sessions will break.
+- Set a real `ENCRYPTION_KEY` outside local development so stored provider keys are not protected by the development fallback.
+- Keep `PASSWORD_RESET_LOG_LINKS=false` except for local password-reset testing. It prints reset links to backend logs.
+- Run Alembic migrations after pulling schema changes.
 
-The backend reads:
+## Run Locally Without Docker
 
-- `DATABASE_URL`
-- `FRONTEND_URL`
-- `CORS_ALLOWED_ORIGINS`
-- `CORS_ALLOWED_ORIGIN_REGEX`
-- `SCAN_EXECUTION_MODE`
-- `SCAN_WORKER_STALE_AFTER_SECONDS`
-- `AUTH_JWT_SECRET`
-
-Examples:
-
-```text
-DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/accessibility_assistant
-FRONTEND_URL=https://web-accessibility-assistant.vercel.app
-CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
-CORS_ALLOWED_ORIGIN_REGEX=https://.*\.vercel\.app
-SCAN_EXECUTION_MODE=worker
-SCAN_WORKER_STALE_AFTER_SECONDS=300
-AUTH_JWT_SECRET=replace-with-a-long-random-secret
-```
-
-Notes:
-
-- `DATABASE_URL` should point to the PostgreSQL database used by the backend
-- `FRONTEND_URL` should be a single exact origin with no trailing slash
-- `CORS_ALLOWED_ORIGINS` should be comma-separated
-- `CORS_ALLOWED_ORIGIN_REGEX` is useful for Vercel preview deployments
-- `SCAN_EXECUTION_MODE=worker` makes the API enqueue scans for the scan-worker service; without it, direct local backend runs execute single-page scans inline and use the in-process background fallback for multi-page scans
-- `SCAN_WORKER_STALE_AFTER_SECONDS` controls when a running worker job is considered stale and eligible for retry/recovery
-- `AUTH_JWT_SECRET` signs login JWTs; set a long private value outside local development
-
-## Local Setup
-
-### 1. Backend Setup
-
-From `backend/`:
+Backend:
 
 ```powershell
-python -m venv venv
-.\venv\Scripts\python.exe -m pip install --upgrade pip
+cd "D:\Lithan\UOR\Final Year Project\web-accessibility-assistant\backend"
 .\venv\Scripts\python.exe -m pip install -r requirements.txt
 .\venv\Scripts\python.exe -m playwright install chromium
 .\venv\Scripts\alembic.exe upgrade head
 .\venv\Scripts\python.exe -m uvicorn app.main:app --reload
 ```
 
-Backend URLs:
-
-- API root: `http://127.0.0.1:8000`
-- health check: `http://127.0.0.1:8000/health`
-- docs: `http://127.0.0.1:8000/docs`
-- local test page: `http://127.0.0.1:8000/test/page-bad`
-
-### 2. Frontend Setup
-
-From `frontend/`:
+Frontend:
 
 ```powershell
+cd "D:\Lithan\UOR\Final Year Project\web-accessibility-assistant\frontend"
 npm install
 npm run dev
 ```
 
-Then open:
+Open:
 
-- `http://127.0.0.1:3000` for the public landing page
-- `http://127.0.0.1:3000/dashboard` for the authenticated dashboard
-
-The frontend will call the backend using `NEXT_PUBLIC_API_BASE_URL` when set, or fall back to `http://127.0.0.1:8000`.
-
-Frontend UI note:
-
-- Tailwind CSS v4 is installed to support shadcn/ui primitives
-- the scan-mode dropdown in the dashboard uses the shadcn/ui `Select` component
-- the frontend source is organized under `frontend/src/`
-
-## Current Feature Status
-
-Implemented today:
-
-- backend single-page scanning, queued for the scan-worker when worker mode is enabled
-- custom checks plus axe-core checks against rendered page content when Playwright is available
-- contextual issue screenshots in live and saved scan responses
-- PostgreSQL persistence for successful and failed scan attempts
-- `GET /scans` and `GET /scans/{scan_id}` saved-scan APIs
-- sign-up, login, current-user, and logout APIs backed by stored user/session records and signed JWT access tokens
-- Auth.js credentials authentication in the Next.js frontend, delegating credential checks and sign-up to the backend auth APIs
-- scan, history, report, queue-control, danger-zone, and preferences APIs require the current user's bearer token
-- saved scans and preferences are scoped to the authenticated user account
-- public marketing landing page at `/`
-- dashboard home scan UI
-- login and sign-up pages
-- dashboard route guard and sidebar logout control
-- dedicated issues screen backed by saved scan data
-- scan history screen backed by saved scan data
-- compare mode with real issue-delta analysis
-- reports page backed by persisted scan records via `scanId`
-- preferences persistence with backend encryption for API keys
-- danger-zone actions backed by API (`DELETE /scans`, `POST /preferences/reset`)
-- worker-backed scan execution using persisted crawl preferences, rendered custom checks, and axe-core checks
-- worker-mode scans create a queued scan job immediately, then the dashboard polls saved scan status until completion
-- queued scans expose current page, waiting pages, removed pages, retry attempts, and stale-job recovery state
-- users can remove queued pages or move a queued page to the front before the worker scans it
-- user-controlled crawl memory preference for skipping already scanned internal pages on the same domain
-- scanned and skipped page URL lists for granular report traceability
-- persisted accessibility score calculation for reports and scan history
-- issue locator guidance in dashboard, issues, and reports using affected page URL, DOM path, line/column, text preview, and source snippets
-- grouped AI repair suggestions from the Reports page, persisted by authenticated user, scan, and issue group, using OpenAI or DeepSeek based on Preferences
-- automated frontend tests for scan-state rendering, queue controls, and report page grouping
-- automated backend pytest coverage for API smoke paths, scanner logic, repository queue state, and worker recovery
-- automated backend pytest coverage for password hashing, session persistence, and auth API flows
-- minimal frontend smoke check through TypeScript typecheck
-- Docker setup for production-style and development workflows
-
-Planned target from the project overview:
-
-- broader AI remediation workflows beyond the current grouped report suggestions
-- corrected code examples where enough source context exists
-- exportable AI-generated patch bundles
-
-Not implemented yet:
-
-- conversational remediation assistant
-- export-all patch generation for grouped suggestions
+- frontend: `http://127.0.0.1:3000`
+- dashboard: `http://127.0.0.1:3000/dashboard`
+- backend health: `http://127.0.0.1:8000/health`
+- backend docs: `http://127.0.0.1:8000/docs`
+- deterministic test page: `http://127.0.0.1:8000/test/page-bad`
+- JavaScript-rendered test page: `http://127.0.0.1:8000/test/page-js-rendered`
 
 ## Run With Docker
 
-From the project root:
+Production-style local stack:
 
 ```powershell
+cd "D:\Lithan\UOR\Final Year Project\web-accessibility-assistant"
 docker compose up --build
+```
+
+Development stack with hot reload:
+
+```powershell
+cd "D:\Lithan\UOR\Final Year Project\web-accessibility-assistant"
+docker compose -f docker-compose.dev.yml up --build
 ```
 
 Services:
 
-- frontend: `http://127.0.0.1:3000`
-- backend API: `http://127.0.0.1:8000`
-- backend docs: `http://127.0.0.1:8000/docs`
-- scan-worker: background scan executor
-- database: `localhost:5432`
+- `frontend`: `http://127.0.0.1:3000`
+- `backend`: `http://127.0.0.1:8000`
+- `scan-worker`: background scanner, no browser URL
+- `db`: PostgreSQL on `localhost:5432`
 
-This uses:
+## Test And Verify
 
-- `backend/Dockerfile`
-- `frontend/Dockerfile`
-- `docker-compose.yml`
-
-## Run With Docker For Development
-
-From the project root:
-
-```powershell
-docker compose -f docker-compose.dev.yml up --build
-```
-
-Use this workflow for day-to-day coding. It provides hot reload through bind mounts:
-
-- backend runs with `uvicorn --reload`
-- scan-worker runs queued scans
-- frontend runs with `next dev`
-- PostgreSQL runs in the `db` service
-- code changes do not require a full rebuild
-
-## Deployment Setup
-
-### Backend On Render
-
-Recommended service settings:
-
-- service type: `Web Service`
-- environment: `Docker`
-- Docker build context directory: `backend`
-- Dockerfile path: `backend/Dockerfile`
-- Docker command: leave blank so Render uses `backend/Dockerfile`, or set it to `/app/start.sh`
-- health check path: `/health`
-
-Recommended backend environment variables:
-
-```text
-DATABASE_URL=<your-managed-postgresql-url>
-FRONTEND_URL=https://web-accessibility-assistant.vercel.app
-CORS_ALLOWED_ORIGIN_REGEX=https://.*\.vercel\.app
-SCAN_EXECUTION_MODE=worker
-CLOUDINARY_URL=cloudinary://<api-key>:<api-secret>@<cloud-name>
-CLOUDINARY_SCREENSHOT_FOLDER=accessaudit/issue-screenshots
-CLOUDINARY_SCREENSHOT_FALLBACK=
-```
-
-Use `DATABASE_URL` for the production database connection. Use `FRONTEND_URL` for the main production frontend domain. Use `CORS_ALLOWED_ORIGIN_REGEX` if preview Vercel domains also need access. Use `CLOUDINARY_URL` on both the backend web service and scan-worker service so issue screenshots are uploaded to Cloudinary and only the resulting image URL is saved in PostgreSQL. If screenshot availability is more important than keeping PostgreSQL light, set `CLOUDINARY_SCREENSHOT_FALLBACK=data_url` to store an inline data URL when Cloudinary upload fails.
-
-The backend container must start through `/app/start.sh` because that script runs `alembic upgrade head` before Uvicorn starts. Do not override the Docker command with direct `uvicorn ...`; doing so skips migrations and can leave production without tables such as `users` and `user_sessions`.
-
-For production scans, create a separate Render background worker from the same backend image with command `python -m app.scan_worker` and the same `DATABASE_URL`. With `SCAN_EXECUTION_MODE=worker`, the web service returns queued scan IDs quickly and the worker runs Playwright/Chromium work outside the request-serving process.
-
-### Frontend On Vercel
-
-Recommended project settings:
-
-- framework preset: `Next.js`
-- root directory: `frontend`
-
-Required frontend environment variable:
-
-```text
-NEXT_PUBLIC_API_BASE_URL=https://web-accessibility-assistant.onrender.com
-AUTH_API_BASE_URL=https://web-accessibility-assistant.onrender.com
-AUTH_SECRET=<long-random-frontend-auth-secret>
-NEXTAUTH_URL=https://<your-vercel-frontend-domain>
-```
-
-After changing backend environment variables on Render, redeploy the backend service.
-
-## Useful Test Flow
-
-1. Open the frontend.
-2. Click `Use Test Page`.
-3. Submit the scan request.
-4. Confirm the backend returns issue data and screenshots.
-5. Confirm the response includes a `scan_id`.
-6. Open `GET /scans` in the backend docs and confirm the new scan appears.
-7. Open the Reports page and confirm the scan shows a numeric score, per-page issue grouping, and "Where to find it" details for each issue.
-
-To manually prove JavaScript-rendered scanning is active, scan this URL from the frontend:
-
-```text
-http://localhost:8000/test/page-js-rendered
-```
-
-The static HTML is mostly clean, then JavaScript injects an image without `alt`, vague link text, and an empty button. Those issues should appear only when the backend rendered the page before analysis.
-
-## Automated Verification
-
-Run the backend test suite:
+Backend:
 
 ```powershell
 cd "D:\Lithan\UOR\Final Year Project\web-accessibility-assistant\backend"
-& ".\venv\Scripts\python.exe" -m compileall app
-& ".\venv\Scripts\python.exe" -m pytest -q tests
+.\venv\Scripts\python.exe -m compileall app
+.\venv\Scripts\python.exe -m pytest -q tests
 ```
 
-Run the frontend typecheck:
+Frontend:
 
 ```powershell
 cd "D:\Lithan\UOR\Final Year Project\web-accessibility-assistant\frontend"
 npx tsc --noEmit
-```
-
-Run the frontend test suite:
-
-```powershell
-cd "D:\Lithan\UOR\Final Year Project\web-accessibility-assistant\frontend"
 npm test
+npm run build
 ```
 
-After pulling auth changes into an existing Docker database, run:
+CI runs `npx tsc --noEmit`, `npm test`, `python -m compileall app`, and `python -m pytest -q tests` in `.github/workflows/quality-gate.yml`. It does not currently run a standalone lint command, coverage threshold, browser end-to-end suite, or `npm run build`.
+
+Manual smoke flow:
+
+1. Start the backend and frontend.
+2. Create an account or log in.
+3. Open `/dashboard`.
+4. Scan `http://127.0.0.1:8000/test/page-bad`.
+5. Confirm the dashboard shows issues and a `scan_id`.
+6. Open Scan History and Reports to confirm the saved scan is available.
+7. Scan `http://127.0.0.1:8000/test/page-js-rendered` to exercise rendered JavaScript checks.
+
+## Core API Surface
+
+Routes are implemented in `backend/app/main.py`.
+
+- `GET /` and `GET /health`: service checks
+- `POST /auth/signup`, `POST /auth/login`, `GET /auth/me`, `POST /auth/logout`: account/session flow
+- `POST /auth/google`: env-gated Google profile exchange from the trusted Next.js server
+- `POST /auth/forgot-password`, `POST /auth/reset-password`: single-use reset-token scaffold
+- `POST /scan/page`: create a scan or queued crawl
+- `GET /scans`, `GET /scans/{scan_id}`: saved scan list/detail for the current user
+- `POST /scans/{scan_id}/queue/remove`, `POST /scans/{scan_id}/queue/prioritize`: queue controls; body is `{ "url": "..." }`
+- `DELETE /scans`: clear the current user's scan history
+- `GET /preferences`, `PUT /preferences`, `POST /preferences/reset`: user-scoped settings
+- `GET /scans/{scan_id}/repair-suggestion-groups`: grouped issue patterns
+- `POST /scans/{scan_id}/repair-suggestion-groups/{group_key}/generate`: generate or reuse an AI suggestion
+
+Scan, preference, queue, history, and repair-suggestion routes require a backend bearer token. The frontend stores that token inside the Auth.js session.
+
+## Data Model At A Glance
+
+SQLAlchemy models live in `backend/app/models/`.
+
+- `User`, `UserSession`, `PasswordResetToken` in `backend/app/models/auth.py`
+- `ScanRun`, `ScanIssueRecord` in `backend/app/models/scan.py`
+- `AppPreferences` in `backend/app/models/preferences.py`
+- `RepairSuggestion` in `backend/app/models/repair_suggestion.py`
+
+Migrations live in `backend/alembic/versions/`. Apply them with:
 
 ```powershell
-cd "D:\Lithan\UOR\Final Year Project\web-accessibility-assistant"
-docker compose -f docker-compose.dev.yml exec backend alembic upgrade head
+cd "D:\Lithan\UOR\Final Year Project\web-accessibility-assistant\backend"
+.\venv\Scripts\alembic.exe upgrade head
 ```
 
-## Notes
+## How To Safely Change The Project
 
-- The frontend test-page shortcut uses the configured API base URL instead of hardcoded localhost.
-- Some external websites block automated screenshot capture in headless environments.
-- The backend now saves both successful and failed scan attempts.
-- New issue screenshots are uploaded to Cloudinary when `CLOUDINARY_URL` is configured; PostgreSQL stores the resulting image URL. Local runs without Cloudinary fall back to inline data URLs. If Cloudinary upload fails, production omits the screenshot by default and logs the failure; `CLOUDINARY_SCREENSHOT_FALLBACK=data_url` can be used as a temporary fallback.
-- Existing saved scans only show the locator fields that were captured when they were scanned. New scans include more precise DOM paths for repeated elements.
-- Multi-page dashboard scans now run through a dedicated scan-worker service with full axe-core analysis across the bounded crawled pages. Issue screenshots are persisted for new worker-completed scans when capture succeeds.
-- Full-analysis scans now navigate pages in Playwright first, wait for rendered JavaScript content, run custom checks and axe-core against the rendered DOM, and fall back to raw HTML analysis if rendering is unavailable.
-- Running multi-page scans update queue metadata as pages are discovered; the dashboard can show the current page, queued pages, removed pages, and retry attempt count.
-- The scan worker retries failed jobs while attempts remain and recovers stale `running` jobs after the configured stale timeout.
-- When crawl memory is enabled, repeat multi-page scans still scan the submitted start URL but skip previously scanned discovered internal pages where historical page URLs are available. Reports show both scanned and skipped page lists.
-- Render backend CORS configuration must match the actual deployed frontend origin.
+Backend changes:
 
+- Change request/response fields in `backend/app/schemas/`.
+- Keep route handlers in `backend/app/main.py` thin when possible.
+- Put database access in `backend/app/repositories/`.
+- Add an Alembic migration when a model changes.
+- Add or update pytest coverage in `backend/tests/`.
 
+Frontend changes:
+
+- Reuse existing components under `frontend/src/components/`.
+- Put shared API/data mapping in `frontend/src/lib/`.
+- Keep route-specific UI under `frontend/src/app/`.
+- Add or update Vitest tests for dashboard, report, history, and auth behavior.
+- Run `npx tsc --noEmit` after TypeScript changes.
+
+Documentation changes:
+
+- Update `docs/tracking/feature-checklist.md` when feature status changes.
+- Update `docs/architecture/system-architecture.md` when flows, routes, or data models change.
+- Add a dated entry to `docs/tracking/implementation-log.md` with actual verification results.
+
+## Risky Areas
+
+- Worker scans: `SCAN_EXECUTION_MODE`, `backend/app/scan_worker.py`, and queue fields in `ScanRun` must agree.
+- Auth split: Auth.js manages browser sessions, but FastAPI validates backend bearer tokens and persisted `UserSession` rows.
+- Password reset: email delivery is not implemented; local reset-link logging is guarded by `PASSWORD_RESET_LOG_LINKS`.
+- Screenshots: Cloudinary is preferred in production so PostgreSQL does not store large inline data URLs.
+- Crawl memory: repeat multi-page scans may skip previously scanned internal URLs; reports must show scanned and skipped pages clearly.
+- AI suggestions: provider keys are encrypted before persistence and must never be exposed in API responses.
+- URL validation: `backend/app/utils/url_utils.py` currently checks scheme and host; confirm private-network blocking requirements before treating scans as safe for untrusted public use.
+
+## Current Gaps
+
+Use `docs/tracking/feature-checklist.md` as the source of truth. Known open items include:
+
+- transactional email delivery for password reset links
+- formal hosted deployment verification evidence
+- worker scaling controls for larger crawls
+- conversational remediation assistant
+- export-all patch generation for grouped suggestions
+- browser end-to-end tests and coverage thresholds
+
+## Troubleshooting
+
+- Backend cannot connect to PostgreSQL: check `DATABASE_URL`; use `localhost` outside Docker or `db` inside Docker.
+- Login fails in Docker: check `AUTH_API_BASE_URL=http://backend:8000` and a stable `AUTH_SECRET`.
+- Compose refuses to start: set `AUTH_SECRET` and `AUTH_JWT_SECRET` in the root `.env` or shell.
+- Scans stay queued: confirm `scan-worker` is running and shares the same `DATABASE_URL`.
+- Screenshots are missing in production: check `CLOUDINARY_URL` on backend and worker, or use `CLOUDINARY_SCREENSHOT_FALLBACK=data_url` temporarily.
+- New tables are missing: run `alembic upgrade head`.
 

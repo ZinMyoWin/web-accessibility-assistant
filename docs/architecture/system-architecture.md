@@ -7,7 +7,7 @@ The **Web Accessibility Audit and Repair Assistant** is a web-based system that 
 The current system is designed to do these main jobs:
 
 1. Accept a URL from the user.
-2. Scan one page with full analysis or queue a bounded worker-backed multi-page crawl with full custom plus axe-core checks.
+2. Scan one page directly in local background mode, or queue single-page and bounded multi-page scans when worker mode is enabled.
 3. Save the scan result in PostgreSQL for later use.
 4. Let the frontend show summaries, issues, scan history, and persisted reports.
 5. Give users actionable locator guidance so they can find the affected element on the original webpage.
@@ -92,7 +92,10 @@ Current status:
 - frontend source is organized under `frontend/src/`
 - `/` renders the unauthenticated public marketing landing page
 - `/dashboard` renders the authenticated home dashboard scan flow
-- login and sign-up pages are implemented
+- public login and register pages share the `(auth)` route group layout (`/login`, `/register`, `/forgot-password`, `/reset-password`)
+- login/register submit through Auth.js credentials with client validation, loading/disabled states, inline errors, "remember me" session lifetime, and terms gating on register
+- Google sign-in is scaffolded end to end (Auth.js GoogleProvider, env-gated) and exchanges the verified profile for a backend token via `POST /auth/google`; requires `GOOGLE_CLIENT_ID/SECRET` and a shared `OAUTH_PROXY_SECRET`
+- password reset is scaffolded (`/auth/forgot-password` issues a single-use token and invalidates older unused tokens, `/auth/reset-password` updates the password and invalidates remaining unused tokens); email delivery is not yet wired, and reset-link logging is disabled unless `PASSWORD_RESET_LOG_LINKS=true` is set for local development
 - dashboard routes are guarded by Auth.js middleware and the client dashboard shell for anonymous users
 - Auth.js manages the frontend session and stores the backend bearer token in its JWT session for API calls
 - home dashboard scan flow is implemented
@@ -122,6 +125,7 @@ Current backend responsibilities:
 - save scan results
 - return structured JSON for both live and saved scan views
 - create users, verify credentials, issue sessions, and revoke sessions
+- issue and validate password reset tokens while preventing older unused reset links from remaining valid
 - require bearer-token authentication for scan creation, saved scans, queue controls, scan-history clearing, and preferences
 - continue to own persisted user/session records while the Next.js frontend uses Auth.js credentials sessions as the browser-facing auth layer
 - create queued scan jobs for bounded multi-page dashboard scans
@@ -184,6 +188,9 @@ Current routes:
 - `GET /health`
 - `POST /auth/signup`
 - `POST /auth/login`
+- `POST /auth/google`
+- `POST /auth/forgot-password`
+- `POST /auth/reset-password`
 - `GET /auth/me`
 - `POST /auth/logout`
 - `GET /test/page-bad`
@@ -283,6 +290,7 @@ Current models:
 
 - `User`
 - `UserSession`
+- `PasswordResetToken`
 - `ScanRun`
 - `ScanIssueRecord`
 - `AppPreferences`
@@ -676,43 +684,9 @@ Purpose:
 
 ## 11. Current Status
 
-Implemented today:
+The current implementation includes the complete browser-to-API-to-worker-to-database scan flow, user-scoped history/preferences, report views, queue controls, screenshot persistence, and grouped OpenAI/DeepSeek repair suggestions.
 
-- backend single-page scanning
-- rendered-page custom HTML checks plus axe-core checks
-- contextual issue screenshots in live and saved scan results, backed by Cloudinary when configured
-- PostgreSQL persistence for successful and failed scan attempts
-- persisted accessibility score calculation for saved scans
-- saved scan list API
-- saved scan detail API
-- authenticated user ownership for saved scans and preferences
-- Auth.js credentials authentication in the frontend, backed by the existing FastAPI user/session APIs
-- dashboard home scan UI
-- bounded worker-backed multi-page crawl mode with a 5-page dashboard cap, full axe-core checks, and per-page issue attribution
-- running crawl queue visibility, queued-page removal, queued-page prioritization, retry attempts, and stale-job recovery
-- crawl memory preference for skipping previously scanned internal pages during repeat domain scans
-- dedicated issues screen backed by saved scan data
-- scan history screen backed by saved scan data
-- reports screen backed by saved scan data, including issue locator guidance
-- grouped AI repair suggestions in reports, persisted by user, scan, and issue pattern, with OpenAI and DeepSeek provider support
-- frontend component/unit tests for scan progress state, queue controls, saved-scan report mapping, and report page grouping
-- Docker setup for production-style and development workflows
-
-Implemented intelligent-analysis features:
-
-- automated standards-based issue detection using axe-core
-- automated issue merging between custom rules and axe-core findings
-- automated repair guidance and help-link surfacing in issue results
-- automated WCAG tagging for detected issues
-- automated locator guidance using affected page URLs, source hints, line/column data, DOM paths, source snippets, and text previews
-- automated contextual screenshot capture to support issue review
-- grouped generative AI repair suggestions for repeated issue patterns through OpenAI or DeepSeek
-
-Not built yet:
-
-- worker scaling controls for larger multi-page scans
-- conversational remediation assistant
-- export-all patch generation for grouped suggestions
+Use `../tracking/feature-checklist.md` as the source of truth for the detailed implemented/pending list. This architecture document explains how those features fit together; it intentionally does not repeat the full checklist.
 
 ## 12. How To Explain This In The Final Report
 
@@ -737,3 +711,189 @@ When a new feature is finished, update:
 2. implementation documentation if the feature needs clear future reference notes
 3. implementation log with what was built and how it was verified
 4. checklist status if any feature moved from planned to implemented
+
+## 14. Developer Change Map
+
+Use this map before editing. It reduces the chance of putting logic in the wrong layer.
+
+| Change | Start Here | Usually Also Check |
+|---|---|---|
+| Add or change an API route | `backend/app/main.py` | matching schema, repository/service, `backend/tests/test_api_smoke.py` |
+| Change request or response JSON | `backend/app/schemas/` | frontend callers in `frontend/src/lib/` and related tests |
+| Change database fields | `backend/app/models/` | repository mapping, Alembic migration, repository tests |
+| Change scanning rules | `backend/app/services/page_scanner.py` | `axe_scanner.py`, scanner unit tests, issue mapping UI |
+| Change worker behavior | `backend/app/scan_worker.py` | queue functions in `scan_repository.py`, both Compose files |
+| Change login/session behavior | `frontend/src/lib/auth-options.ts` and `backend/app/main.py` | `AuthContext.tsx`, auth repository/service, auth tests |
+| Change saved scan/report data | `backend/app/schemas/history.py` and `frontend/src/lib/saved-scans.ts` | reports/issues/history components and tests |
+| Change preferences | `backend/app/schemas/preferences.py` | model, repository, `PreferencesContext.tsx`, preferences components |
+
+### Safe backend sequence
+
+1. Update the Pydantic schema if the API contract changes.
+2. Put business or integration logic in a service.
+3. Put database reads/writes in a repository.
+4. Keep the route handler focused on authentication, validation, orchestration, and HTTP errors.
+5. Add a migration for model changes; never rely on SQLAlchemy models to alter an existing database automatically.
+6. Add focused tests, then run the full backend suite.
+
+### Safe frontend sequence
+
+1. Check for an existing component or data mapper before adding one.
+2. Keep bearer headers centralized through `frontend/src/lib/api.ts`.
+3. Keep saved-scan API mapping in `frontend/src/lib/saved-scans.ts`.
+4. Preserve loading, empty, error, queued, running, complete, and failed states.
+5. Run typecheck, component tests, and a production build.
+
+## 15. Configuration Reference
+
+Configuration is read from environment variables; secrets must not be committed.
+
+### Frontend and Auth.js
+
+| Variable | Used By | Meaning |
+|---|---|---|
+| `NEXT_PUBLIC_API_BASE_URL` | `frontend/src/lib/api.ts` | Browser-facing FastAPI URL |
+| `AUTH_API_BASE_URL` | `frontend/src/lib/auth-options.ts` | Server-side FastAPI URL used by Auth.js |
+| `AUTH_SECRET` | Auth.js | Signs the frontend session JWT |
+| `NEXTAUTH_URL` | Auth.js | Public frontend base URL |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | `auth-options.ts` | Enable Google sign-in when both are set |
+| `OAUTH_PROXY_SECRET` | frontend and backend | Authenticates the trusted server-to-server `/auth/google` exchange |
+
+### Backend and worker
+
+| Variable | Used By | Meaning |
+|---|---|---|
+| `DATABASE_URL` | `backend/app/db.py` | PostgreSQL connection string |
+| `AUTH_JWT_SECRET` | `backend/app/services/auth_service.py` | Signs backend bearer tokens |
+| `FRONTEND_URL`, `CORS_ALLOWED_ORIGINS`, `CORS_ALLOWED_ORIGIN_REGEX` | `backend/app/main.py` | Allowed browser origins |
+| `SCAN_EXECUTION_MODE` | `backend/app/main.py` | `worker` queues scans; other values use local background behavior |
+| `SCAN_WORKER_POLL_INTERVAL_SECONDS` | `backend/app/scan_worker.py` | Worker polling delay |
+| `SCAN_WORKER_STALE_AFTER_SECONDS` | `backend/app/scan_worker.py` | Age at which a running job can be recovered |
+| `SCAN_WORKER_ID` | `backend/app/scan_worker.py` | Optional explicit worker identifier |
+| `FRONTEND_BASE_URL` | `backend/app/main.py` | Base URL used to build reset links |
+| `PASSWORD_RESET_LOG_LINKS` | `backend/app/main.py` | Local-only switch for printing reset links |
+| `CLOUDINARY_URL` | `backend/app/services/page_scanner.py` | Enables hosted screenshot uploads |
+| `CLOUDINARY_SCREENSHOT_FOLDER` | `page_scanner.py` | Cloudinary destination folder |
+| `CLOUDINARY_SCREENSHOT_FALLBACK` | `page_scanner.py` | Allows inline data URL fallback after upload failure |
+| `ENCRYPTION_KEY` | `backend/app/utils/encryption.py` | Encrypts provider API keys stored in preferences |
+
+Why this matters: local fallback secrets in `auth_service.py` and `encryption.py` are development conveniences, not production configuration.
+
+## 16. Testing And Debugging Strategy
+
+### Automated tests
+
+- Backend pytest tests live in `backend/tests/`.
+- `test_api_smoke.py` exercises FastAPI routes in-process with `TestClient`.
+- `test_page_scanner_unit.py` covers custom checks, crawling, rendering fallback, and scan behavior.
+- `test_scan_repository_unit.py`, `test_auth_unit.py`, and repair suggestion tests cover persistence and domain rules, often with in-memory SQLite.
+- Frontend Vitest tests sit beside components or under `frontend/src/lib/`; `frontend/src/test/setup.ts` configures Testing Library matchers.
+
+CI is defined in `.github/workflows/quality-gate.yml`. It currently runs frontend typecheck/tests and backend compile/tests. It does not currently run a frontend production build, browser end-to-end suite, lint command, or coverage threshold.
+
+### Debugging order
+
+1. Check `GET /health` to confirm the API process responds.
+2. Check `/docs` to inspect the live FastAPI contract.
+3. Use `/test/page-bad` for deterministic custom and axe issues.
+4. Use `/test/page-js-rendered` to prove JavaScript-rendered analysis is active.
+5. If a scan remains queued, inspect the `scan-worker` process and its `DATABASE_URL`.
+6. If auth fails, separate browser-session problems (`AUTH_SECRET`, Auth.js) from backend-token problems (`AUTH_JWT_SECRET`, `UserSession`).
+7. If database fields are missing, inspect `backend/alembic/versions/` and run `alembic upgrade head`.
+
+## 17. Risky And Complex Areas
+
+### Worker state and retries
+
+`ScanRun` stores status, queue URLs, worker ownership, lock time, heartbeat, and retry counts. Changes must stay aligned across `backend/app/models/scan.py`, `scan_repository.py`, `scan_worker.py`, scan response schemas, and dashboard polling.
+
+### Two-layer authentication
+
+Auth.js owns the browser session while FastAPI owns users, backend JWTs, and persisted sessions. A frontend login can appear successful while protected API calls fail if the backend token is missing or expired.
+
+### Untrusted URL scanning
+
+`backend/app/utils/url_utils.py::validate_public_http_url` currently validates the `http`/`https` scheme and hostname presence. It does not prove that a hostname cannot resolve to a private or internal address. Treat stronger server-side request forgery protection as an open security requirement before exposing scanning to untrusted users.
+
+### Screenshots and data size
+
+Local scans can use inline data URLs. Production should use Cloudinary so large image data is not stored in PostgreSQL. Backend and worker need matching Cloudinary settings.
+
+### Historical documents
+
+The database and persistence guides describe the sequence used to build the first version. They are not the source of truth for current behavior. Use this document and `../tracking/feature-checklist.md` for current state.
+
+### Test boundaries
+
+In-process API tests and jsdom component tests are valuable but do not prove the complete browser-to-worker-to-database flow. Use the manual smoke flow in the root README until browser end-to-end tests are added.
+
+## 18. Glossary
+
+- **API**: the HTTP interface used by the frontend to call FastAPI.
+- **Alembic migration**: a versioned database schema change under `backend/alembic/versions/`.
+- **Auth.js**: the frontend session layer used by the Next.js application.
+- **Bearer token**: the backend access token sent as `Authorization: Bearer <token>`.
+- **CORS**: browser rules that control which frontend origins may call the backend.
+- **Crawl memory**: saved knowledge of previously scanned internal URLs for a user/domain.
+- **DOM path**: a CSS-like path that helps locate an affected element in the page structure.
+- **ORM**: SQLAlchemy's mapping between Python classes and database tables.
+- **Repository**: a module that owns database queries and persistence operations.
+- **Schema**: a Pydantic class that defines accepted request data or returned response data.
+- **Scan run**: one persisted scan attempt in `scan_runs`, including queued, running, complete, or error states.
+- **Worker**: the separate process that claims queued scans and performs Playwright/axe analysis.
+- **WCAG**: Web Content Accessibility Guidelines, the standards referenced by issue tags.
+
+## 19. Deployment Reference
+
+The repository is prepared for a split deployment: Next.js on Vercel, plus a FastAPI web service, scan worker, and managed PostgreSQL database on Render or equivalent services.
+
+### Backend web service
+
+- Build context: `backend/`
+- Dockerfile: `backend/Dockerfile`
+- Health check: `/health`
+- Startup: keep the image default command so `backend/start.sh` runs `alembic upgrade head` before Uvicorn
+- Required production values include `DATABASE_URL`, `AUTH_JWT_SECRET`, `FRONTEND_URL`, and a real `ENCRYPTION_KEY`
+- Add `CORS_ALLOWED_ORIGIN_REGEX` only when preview domains need access
+
+Do not replace the container command with direct `uvicorn`. That bypasses `backend/start.sh` and can leave the database behind the current migrations.
+
+### Scan worker
+
+- Use the same backend image and `DATABASE_URL` as the web service.
+- Command: `python -m app.scan_worker`
+- Set the same Cloudinary screenshot variables as the backend.
+- The worker does not expose an HTTP port.
+
+### Frontend
+
+- Framework: Next.js
+- Root directory: `frontend/`
+- `NEXT_PUBLIC_API_BASE_URL`: public backend URL used by the browser
+- `AUTH_API_BASE_URL`: backend URL reachable from the Vercel server runtime
+- `AUTH_SECRET`: stable frontend session secret
+- `NEXTAUTH_URL`: deployed frontend URL
+- Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and matching `OAUTH_PROXY_SECRET` only when Google sign-in is enabled
+
+### Deployment verification
+
+After deployment:
+
+1. Confirm backend `/health` and `/docs` respond.
+2. Confirm the worker starts without migration or database errors.
+3. Register/login through the deployed frontend.
+4. Run a scan and confirm it moves from queued to complete.
+5. Open the saved report and confirm screenshots use hosted URLs when Cloudinary is configured.
+6. Keep `PASSWORD_RESET_LOG_LINKS=false`; password reset is not production-complete until transactional email is added.
+
+Formal hosted verification evidence is still marked incomplete in `../tracking/feature-checklist.md`.
+
+## 20. Open Questions
+
+- Are the production Render/Vercel environments configured with all required auth, encryption, Cloudinary, and OAuth secrets?
+- Has every deployed database applied Alembic migration `9848b576f071_add_password_reset_tokens.py`?
+- What transactional email provider will deliver password reset links?
+- Should public URL validation block private, loopback, link-local, and cloud metadata addresses?
+- Should the empty root `database/` directory be removed or used for database assets?
+- Which browser end-to-end flows should be automated first: auth, worker scan completion, or saved report loading?
+- Should `npm run build`, linting, and coverage thresholds be added to CI?

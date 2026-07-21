@@ -5,8 +5,8 @@ const footerGroups = [
   {
     title: "Product",
     links: [
-      { href: "#features", label: "Features" },
-      { href: "#how", label: "How it works" },
+      { href: "/#features", label: "Features" },
+      { href: "/#how", label: "How it works" },
       { href: "/login", label: "Log in" },
       { href: "/register", label: "Start free" },
     ],
@@ -14,7 +14,7 @@ const footerGroups = [
   {
     title: "Company",
     links: [
-      { href: "#about", label: "About" },
+      { href: "/about", label: "About" },
       { href: "#", label: "Contact" },
       { href: "#", label: "Accessibility statement" },
     ],

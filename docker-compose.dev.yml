@@ -25,6 +25,9 @@ services:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/accessibility_assistant
       SCAN_EXECUTION_MODE: worker
       AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:?Set AUTH_JWT_SECRET in your shell or .env}
+      OAUTH_PROXY_SECRET: ${OAUTH_PROXY_SECRET:-}
+      FRONTEND_BASE_URL: http://localhost:3000
+      PASSWORD_RESET_LOG_LINKS: ${PASSWORD_RESET_LOG_LINKS:-false}
       CLOUDINARY_URL: ${CLOUDINARY_URL:-}
       CLOUDINARY_SCREENSHOT_FOLDER: ${CLOUDINARY_SCREENSHOT_FOLDER:-accessaudit/issue-screenshots}
       CLOUDINARY_SCREENSHOT_FALLBACK: ${CLOUDINARY_SCREENSHOT_FALLBACK:-}
@@ -77,6 +80,9 @@ services:
       AUTH_API_BASE_URL: http://backend:8000
       AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET in your shell or .env}
       NEXTAUTH_URL: http://localhost:3000
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      OAUTH_PROXY_SECRET: ${OAUTH_PROXY_SECRET:-}
       CHOKIDAR_USEPOLLING: "true"
       WATCHPACK_POLLING: "true"
     volumes:

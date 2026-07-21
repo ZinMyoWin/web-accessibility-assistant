@@ -1,4 +1,5 @@
 import os
+import secrets
 from dataclasses import replace
 from datetime import UTC, datetime
 from uuid import UUID
@@ -34,14 +35,28 @@ from app.repositories.repair_suggestion_repository import (
     to_repair_suggestion_response,
 )
 from app.repositories.auth_repository import (
+    create_password_reset_token,
     create_user,
     create_user_session,
+    get_or_create_oauth_user,
     get_user_by_email,
     get_user_for_token,
+    get_valid_reset_token,
+    invalidate_unused_password_reset_tokens,
     revoke_user_session,
     to_user_response,
+    update_user_password,
 )
-from app.schemas.auth import AuthResponse, LoginRequest, SignupRequest, UserResponse
+from app.schemas.auth import (
+    AuthResponse,
+    ForgotPasswordRequest,
+    GoogleAuthRequest,
+    LoginRequest,
+    MessageResponse,
+    ResetPasswordRequest,
+    SignupRequest,
+    UserResponse,
+)
 from app.schemas.history import SavedScanListResponse, SavedScanResponse
 from app.schemas.scan import ScanPageRequest, ScanPageResponse, ScanQueuePageRequest
 from app.schemas.preferences import AppPreferencesResponse, AppPreferencesUpdate
@@ -51,7 +66,13 @@ from app.schemas.repair_suggestion import (
     RepairSuggestionResponse,
 )
 from app.services.page_scanner import CrawlQueueControl, CrawlQueueState, ScanError, ScanOptions, scan_page
-from app.services.auth_service import create_session_token, hash_password, verify_password
+from app.services.auth_service import (
+    create_session_token,
+    generate_reset_token,
+    hash_password,
+    hash_session_token,
+    verify_password,
+)
 from app.services.repair_suggestion_service import (
     RepairSuggestionGenerationError,
     generate_grouped_repair_suggestion,
@@ -368,6 +389,15 @@ def get_scan_execution_mode() -> str:
     return SCAN_EXECUTION_MODE_BACKGROUND
 
 
+def get_password_reset_link_logging_enabled() -> bool:
+    return os.getenv("PASSWORD_RESET_LOG_LINKS", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
 def serialize_scan_options(options: ScanOptions) -> dict[str, object]:
     return {
         "mode": options.mode,
@@ -427,6 +457,94 @@ def logout(
     token = _get_bearer_token(authorization)
     revoke_user_session(db, token)
     return {"logged_out": True}
+
+
+@app.post("/auth/google", response_model=AuthResponse)
+def google_auth(
+    request: GoogleAuthRequest,
+    x_oauth_proxy_secret: str | None = Header(default=None),
+    db: Session = Depends(get_db_session),
+):
+    """Exchange a Google-verified profile (forwarded by the trusted Next.js
+    server after it completes the OAuth code exchange) for a backend session
+    token. The shared OAUTH_PROXY_SECRET prevents arbitrary clients from
+    minting tokens for any email.
+
+    NOTE (scaffold): set OAUTH_PROXY_SECRET in both the backend and frontend
+    environments to enable this endpoint.
+    """
+    expected_secret = os.getenv("OAUTH_PROXY_SECRET")
+    if not expected_secret:
+        raise HTTPException(
+            status_code=503,
+            detail="Google sign-in is not configured on the server.",
+        )
+    if not x_oauth_proxy_secret or not secrets.compare_digest(
+        x_oauth_proxy_secret, expected_secret
+    ):
+        raise HTTPException(status_code=401, detail="Invalid OAuth proxy secret.")
+
+    user = get_or_create_oauth_user(db, name=request.name, email=request.email)
+    token, token_jti, expires_at = create_session_token(user.id)
+    create_user_session(db, user=user, token_jti=token_jti, expires_at=expires_at)
+    return AuthResponse(token=token, user=to_user_response(user))
+
+
+@app.post("/auth/forgot-password", response_model=MessageResponse)
+def forgot_password(
+    request: ForgotPasswordRequest,
+    db: Session = Depends(get_db_session),
+):
+    """Begin the password-reset flow.
+
+    Always responds with the same message so callers cannot probe which emails
+    are registered. When the email exists a single-use reset token is created.
+
+    NOTE (scaffold): delivering the reset link by email is not wired up yet.
+    Set PASSWORD_RESET_LOG_LINKS=true in local development only to log the link
+    and exercise the flow end to end.
+    """
+    generic_message = (
+        "If an account exists for that email, a reset link has been sent."
+    )
+    user = get_user_by_email(db, request.email)
+    if user is None:
+        return MessageResponse(message=generic_message)
+
+    raw_token, token_hash, expires_at = generate_reset_token()
+    invalidate_unused_password_reset_tokens(db, user=user)
+    create_password_reset_token(
+        db, user=user, token_hash=token_hash, expires_at=expires_at
+    )
+
+    if get_password_reset_link_logging_enabled():
+        frontend_base_url = os.getenv("FRONTEND_BASE_URL", "http://localhost:3000")
+        reset_link = f"{frontend_base_url}/reset-password?token={raw_token}"
+        # TODO: replace local-only console logging with transactional email.
+        print(f"[password-reset] reset link for {user.email}: {reset_link}")
+
+    return MessageResponse(message=generic_message)
+
+
+@app.post("/auth/reset-password", response_model=MessageResponse)
+def reset_password(
+    request: ResetPasswordRequest,
+    db: Session = Depends(get_db_session),
+):
+    reset_token = get_valid_reset_token(db, hash_session_token(request.token))
+    if reset_token is None:
+        raise HTTPException(
+            status_code=400,
+            detail="This reset link is invalid or has expired.",
+        )
+
+    update_user_password(
+        db,
+        user=reset_token.user,
+        password_hash=hash_password(request.password),
+    )
+    invalidate_unused_password_reset_tokens(db, user=reset_token.user)
+    return MessageResponse(message="Your password has been updated. You can now log in.")
 
 
 def _get_user_from_authorization_header(
