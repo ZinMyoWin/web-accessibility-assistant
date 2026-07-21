@@ -2812,3 +2812,42 @@ For local password-reset testing before transactional email is wired, set `PASSW
 ### Follow-up
 
 Wire transactional email delivery for password reset links so local-only log output is no longer needed.
+
+## 2026-07-12 - Scan Performance Overhaul (Browser Reuse, Screenshot Pipeline, Streaming Partial Results)
+
+### Why
+
+Production scans (single and multi-page) felt very slow. Profiling the scan path found four compounding bottlenecks: a fresh Chromium launch for every page, per-issue screenshots each followed by a blocking Cloudinary upload, long fixed render waits, and results only becoming visible after the entire job finished. The worker also polled for new jobs every 2 seconds and ran as a single fixed-name container that could not scale.
+
+### Completed work
+
+Backend (`backend/app/services/page_scanner.py`)
+- new `BrowserSession` class: one lazily-launched Playwright Chromium instance shared by every page in a scan job; each page gets a fresh browser context; the browser relaunches on the next page if it crashes; `scan_page` owns and closes the session
+- `_scan_rendered_page` and `_run_playwright_analysis` accept the shared session instead of launching their own browser per page
+- new screenshot pipeline `_attach_issue_screenshots`: captures one screenshot per unique element selector (issues sharing a selector - or the viewport fallback - share a capture), then uploads unique captures concurrently in a `ThreadPoolExecutor` instead of blocking the browser loop per issue; replaces `_capture_issue_screenshot`
+- trimmed render waits: `networkidle` ceiling 5s -> 3s and settle wait up to 1.5s -> up to 0.6s for navigated pages; the fixed 1200ms `set_content` settle became a load-state wait (max 2s) + 200ms
+- `CrawlQueueState` now carries the cumulative issues found so far, published after each scanned page
+
+Backend (`backend/app/repositories/scan_repository.py`, `backend/app/scan_worker.py`, `backend/app/main.py`)
+- `update_scan_progress` accepts `issues=` and persists partial per-page issue records plus live summary counts using replace-style writes (`_replace_scan_issue_records`), so repeat publishes and worker retries never duplicate records
+- `complete_running_scan` uses the same replace helper for the final authoritative write
+- both queue-control `publish` callbacks (worker mode and in-process background mode) pass the streamed issues through
+- default worker poll interval lowered from 2.0s to 0.5s
+
+Frontend (`frontend/src/hooks/useDashboardScan.ts`)
+- while polling a queued/running scan, partial issues and summary counts now stream into the dashboard result view instead of waiting for completion, and the progress text shows a live "N issues found so far" count
+
+Deployment (`docker-compose.yml`, `docker-compose.dev.yml`)
+- scan-worker `container_name` removed and `deploy.replicas: ${SCAN_WORKER_REPLICAS:-1}` added so workers scale horizontally (`docker compose up --scale scan-worker=N`); safe because job claiming uses `FOR UPDATE SKIP LOCKED`
+- poll interval is env-driven with the new 0.5s default in both compose files
+
+### Verification
+
+- TDD: 8 new failing tests written first (browser-session reuse, screenshot dedupe/concurrent upload, queue-state issues, partial-issue persistence, complete-scan replace semantics, worker publish, poll default, frontend streaming), then implementation
+- backend: `python -m compileall app` passed; `pytest -q tests` -> 62 passed
+- frontend: `npx tsc --noEmit` clean; `npx vitest run` -> 12 passed; `npm run build` succeeded
+- end-to-end with real Chromium against a local 3-page test site: multi-page crawl scanned 3 pages in 4.3s with exactly 1 browser launch (previously 3 launches); single-page scan produced 13 issues, all with screenshots, including 7 axe-core issues
+
+### Next step
+
+Optional follow-ups: bounded intra-crawl page concurrency (async Playwright), capping screenshots per page for very issue-dense sites, and moving from DB polling to a Redis-backed queue if job volume grows.

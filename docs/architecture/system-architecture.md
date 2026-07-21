@@ -253,10 +253,12 @@ Responsibilities:
 Current behavior:
 
 - single-page scans run the full rendered-page custom plus axe-core pipeline with screenshots when available; in worker mode they are queued for the scan-worker instead of running inside the web request
+- one shared `BrowserSession` (Playwright Chromium instance) is launched lazily per scan job and reused for every page in that job; each page still gets a fresh browser context, and the browser relaunches automatically on the next page if it crashes
 - multi-page scans create a queued saved scan record, then the scan-worker service runs rendered-page custom checks plus axe-core
 - multi-page scans are capped at 5 pages in the dashboard flow while larger scan orchestration remains future work
 - repeat multi-page scans can skip previously scanned discovered internal pages while always scanning the submitted start URL
-- running multi-page scans publish queue state as links are discovered, including current page, queued pages, and pages removed by the user
+- running multi-page scans publish queue state as links are discovered, including current page, queued pages, pages removed by the user, and the cumulative issues found so far so the dashboard can stream partial results
+- issue screenshots are captured once per unique element selector (issues sharing a selector or the viewport fallback share one capture) and uploads to Cloudinary run concurrently in a thread pool after capture instead of blocking the browser loop
 - the scan worker retries failed jobs while attempts remain and recovers stale `running` jobs after the stale timeout
 
 ### `backend/app/services/axe_scanner.py`
@@ -399,8 +401,8 @@ The current multi-page scan flow is:
 5. Issues are tagged with their affected `page_url` and locator metadata.
 6. When crawl memory is enabled, discovered internal URLs that were previously scanned by the same user on the same domain are skipped.
 7. The scan-worker claims the queued row, marks it `status="running"`, and increments worker attempt metadata.
-8. As links are discovered, the worker persists `current_page_url`, `queued_page_urls`, `excluded_page_urls`, scanned URLs, skipped URLs, and heartbeat timestamps.
-9. The dashboard polls the saved scan, shows the current queue, and can call queue-control routes to remove or prioritize waiting pages.
+8. As links are discovered, the worker persists `current_page_url`, `queued_page_urls`, `excluded_page_urls`, scanned URLs, skipped URLs, heartbeat timestamps, and the issues found so far (replace-style writes keyed to the scan run, so retries never duplicate records).
+9. The dashboard polls the saved scan, streams partial per-page issues and summary counts into the results view while later pages are still being scanned, shows the current queue, and can call queue-control routes to remove or prioritize waiting pages.
 10. If a worker stops updating heartbeat data, stale-job recovery requeues the scan while attempts remain or marks it failed after max attempts.
 11. The worker updates the row to `status="complete"` with actual `mode`, `pages_scanned`, `pages_skipped`, scanned/skipped page URL lists, issue counts, and a computed score.
 12. Reports provide a selectable page list so users can inspect issues tied to each scanned page and see which pages were skipped.
@@ -552,7 +554,8 @@ Planned future stages include:
 - current crawls use rendered-page custom HTML checks plus axe-core for every scanned page when Playwright rendering is available
 - current crawls support user-controlled crawl memory to skip already scanned internal pages
 - current crawls expose queue progress and support queued-page removal/prioritization during worker execution
-- current worker jobs include retry and stale-job recovery; planned larger crawling should add worker scaling controls
+- current crawls reuse one Chromium browser per job and stream partial per-page results to the dashboard while the crawl runs
+- current worker jobs include retry and stale-job recovery; queued-job claiming uses `FOR UPDATE SKIP LOCKED` row locks, so multiple worker replicas can run safely (`docker compose up --scale scan-worker=N` or `SCAN_WORKER_REPLICAS`)
 
 ### Reporting
 
@@ -767,7 +770,8 @@ Configuration is read from environment variables; secrets must not be committed.
 | `AUTH_JWT_SECRET` | `backend/app/services/auth_service.py` | Signs backend bearer tokens |
 | `FRONTEND_URL`, `CORS_ALLOWED_ORIGINS`, `CORS_ALLOWED_ORIGIN_REGEX` | `backend/app/main.py` | Allowed browser origins |
 | `SCAN_EXECUTION_MODE` | `backend/app/main.py` | `worker` queues scans; other values use local background behavior |
-| `SCAN_WORKER_POLL_INTERVAL_SECONDS` | `backend/app/scan_worker.py` | Worker polling delay |
+| `SCAN_WORKER_POLL_INTERVAL_SECONDS` | `backend/app/scan_worker.py` | Worker polling delay (default 0.5s) |
+| `SCAN_WORKER_REPLICAS` | `docker-compose.yml` | Number of scan-worker containers (default 1) |
 | `SCAN_WORKER_STALE_AFTER_SECONDS` | `backend/app/scan_worker.py` | Age at which a running job can be recovered |
 | `SCAN_WORKER_ID` | `backend/app/scan_worker.py` | Optional explicit worker identifier |
 | `FRONTEND_BASE_URL` | `backend/app/main.py` | Base URL used to build reset links |

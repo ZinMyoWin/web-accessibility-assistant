@@ -374,6 +374,7 @@ def _build_queue_control(db: Session, scan_id: UUID) -> CrawlQueueControl:
             queued_page_urls=state.queued_page_urls,
             scanned_page_urls=state.scanned_page_urls,
             skipped_page_urls=state.skipped_page_urls,
+            issues=list(state.issues),
         )
 
     def refresh() -> tuple[list[str], set[str]]:

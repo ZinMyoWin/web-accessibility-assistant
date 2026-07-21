@@ -171,6 +171,14 @@ Services:
 - `scan-worker`: background scanner, no browser URL
 - `db`: PostgreSQL on `localhost:5432`
 
+Scan throughput can be scaled horizontally because queued-job claiming uses row locks:
+
+```powershell
+docker compose up --build --scale scan-worker=3
+```
+
+or set `SCAN_WORKER_REPLICAS=3` in `.env`. The worker polls for queued jobs every 0.5 seconds by default (`SCAN_WORKER_POLL_INTERVAL_SECONDS`).
+
 ## Test And Verify
 
 Backend:
@@ -276,7 +284,6 @@ Use `docs/tracking/feature-checklist.md` as the source of truth. Known open item
 
 - transactional email delivery for password reset links
 - formal hosted deployment verification evidence
-- worker scaling controls for larger crawls
 - conversational remediation assistant
 - export-all patch generation for grouped suggestions
 - browser end-to-end tests and coverage thresholds

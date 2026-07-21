@@ -59,11 +59,15 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: web-accessibility-scan-worker
+    # No fixed container_name so the worker can scale horizontally, e.g.:
+    #   docker compose up --scale scan-worker=3
+    # Queued-job claiming uses row locks, so multiple workers are safe.
     command: ["python", "-m", "app.scan_worker"]
+    deploy:
+      replicas: ${SCAN_WORKER_REPLICAS:-1}
     environment:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/accessibility_assistant
-      SCAN_WORKER_POLL_INTERVAL_SECONDS: "2"
+      SCAN_WORKER_POLL_INTERVAL_SECONDS: ${SCAN_WORKER_POLL_INTERVAL_SECONDS:-0.5}
       SCAN_WORKER_STALE_AFTER_SECONDS: "300"
       CLOUDINARY_URL: ${CLOUDINARY_URL:-}
       CLOUDINARY_SCREENSHOT_FOLDER: ${CLOUDINARY_SCREENSHOT_FOLDER:-accessaudit/issue-screenshots}

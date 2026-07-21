@@ -164,12 +164,21 @@ export function useDashboardScan() {
                 return
               }
               setActiveScan(scan)
+              if (scan.summary.total_issues > 0 || scan.issues.length > 0) {
+                // Stream partial per-page results so issues appear while
+                // later pages are still being scanned.
+                setResult(mapSavedScanToScanResponse(scan))
+              }
+              const liveIssueSuffix =
+                scan.summary.total_issues > 0
+                  ? ` (${scan.summary.total_issues} issue${scan.summary.total_issues !== 1 ? "s" : ""} found so far)`
+                  : ""
               setProgressText(
                 scan.status === "queued"
                   ? "Scan queued - waiting for scan worker..."
                   : scan.current_page_url
-                    ? `Scanning ${shortenUrl(scan.current_page_url)}...`
-                    : "Scan worker is running full page analysis..."
+                    ? `Scanning ${shortenUrl(scan.current_page_url)}...${liveIssueSuffix}`
+                    : `Scan worker is running full page analysis...${liveIssueSuffix}`
               )
             }, token)
           : data

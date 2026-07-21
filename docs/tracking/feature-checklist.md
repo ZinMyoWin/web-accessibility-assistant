@@ -60,6 +60,11 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Dedicated scan-worker service for queued single-page and multi-page scans
 - [x] Worker retry policy and stale-job recovery
 - [x] Persist current page, queued page URLs, and user-excluded queue URLs for running scans
+- [x] Shared Chromium browser session reused across all pages in a scan job
+- [x] Screenshot capture deduplicated per element selector with concurrent Cloudinary uploads
+- [x] Incremental per-page issue persistence while multi-page scans run
+- [x] Worker replica scaling via Compose (`SCAN_WORKER_REPLICAS`, safe row-locked job claiming)
+- [x] Fast worker job pickup (0.5s default poll interval)
 - [x] Automated backend pytest suite for current core API, scanner, repository, worker, and auth paths
 - [x] Minimal backend API smoke tests
 
@@ -106,6 +111,7 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Frontend sends Auth.js session-backed bearer tokens for scan, history, report, issue, queue, and preference API calls
 - [x] Multi-page scan UI
 - [x] Dashboard polls queued/running background scans until completion
+- [x] Dashboard streams partial per-page issues and live counts while a scan is still running
 - [x] Dashboard shows the running scan queue, current page, removed pages, and retry attempt count
 - [x] Dashboard can remove or prioritize queued pages before the worker scans them
 - [x] Report issue cards show "Where to find it" locator guidance

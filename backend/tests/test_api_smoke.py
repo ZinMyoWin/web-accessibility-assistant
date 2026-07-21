@@ -719,7 +719,7 @@ def test_scan_queue_control_endpoints(monkeypatch):
 def test_multi_page_scan_skips_previously_scanned_internal_pages(monkeypatch):
     scanned_urls: list[str] = []
 
-    def fake_scan_one_page(url, options, *, run_browser_analysis, capture_screenshots):
+    def fake_scan_one_page(url, options, *, run_browser_analysis, capture_screenshots, browser_session=None):
         scanned_urls.append(url)
         links = [{"href": "/about"}, {"href": "/contact"}] if len(scanned_urls) == 1 else []
         return PageScanResult(
@@ -752,7 +752,7 @@ def test_multi_page_scan_skips_previously_scanned_internal_pages(monkeypatch):
 def test_multi_page_scan_can_include_previously_scanned_pages_when_disabled(monkeypatch):
     scanned_urls: list[str] = []
 
-    def fake_scan_one_page(url, options, *, run_browser_analysis, capture_screenshots):
+    def fake_scan_one_page(url, options, *, run_browser_analysis, capture_screenshots, browser_session=None):
         scanned_urls.append(url)
         links = [{"href": "/about"}, {"href": "/contact"}] if len(scanned_urls) == 1 else []
         return PageScanResult(
@@ -794,7 +794,7 @@ def test_multi_page_scan_honors_queue_control_remove_and_priority(monkeypatch):
     scanned_urls: list[str] = []
     published_queues: list[list[str]] = []
 
-    def fake_scan_one_page(url, options, *, run_browser_analysis, capture_screenshots):
+    def fake_scan_one_page(url, options, *, run_browser_analysis, capture_screenshots, browser_session=None):
         scanned_urls.append(url)
         links = (
             [{"href": "/about"}, {"href": "/contact"}, {"href": "/pricing"}]
@@ -842,7 +842,7 @@ def test_multi_page_scan_honors_queue_control_remove_and_priority(monkeypatch):
 def test_multi_page_scan_always_scans_submitted_start_url(monkeypatch):
     scanned_urls: list[str] = []
 
-    def fake_scan_one_page(url, options, *, run_browser_analysis, capture_screenshots):
+    def fake_scan_one_page(url, options, *, run_browser_analysis, capture_screenshots, browser_session=None):
         scanned_urls.append(url)
         return PageScanResult(
             final_url=url,
@@ -874,7 +874,7 @@ def test_multi_page_scan_always_scans_submitted_start_url(monkeypatch):
 def test_multi_page_scan_can_run_browser_analysis_for_each_page(monkeypatch):
     browser_flags: list[bool] = []
 
-    def fake_scan_one_page(url, options, *, run_browser_analysis, capture_screenshots):
+    def fake_scan_one_page(url, options, *, run_browser_analysis, capture_screenshots, browser_session=None):
         browser_flags.append(run_browser_analysis)
         links = [{"href": "/about"}] if len(browser_flags) == 1 else []
         return PageScanResult(
@@ -900,7 +900,7 @@ def test_multi_page_scan_can_run_browser_analysis_for_each_page(monkeypatch):
 
 
 def test_single_page_scan_prefers_rendered_dom_for_full_analysis(monkeypatch):
-    def fake_rendered_page(url, options, *, capture_screenshots):
+    def fake_rendered_page(url, options, *, capture_screenshots, browser_session=None):
         return PageScanResult(
             final_url="https://example.com/app",
             page_data=ParsedPageData(

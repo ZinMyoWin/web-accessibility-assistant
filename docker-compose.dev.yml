@@ -59,7 +59,7 @@ services:
     command: ["python", "-m", "app.scan_worker"]
     environment:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/accessibility_assistant
-      SCAN_WORKER_POLL_INTERVAL_SECONDS: "2"
+      SCAN_WORKER_POLL_INTERVAL_SECONDS: ${SCAN_WORKER_POLL_INTERVAL_SECONDS:-0.5}
       SCAN_WORKER_STALE_AFTER_SECONDS: "300"
       CLOUDINARY_URL: ${CLOUDINARY_URL:-}
       CLOUDINARY_SCREENSHOT_FOLDER: ${CLOUDINARY_SCREENSHOT_FOLDER:-accessaudit/issue-screenshots}
