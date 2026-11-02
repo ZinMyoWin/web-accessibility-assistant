@@ -25,6 +25,7 @@ type AuthContextValue = {
     remember?: boolean
   ) => Promise<void>
   signUp: (name: string, email: string, password: string) => Promise<void>
+  signInWithGoogle: (callbackUrl?: string) => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -84,6 +85,12 @@ function AuthContextProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function signInWithGoogle(callbackUrl = "/dashboard") {
+    // Redirects to Google; on success the NextAuth callbacks exchange the
+    // verified profile for a backend session token.
+    await authSignIn("google", { callbackUrl })
+  }
+
   async function signOut() {
     if (token) {
       await logout(token)
@@ -99,6 +106,7 @@ function AuthContextProvider({ children }: { children: ReactNode }) {
         token,
         signIn,
         signUp,
+        signInWithGoogle,
         signOut,
       }}
     >

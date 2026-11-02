@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useId, useState, type FormEvent } from "react"
 import { ArrowRight, Loader2 } from "lucide-react"
 import { AuthAlert } from "@/components/auth/AuthAlert"
+import { GoogleButton } from "@/components/auth/GoogleButton"
 import { PasswordField } from "@/components/auth/PasswordField"
 import { PasswordStrengthMeter } from "@/components/auth/PasswordStrengthMeter"
 import { Button } from "@/components/ui/button"
@@ -84,6 +85,16 @@ export default function RegisterPage() {
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
           Start auditing for free. No card required.
         </p>
+      </div>
+
+      <div className="mt-6">
+        <GoogleButton label="Sign up with Google" onError={setError} />
+      </div>
+
+      <div className="my-6 flex items-center gap-3">
+        <span className="h-px flex-1 bg-border-soft" />
+        <span className="text-caption text-muted-foreground">or</span>
+        <span className="h-px flex-1 bg-border-soft" />
       </div>
 
       {error ? <AuthAlert tone="error">{error}</AuthAlert> : null}

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Suspense, useId, useState, type FormEvent } from "react"
 import { ArrowRight, Loader2 } from "lucide-react"
 import { AuthAlert } from "@/components/auth/AuthAlert"
+import { GoogleButton } from "@/components/auth/GoogleButton"
 import { PasswordField } from "@/components/auth/PasswordField"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -70,6 +71,16 @@ function LoginForm() {
         </p>
       </div>
 
+      <div className="mt-6">
+        <GoogleButton label="Continue with Google" onError={setError} />
+      </div>
+
+      <div className="my-6 flex items-center gap-3">
+        <span className="h-px flex-1 bg-border-soft" />
+        <span className="text-caption text-muted-foreground">or</span>
+        <span className="h-px flex-1 bg-border-soft" />
+      </div>
+
       {error ? <AuthAlert tone="error">{error}</AuthAlert> : null}
 
       <form onSubmit={handleSubmit} noValidate>
@@ -104,7 +115,7 @@ function LoginForm() {
           disabled={submitting}
         />
 
-        <div className="mb-6 flex items-center">
+        <div className="mb-6 flex items-center justify-between">
           <Label
             htmlFor={rememberId}
             className="gap-2 text-caption font-normal text-muted-foreground"
@@ -117,6 +128,12 @@ function LoginForm() {
             />
             Remember me
           </Label>
+          <Link
+            href="/forgot-password"
+            className="text-label font-medium text-brand-700 hover:underline"
+          >
+            Forgot password?
+          </Link>
         </div>
 
         <Button type="submit" disabled={submitting} className="h-11 w-full gap-2">

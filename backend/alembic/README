@@ -1,1 +1,11 @@
-Generic single-database configuration.
+Project-specific Alembic migrations for the PostgreSQL schema.
+
+Run from `backend/`:
+
+    .\venv\Scripts\alembic.exe upgrade head
+
+Migration versions live in `backend/alembic/versions/`. Import every SQLAlchemy
+model in `backend/alembic/env.py` so Alembic can see the complete metadata.
+
+Read `docs/architecture/system-architecture.md` for the current data model and
+`docs/guides/database-setup-guide.md` for the historical bootstrap walkthrough.

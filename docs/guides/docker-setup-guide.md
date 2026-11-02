@@ -21,7 +21,7 @@ Examples are included where they make the process easier to follow.
 We wanted one command to start the project services:
 
 - the FastAPI backend
-- the scan-worker for queued multi-page scans
+- the scan-worker for queued single-page and multi-page scans when worker mode is enabled
 - the Next.js frontend
 
 ### Why

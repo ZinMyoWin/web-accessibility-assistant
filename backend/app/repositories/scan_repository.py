@@ -225,10 +225,6 @@ def complete_running_scan(
     scan_run.current_page_url = None
     scan_run.completed_at = completed_at
     scan_run.duration_seconds = duration_seconds
-    scan_run.total_issues = result.summary.total_issues
-    scan_run.high_count = result.summary.high
-    scan_run.medium_count = result.summary.medium
-    scan_run.low_count = result.summary.low
     scan_run.score = calculate_scan_score(result)
     scan_run.error_message = None
     scan_run.last_error = None
@@ -236,29 +232,7 @@ def complete_running_scan(
     scan_run.locked_at = None
     scan_run.heartbeat_at = None
 
-    session.add_all(
-        [
-            ScanIssueRecord(
-                scan_run_id=scan_run.id,
-                position=index,
-                rule_id=issue.rule_id,
-                severity=issue.severity,
-                element=issue.element,
-                message=issue.message,
-                recommendation=issue.recommendation,
-                line=issue.line,
-                column=issue.column,
-                source_hint=issue.source_hint,
-                dom_path=issue.dom_path,
-                text_preview=issue.text_preview,
-                screenshot_data_url=issue.screenshot_data_url,
-                page_url=issue.page_url,
-                wcag_criteria=issue.wcag_criteria,
-                source=issue.source,
-            )
-            for index, issue in enumerate(result.issues, start=1)
-        ]
-    )
+    _replace_scan_issue_records(session, scan_run, result.issues)
     session.commit()
     session.refresh(scan_run)
     return scan_run
@@ -470,6 +444,7 @@ def update_scan_progress(
     queued_page_urls: list[str] | None = None,
     scanned_page_urls: list[str] | None = None,
     skipped_page_urls: list[str] | None = None,
+    issues: list[ScanIssue] | None = None,
 ) -> None:
     scan_run = session.get(ScanRun, scan_id)
     if scan_run is None:
@@ -507,8 +482,53 @@ def update_scan_progress(
     if skipped_page_urls is not None:
         scan_run.skipped_page_urls = _unique_urls(skipped_page_urls)
         scan_run.pages_skipped = len(scan_run.skipped_page_urls)
+    if issues is not None:
+        _replace_scan_issue_records(session, scan_run, issues)
     scan_run.heartbeat_at = datetime.now(UTC)
     session.commit()
+
+
+def _replace_scan_issue_records(
+    session: Session,
+    scan_run: ScanRun,
+    issues: list[ScanIssue],
+) -> None:
+    """Replace persisted issue records and summary counts for a scan run.
+
+    Used both for incremental partial results while a scan is running and
+    for the final authoritative write on completion, so retries and repeat
+    publishes never duplicate records.
+    """
+    session.query(ScanIssueRecord).filter(
+        ScanIssueRecord.scan_run_id == scan_run.id
+    ).delete(synchronize_session=False)
+    session.add_all(
+        [
+            ScanIssueRecord(
+                scan_run_id=scan_run.id,
+                position=index,
+                rule_id=issue.rule_id,
+                severity=issue.severity,
+                element=issue.element,
+                message=issue.message,
+                recommendation=issue.recommendation,
+                line=issue.line,
+                column=issue.column,
+                source_hint=issue.source_hint,
+                dom_path=issue.dom_path,
+                text_preview=issue.text_preview,
+                screenshot_data_url=issue.screenshot_data_url,
+                page_url=issue.page_url,
+                wcag_criteria=issue.wcag_criteria,
+                source=issue.source,
+            )
+            for index, issue in enumerate(issues, start=1)
+        ]
+    )
+    scan_run.total_issues = len(issues)
+    scan_run.high_count = sum(issue.severity == "high" for issue in issues)
+    scan_run.medium_count = sum(issue.severity == "medium" for issue in issues)
+    scan_run.low_count = sum(issue.severity == "low" for issue in issues)
 
 
 def get_scan_queue_state(session: Session, scan_id: UUID) -> tuple[list[str], set[str]]:

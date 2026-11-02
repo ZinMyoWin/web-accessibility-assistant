@@ -1,100 +1,44 @@
-# AccessAudit — Project Context for Claude Code
+# AccessAudit Frontend Guidance
 
-## Project
-Final-year BSc project. Next.js 14 + FastAPI + Tailwind CSS + shadcn/ui.
-Stack: Next.js (frontend), FastAPI (backend), PostgreSQL (db), Playwright (crawler), axe-core (scanner).
+This file records frontend design conventions for AI-assisted changes. The current implementation is the source of truth when this file and code disagree.
 
-## Design system rules — always follow these
+## Current Stack
 
-### Colors — use these token names, never raw hex
-- Primary action:   brand-500  → `#1D9E75`  (bg-teal-500)
-- Primary hover:    brand-700  → `#0F6E56`  (bg-teal-700)
-- Critical badge:   severity-critical → bg `#FCEBEB`, text `#A32D2D`
-- Serious badge:    severity-serious  → bg `#FAEEDA`, text `#854F0B`
-- Moderate badge:   severity-moderate → bg `#E6F1FB`, text `#185FA5`
-- Minor badge:      severity-minor    → bg `#EAF3DE`, text `#3B6D11`
-- Surface 0:        bg-white
-- Surface 1:        bg-gray-50  → `#F5F5F3`
-- Text primary:     text-gray-900
-- Text muted:       text-gray-400
+- Next.js 15 and React 19
+- Tailwind CSS v4 configured through `frontend/src/app/globals.css`
+- reusable UI primitives in `frontend/src/components/ui/`
+- route-specific pages in `frontend/src/app/`
 
-### Typography — use these Tailwind classes exactly
-- Page title:    text-display  (32px / 700)
-- Section h1:    text-h1       (24px / 600)
-- Panel title:   text-h2       (18px / 600)
-- Card heading:  text-h3       (15px / 500)
-- Body text:     text-body     (14px / 400)
-- Labels/caps:   text-label    (12px / 500 / tracked)
-- Captions:      text-caption  (11px / 400)
-- Code/selectors: font-mono    (11px)
+There is no `tailwind.config.js`. Theme tokens are defined in the `@theme` and `:root` blocks in `frontend/src/app/globals.css`.
 
-### Spacing — always use these, never arbitrary values
-- Component internal gap: space-3 (12px)
-- Card padding:           space-4 (16px)
-- Between panels:         space-6 (24px)
-- Page section breaks:    space-8 (32px)
+## Design Tokens
 
-### Border radius
-- Buttons, inputs, metric cards: rounded-md (8px)
-- Panels, cards:                 rounded-lg (12px)
-- Filter pills, avatars:         rounded-full
+Use the existing token classes and CSS variables rather than adding new raw colors or spacing values.
 
-### Border width
-- All cards and panels: border border-[0.5px]
-- Inputs on focus:      border  (1px) + ring-2 ring-brand-500/20
-- Active nav accent:    border-l-2 border-brand-500
+- brand colors: `brand-50`, `brand-100`, `brand-300`, `brand-500`, `brand-700`, `brand-900`
+- surfaces: `surface-0`, `surface-1`, `surface-2`
+- severity colors: `severity-critical`, `severity-serious`, `severity-moderate`, `severity-minor`
+- spacing: `sp1`, `sp2`, `sp3`, `sp4`, `sp5`, `sp6`, `sp8`, `sp10`, `sp12`, `sp16`, `sp20`, `sp28`
+- radii: `rounded-md` for controls and `rounded-lg` for panels unless an existing component uses another value
 
-### Component patterns — always use these, never custom inline styles
+## Component Rules
 
-Badge component (never write raw badge styles inline):
-  <Badge severity="critical|serious|moderate|minor" />
+1. Reuse components in `frontend/src/components/ui/` before creating a new primitive.
+2. Reuse feature components in `frontend/src/components/home/`, `issues/`, `reports/`, `preferences/`, and `scan-history/`.
+3. Keep shared API and data mapping in `frontend/src/lib/`.
+4. Keep dashboard-wide layout behavior in `frontend/src/components/dashboard/DashboardShell.tsx`.
+5. Use `lucide-react` for interface icons.
+6. Preserve keyboard focus, labels, semantic controls, and reduced-motion behavior.
+7. Add or update Vitest/Testing Library tests when changing scan state, queue controls, reports, saved-scan mapping, or auth behavior.
 
-Button variants:
-  btn-primary  → bg-brand-500 text-white
-  btn-outline  → border bg-transparent
-  btn-ghost    → no border, muted text
-  btn-danger   → bg-red-50 text-red-800
+## Verification
 
-Metric card pattern:
-  bg-gray-50 / rounded-md / p-4
-  label: text-caption text-muted
-  value: text-2xl font-medium
-  delta: text-caption text-muted mt-1
+Run from `frontend/`:
 
-Panel/card pattern:
-  bg-white / rounded-lg / border border-[0.5px] / p-4
-
-Progress bar:
-  track: h-1.5 bg-gray-100 rounded-full
-  fill:  bg-brand-500 → brand-300 (left to right)
-
-## File structure
-src/
-  app/           → Next.js pages
-  components/
-    ui/          → Badge, Button, Card, MetricCard, ProgressBar
-    dashboard/   → DashboardShell, Sidebar, TopBar
-    scan/        → ScanForm, IssueList, SeverityChart, PageList
-  lib/           → api client, utils
-  styles/        → globals.css, tokens.css
-
-## Rules for every component Claude Code writes
-1. Never hardcode hex values — use Tailwind token classes or CSS vars
-2. Always use the Badge component for severity — never raw span with colour styles
-3. Sidebar nav active state: border-l-2 border-brand-500 text-brand-700
-4. Every scan result card must show: severity badge, issue text, selector (font-mono), page count pill
-5. Progress bar must show both label text and percentage number
-6. All metric cards follow the same 3-line pattern: label / value / delta
+```powershell
+npx tsc --noEmit
+npm test
+npm run build
 ```
 
-**Step 2 — reference your config files**
-
-Claude Code also reads `tailwind.config.js` directly from the filesystem, so keep your token definitions there as shown earlier. The `CLAUDE.md` acts as the *rules* layer on top — it tells Claude Code which tokens to reach for and why.
-
-**Step 3 — the prompt pattern that locks consistency**
-
-When asking Claude Code to build anything, start with:
-```
-Following the design system in CLAUDE.md, build a [component name].
-Use the Badge component for severity, MetricCard for counts,
-and never hardcode colours.
+Read `AGENTS.md` for repository-wide workflow and `docs/architecture/system-architecture.md` for current application architecture.

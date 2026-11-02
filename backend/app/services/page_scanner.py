@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from fnmatch import fnmatch
@@ -114,6 +115,7 @@ class CrawlQueueState:
     queued_page_urls: list[str]
     scanned_page_urls: list[str]
     skipped_page_urls: list[str]
+    issues: tuple[ScanIssue, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -127,6 +129,72 @@ class PageScanResult:
     final_url: str
     page_data: ParsedPageData
     issues: list[ScanIssue]
+
+
+class BrowserSession:
+    """One Playwright Chromium browser shared by every page in a scan job.
+
+    Launching Chromium costs one to three seconds, so per-page launches
+    dominate multi-page crawl time. The browser starts lazily on first use,
+    which also keeps scans that never reach browser analysis launch-free.
+    """
+
+    def __init__(self) -> None:
+        self._playwright = None
+        self._browser = None
+        self._unavailable = False
+
+    def new_page(self):
+        """Return a fresh (context, page) pair, or None when Playwright is unavailable."""
+        browser = self._ensure_browser()
+        if browser is None:
+            return None
+        try:
+            context = _new_browser_context(browser)
+            page = context.new_page()
+        except Exception:
+            # The browser likely crashed; drop it so the next page relaunches.
+            self.close()
+            raise
+        return context, page
+
+    def _ensure_browser(self):
+        if self._unavailable:
+            return None
+        if self._browser is None:
+            try:
+                from playwright.sync_api import sync_playwright
+            except ImportError:
+                self._unavailable = True
+                return None
+            try:
+                self._playwright = sync_playwright().start()
+                self._browser = self._playwright.chromium.launch(
+                    headless=True,
+                    args=[
+                        "--disable-blink-features=AutomationControlled",
+                        "--disable-dev-shm-usage",
+                    ],
+                )
+            except Exception:
+                self.close()
+                self._unavailable = True
+                return None
+        return self._browser
+
+    def close(self) -> None:
+        try:
+            if self._browser is not None:
+                self._browser.close()
+        except Exception:
+            pass
+        try:
+            if self._playwright is not None:
+                self._playwright.stop()
+        except Exception:
+            pass
+        self._browser = None
+        self._playwright = None
 
 
 class AccessibilityHTMLParser(HTMLParser):
@@ -248,17 +316,29 @@ def scan_page(
     validate_public_http_url(url)
     resolved_options = options or ScanOptions(mode="single", page_limit=1, crawl_depth=1)
 
-    if resolved_options.mode == "multi":
-        return _scan_multiple_pages(url, resolved_options, queue_control)
-    return _scan_single_page(url, resolved_options)
+    browser_session = BrowserSession()
+    try:
+        if resolved_options.mode == "multi":
+            return _scan_multiple_pages(
+                url, resolved_options, queue_control, browser_session=browser_session
+            )
+        return _scan_single_page(url, resolved_options, browser_session=browser_session)
+    finally:
+        browser_session.close()
 
 
-def _scan_single_page(url: str, options: ScanOptions) -> ScanPageResponse:
+def _scan_single_page(
+    url: str,
+    options: ScanOptions,
+    *,
+    browser_session: BrowserSession | None = None,
+) -> ScanPageResponse:
     page_result = _scan_one_page(
         url,
         options,
         run_browser_analysis=True,
         capture_screenshots=True,
+        browser_session=browser_session,
     )
     summary = _build_summary(page_result.issues)
 
@@ -279,6 +359,8 @@ def _scan_multiple_pages(
     url: str,
     options: ScanOptions,
     queue_control: CrawlQueueControl | None = None,
+    *,
+    browser_session: BrowserSession | None = None,
 ) -> ScanPageResponse:
     _publish_queue_state(
         queue_control,
@@ -292,6 +374,7 @@ def _scan_multiple_pages(
         options,
         run_browser_analysis=options.run_browser_analysis_for_multi,
         capture_screenshots=False,
+        browser_session=browser_session,
     )
     scanned_pages = [root_result]
     queued_pages: list[tuple[str, int]] = []
@@ -354,6 +437,7 @@ def _scan_multiple_pages(
                 options,
                 run_browser_analysis=options.run_browser_analysis_for_multi,
                 capture_screenshots=False,
+                browser_session=browser_session,
             )
         except ScanError:
             visited_urls.add(normalized_candidate)
@@ -426,6 +510,7 @@ def _publish_queue_state(
             queued_page_urls=[url for url, _depth in queued_pages],
             scanned_page_urls=[page.final_url for page in scanned_pages],
             skipped_page_urls=sorted(skipped_urls),
+            issues=tuple(issue for page in scanned_pages for issue in page.issues),
         )
     )
 
@@ -461,12 +546,14 @@ def _scan_one_page(
     *,
     run_browser_analysis: bool,
     capture_screenshots: bool,
+    browser_session: BrowserSession | None = None,
 ) -> PageScanResult:
     if run_browser_analysis:
         rendered_result = _scan_rendered_page(
             url,
             options,
             capture_screenshots=capture_screenshots,
+            browser_session=browser_session,
         )
         if rendered_result is not None:
             return rendered_result
@@ -495,6 +582,7 @@ def _scan_one_page(
             custom_issues,
             page_timeout_ms=options.page_timeout_ms,
             capture_screenshots=capture_screenshots,
+            browser_session=browser_session,
         )
     else:
         issues = custom_issues
@@ -507,76 +595,73 @@ def _scan_rendered_page(
     options: ScanOptions,
     *,
     capture_screenshots: bool,
+    browser_session: BrowserSession | None = None,
 ) -> PageScanResult | None:
-    try:
-        from playwright.sync_api import sync_playwright
-    except ImportError:
-        return None
-
     try:
         from app.services.axe_scanner import merge_issues, run_axe_core
     except ImportError:
         merge_issues = None
         run_axe_core = None
 
+    owned_session: BrowserSession | None = None
+    session = browser_session
+    if session is None:
+        session = owned_session = BrowserSession()
+
     try:
-        with sync_playwright() as playwright:
-            browser = playwright.chromium.launch(
-                headless=True,
-                args=[
-                    "--disable-blink-features=AutomationControlled",
-                    "--disable-dev-shm-usage",
-                ],
+        page_handle = session.new_page()
+        if page_handle is None:
+            return None
+        context, page = page_handle
+        try:
+            page.set_default_timeout(options.page_timeout_ms)
+            response = page.goto(
+                url,
+                wait_until="domcontentloaded",
+                timeout=options.page_timeout_ms,
             )
-            context = None
-            try:
-                context = _new_browser_context(browser)
-                page = context.new_page()
-                page.set_default_timeout(options.page_timeout_ms)
-                response = page.goto(
-                    url,
-                    wait_until="domcontentloaded",
-                    timeout=options.page_timeout_ms,
+            if response and response.status >= 400:
+                raise ScanError(
+                    message=f"Failed to fetch URL. HTTP {response.status}",
+                    status_code=response.status,
                 )
-                if response and response.status >= 400:
-                    raise ScanError(
-                        message=f"Failed to fetch URL. HTTP {response.status}",
-                        status_code=response.status,
-                    )
 
-                _wait_for_rendered_content(page, options.page_timeout_ms)
-                html = page.content()
-                final_url = page.url
-                page_data = _parse_page_html(html)
-                custom_issues = _build_issues(page_data)
+            _wait_for_rendered_content(page, options.page_timeout_ms)
+            html = page.content()
+            final_url = page.url
+            page_data = _parse_page_html(html)
+            custom_issues = _build_issues(page_data)
 
-                if run_axe_core is not None and merge_issues is not None:
-                    try:
-                        axe_issues = run_axe_core(page)
-                        issues = merge_issues(custom_issues, axe_issues)
-                    except Exception:
-                        issues = _mark_custom_issues(custom_issues)
-                else:
+            if run_axe_core is not None and merge_issues is not None:
+                try:
+                    axe_issues = run_axe_core(page)
+                    issues = merge_issues(custom_issues, axe_issues)
+                except Exception:
                     issues = _mark_custom_issues(custom_issues)
+            else:
+                issues = _mark_custom_issues(custom_issues)
 
-                if capture_screenshots:
-                    for issue in issues:
-                        issue.screenshot_data_url = _capture_issue_screenshot(page, issue)
+            if capture_screenshots:
+                _attach_issue_screenshots(page, issues)
 
-                _assign_issue_page_url(issues, final_url)
-                return PageScanResult(
-                    final_url=final_url,
-                    page_data=page_data,
-                    issues=issues,
-                )
-            finally:
-                if context is not None:
-                    context.close()
-                browser.close()
+            _assign_issue_page_url(issues, final_url)
+            return PageScanResult(
+                final_url=final_url,
+                page_data=page_data,
+                issues=issues,
+            )
+        finally:
+            try:
+                context.close()
+            except Exception:
+                pass
     except ScanError:
         raise
     except Exception:
         return None
+    finally:
+        if owned_session is not None:
+            owned_session.close()
 
 
 def _fetch_page_html(url: str, timeout_seconds: float) -> tuple[str, str]:
@@ -724,39 +809,31 @@ def _run_playwright_analysis(
     *,
     page_timeout_ms: int,
     capture_screenshots: bool,
+    browser_session: BrowserSession | None = None,
 ) -> list[ScanIssue]:
     """Run axe-core analysis and capture screenshots in a single Playwright session."""
     try:
-        from playwright.sync_api import sync_playwright
-    except ImportError:
-        for issue in custom_issues:
-            issue.source = "custom"
-        return custom_issues
-
-    try:
         from app.services.axe_scanner import merge_issues, run_axe_core
     except ImportError:
-        for issue in custom_issues:
-            issue.source = "custom"
-        return custom_issues
+        return _mark_custom_issues(custom_issues)
+
+    owned_session: BrowserSession | None = None
+    session = browser_session
+    if session is None:
+        session = owned_session = BrowserSession()
 
     try:
-        with sync_playwright() as playwright:
-            browser = playwright.chromium.launch(
-                headless=True,
-                args=[
-                    "--disable-blink-features=AutomationControlled",
-                    "--disable-dev-shm-usage",
-                ],
-            )
-            context = _new_browser_context(browser)
-            page = context.new_page()
+        page_handle = session.new_page()
+        if page_handle is None:
+            return _mark_custom_issues(custom_issues)
+        context, page = page_handle
+        try:
             page.set_default_timeout(page_timeout_ms)
             page.set_content(
                 _prepare_html_for_screenshot(html, url),
                 wait_until="domcontentloaded",
             )
-            page.wait_for_timeout(1200)
+            _wait_for_static_content(page)
 
             # Run axe-core analysis and merge with custom issues
             try:
@@ -768,14 +845,19 @@ def _run_playwright_analysis(
                     issue.source = issue.source or "custom"
 
             if capture_screenshots:
-                for issue in all_issues:
-                    issue.screenshot_data_url = _capture_issue_screenshot(page, issue)
+                _attach_issue_screenshots(page, all_issues)
 
-            context.close()
-            browser.close()
             return all_issues
+        finally:
+            try:
+                context.close()
+            except Exception:
+                pass
     except Exception:
         return _mark_custom_issues(custom_issues)
+    finally:
+        if owned_session is not None:
+            owned_session.close()
 
 
 def _new_browser_context(browser):
@@ -795,11 +877,25 @@ def _wait_for_rendered_content(page, page_timeout_ms: int) -> None:
     try:
         page.wait_for_load_state(
             "networkidle",
-            timeout=min(max(page_timeout_ms // 3, 1000), 5000),
+            timeout=min(max(page_timeout_ms // 4, 1000), 3000),
         )
     except Exception:
         pass
-    page.wait_for_timeout(min(max(page_timeout_ms // 20, 500), 1500))
+    page.wait_for_timeout(min(max(page_timeout_ms // 40, 250), 600))
+
+
+def _wait_for_static_content(page) -> None:
+    """Give set_content pages a short window to finish loading subresources.
+
+    Scripts are stripped before set_content, so only images and styles are
+    pending; waiting on the load state is faster and more accurate than a
+    long fixed delay.
+    """
+    try:
+        page.wait_for_load_state("load", timeout=2000)
+    except Exception:
+        pass
+    page.wait_for_timeout(200)
 
 
 def _mark_custom_issues(custom_issues: list[ScanIssue]) -> list[ScanIssue]:
@@ -808,28 +904,50 @@ def _mark_custom_issues(custom_issues: list[ScanIssue]) -> list[ScanIssue]:
     return custom_issues
 
 
-def _capture_issue_screenshot(page, issue: ScanIssue) -> str | None:
-    selector = _build_issue_selector(issue)
+_VIEWPORT_CAPTURE_KEY = "__viewport__"
 
+
+def _attach_issue_screenshots(page, issues: list[ScanIssue]) -> None:
+    """Capture one screenshot per unique element and upload them in parallel.
+
+    Issues that point at the same selector (or that all fall back to the
+    viewport shot) share a single capture, and Cloudinary uploads run
+    concurrently after capture instead of blocking the browser loop.
+    """
+    captures: dict[str, bytes | None] = {}
+    issue_capture_keys: list[str] = []
+
+    for issue in issues:
+        selector = _build_issue_selector(issue)
+        capture_key = selector or _VIEWPORT_CAPTURE_KEY
+        if capture_key not in captures:
+            captures[capture_key] = _capture_screenshot_bytes(page, selector)
+        issue_capture_keys.append(capture_key)
+
+    stored_urls = _store_screenshots_concurrently(captures)
+    for issue, capture_key in zip(issues, issue_capture_keys):
+        issue.screenshot_data_url = stored_urls.get(capture_key)
+
+
+def _capture_screenshot_bytes(page, selector: str | None) -> bytes | None:
     if selector:
         try:
             locator = page.locator(selector).first
             if locator.count() > 0:
-                locator.scroll_into_view_if_needed(timeout=5000)
+                locator.scroll_into_view_if_needed(timeout=2000)
                 box = locator.bounding_box()
                 if box:
-                    image_bytes = page.screenshot(
+                    return page.screenshot(
                         type="jpeg",
                         quality=65,
                         clip=_build_context_clip(page, box),
                     )
-                    return _store_screenshot(image_bytes, "image/jpeg")
         except Exception:
             pass
 
     try:
         viewport = page.viewport_size or {"width": 1280, "height": 720}
-        image_bytes = page.screenshot(
+        return page.screenshot(
             type="jpeg",
             quality=65,
             clip={
@@ -839,9 +957,34 @@ def _capture_issue_screenshot(page, issue: ScanIssue) -> str | None:
                 "height": float(min(viewport["height"], 720)),
             },
         )
-        return _store_screenshot(image_bytes, "image/jpeg")
     except Exception:
         return None
+
+
+def _store_screenshots_concurrently(
+    captures: dict[str, bytes | None],
+) -> dict[str, str | None]:
+    pending = {key: image for key, image in captures.items() if image is not None}
+    stored: dict[str, str | None] = {key: None for key in captures}
+    if not pending:
+        return stored
+
+    if len(pending) == 1:
+        key, image_bytes = next(iter(pending.items()))
+        stored[key] = _store_screenshot(image_bytes, "image/jpeg")
+        return stored
+
+    with ThreadPoolExecutor(max_workers=min(4, len(pending))) as executor:
+        futures = {
+            key: executor.submit(_store_screenshot, image_bytes, "image/jpeg")
+            for key, image_bytes in pending.items()
+        }
+        for key, future in futures.items():
+            try:
+                stored[key] = future.result()
+            except Exception:
+                stored[key] = None
+    return stored
 
 
 def _build_issue_selector(issue: ScanIssue) -> str | None:

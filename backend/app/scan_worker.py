@@ -32,7 +32,7 @@ from app.services.page_scanner import (
 logger = logging.getLogger("scan-worker")
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 
-DEFAULT_POLL_INTERVAL_SECONDS = 2.0
+DEFAULT_POLL_INTERVAL_SECONDS = 0.5
 DEFAULT_STALE_AFTER_SECONDS = 300
 
 
@@ -117,6 +117,7 @@ def _build_queue_control(db: Session, scan_id: UUID) -> CrawlQueueControl:
             queued_page_urls=state.queued_page_urls,
             scanned_page_urls=state.scanned_page_urls,
             skipped_page_urls=state.skipped_page_urls,
+            issues=list(state.issues),
         )
 
     def refresh() -> tuple[list[str], set[str]]:

@@ -1,6 +1,6 @@
 # Database Setup Guide
 
-> Historical/setup note: this guide documents the original persistence bootstrap sequence. Some references to mock-era UI behavior are kept for historical context and may no longer reflect current UI integration status.
+> Historical bootstrap guide. The database layer, migrations, saved scans, user ownership, preferences, worker queue, password reset tokens, and repair suggestions are now implemented. Use `../architecture/system-architecture.md` for current behavior and `../tracking/feature-checklist.md` for current status. The future-tense steps below are retained as a record of the original setup sequence.
 
 ## Purpose
 

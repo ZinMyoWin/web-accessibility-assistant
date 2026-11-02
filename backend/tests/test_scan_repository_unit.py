@@ -149,6 +149,85 @@ def test_update_scan_progress_preserves_user_priority_and_exclusions():
     assert scan_run.pages_scanned == 1
 
 
+def _partial_issue(severity: str = "high") -> ScanIssue:
+    return ScanIssue(
+        rule_id="image-alt",
+        severity=severity,
+        element="<img>",
+        message="Image is missing an alt attribute.",
+        recommendation="Add alt text.",
+        page_url="https://example.com",
+    )
+
+
+def test_update_scan_progress_persists_partial_issues_and_summary():
+    session = _session()
+    scan_run = _scan_run()
+    session.add(scan_run)
+    session.commit()
+
+    scan_repository.update_scan_progress(
+        session,
+        scan_run.id,
+        current_page_url=None,
+        scanned_page_urls=["https://example.com"],
+        issues=[_partial_issue("high"), _partial_issue("low")],
+    )
+
+    session.refresh(scan_run)
+    assert scan_run.total_issues == 2
+    assert scan_run.high_count == 1
+    assert scan_run.medium_count == 0
+    assert scan_run.low_count == 1
+    assert session.query(ScanIssueRecord).count() == 2
+
+    scan_repository.update_scan_progress(
+        session,
+        scan_run.id,
+        current_page_url=None,
+        issues=[_partial_issue("high"), _partial_issue("medium"), _partial_issue("low")],
+    )
+
+    session.refresh(scan_run)
+    assert scan_run.total_issues == 3
+    assert session.query(ScanIssueRecord).count() == 3
+
+
+def test_complete_running_scan_replaces_partial_issue_records():
+    session = _session()
+    scan_run = _scan_run()
+    session.add(scan_run)
+    session.commit()
+
+    scan_repository.update_scan_progress(
+        session,
+        scan_run.id,
+        current_page_url=None,
+        issues=[_partial_issue(), _partial_issue()],
+    )
+
+    result = ScanPageResponse(
+        url="https://example.com",
+        scanned_at=datetime.now(UTC).isoformat(),
+        mode="multi",
+        pages_scanned=2,
+        scanned_page_urls=["https://example.com", "https://example.com/about"],
+        summary=ScanSummary(total_issues=3, high=1, medium=1, low=1),
+        issues=[_partial_issue("high"), _partial_issue("medium"), _partial_issue("low")],
+    )
+    scan_repository.complete_running_scan(
+        session,
+        scan_run.id,
+        result=result,
+        completed_at=datetime.now(UTC),
+    )
+
+    session.refresh(scan_run)
+    assert scan_run.status == "complete"
+    assert scan_run.total_issues == 3
+    assert session.query(ScanIssueRecord).count() == 3
+
+
 def test_recover_stale_scan_requeues_until_max_attempts_then_fails():
     session = _session()
     stale_scan = _scan_run(

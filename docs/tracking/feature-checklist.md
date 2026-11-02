@@ -20,10 +20,14 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Repair suggestion generation endpoint `POST /scans/{scan_id}/repair-suggestion-groups/{group_key}/generate`
 - [x] User sign-up endpoint `POST /auth/signup`
 - [x] User login endpoint `POST /auth/login`
+- [x] Google profile exchange endpoint `POST /auth/google`
+- [x] Forgot-password endpoint `POST /auth/forgot-password`
+- [x] Reset-password endpoint `POST /auth/reset-password`
 - [x] Current-user endpoint `GET /auth/me`
 - [x] Logout endpoint `POST /auth/logout`
 - [x] Password hashing for stored user records
 - [x] Persisted user session tokens
+- [x] Single-use password reset tokens with older-link invalidation
 - [x] Authenticated-user ownership for scan records
 - [x] Authenticated-user ownership for preferences
 - [x] Public URL validation
@@ -56,7 +60,12 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Dedicated scan-worker service for queued single-page and multi-page scans
 - [x] Worker retry policy and stale-job recovery
 - [x] Persist current page, queued page URLs, and user-excluded queue URLs for running scans
-- [x] Full automated backend test suite
+- [x] Shared Chromium browser session reused across all pages in a scan job
+- [x] Screenshot capture deduplicated per element selector with concurrent Cloudinary uploads
+- [x] Incremental per-page issue persistence while multi-page scans run
+- [x] Worker replica scaling via Compose (`SCAN_WORKER_REPLICAS`, safe row-locked job claiming)
+- [x] Fast worker job pickup (0.5s default poll interval)
+- [x] Automated backend pytest suite for current core API, scanner, repository, worker, and auth paths
 - [x] Minimal backend API smoke tests
 
 ## Frontend
@@ -65,9 +74,12 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] `src/`-based frontend source structure
 - [x] Shared root layout in `src/app/layout.tsx`
 - [x] Public marketing landing page at `/`
+- [x] Public marketing About page at `/about`
 - [x] Home dashboard scan page at `/dashboard`
 - [x] Login page
 - [x] Sign-up page
+- [x] Forgot-password page
+- [x] Reset-password page
 - [x] Auth.js credentials session integration for login and sign-up
 - [x] Dashboard route guard for anonymous users
 - [x] Sidebar user identity and logout control
@@ -99,6 +111,7 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Frontend sends Auth.js session-backed bearer tokens for scan, history, report, issue, queue, and preference API calls
 - [x] Multi-page scan UI
 - [x] Dashboard polls queued/running background scans until completion
+- [x] Dashboard streams partial per-page issues and live counts while a scan is still running
 - [x] Dashboard shows the running scan queue, current page, removed pages, and retry attempt count
 - [x] Dashboard can remove or prioritize queued pages before the worker scans them
 - [x] Report issue cards show "Where to find it" locator guidance
@@ -112,7 +125,7 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Reports group similar issues for AI repair suggestions
 - [x] Reports can generate and display a saved AI repair suggestion per issue group
 - [x] Preferences expose current DeepSeek model choices for repair suggestions
-- [x] Full automated frontend test suite
+- [x] Automated frontend Vitest suite for current scan-state, queue, saved-scan, report, and AI-suggestion paths
 - [x] Minimal frontend smoke check via TypeScript gate
 
 ## AI / Intelligent Analysis
@@ -134,6 +147,7 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Database schema and migrations
 - [x] Stored user records
 - [x] Stored user session records
+- [x] Stored password reset tokens
 - [x] Stored scan sessions
 - [x] Stored scan sessions scoped to the authenticated user
 - [x] Stored preferences scoped to the authenticated user
@@ -158,8 +172,11 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Implementation log
 - [ ] Formal deployment verification evidence for hosted frontend and backend
 - [x] CI pipeline
-- [x] Lint/test/build quality gate automation
+- [x] Frontend typecheck/test and backend compile/test quality gate automation
 - [x] Frontend component/unit test gate in CI
+- [ ] Frontend production build gate in CI
+- [ ] Browser end-to-end test suite
+- [ ] Automated coverage reporting and thresholds
 
 ## Current Gaps Worth Addressing Next
 
