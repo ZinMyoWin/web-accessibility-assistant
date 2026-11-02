@@ -7,6 +7,7 @@ import { MetricsGrid } from "@/components/home/MetricsGrid"
 import { OverviewPanels } from "@/components/home/OverviewPanels"
 import { ProgressPanel } from "@/components/home/ProgressPanel"
 import { QueuePanel } from "@/components/home/QueuePanel"
+import { ScanNotifications } from "@/components/home/ScanNotifications"
 import { ScanToolbar } from "@/components/home/ScanToolbar"
 import type { IssueSeverity } from "@/components/home/types"
 import { getTopRuleCounts } from "@/components/home/utils"
@@ -23,12 +24,17 @@ export default function DashboardPage() {
     result,
     error,
     isScanning,
+    isCancelling,
+    canCancel,
     progress,
     progressText,
     progressState,
     activeScan,
     queueActionUrl,
+    notifications,
     handleScan,
+    cancelScan,
+    dismissNotification,
     removeQueuedPage,
     prioritizeQueuedPage,
   } = useDashboardScan()
@@ -62,9 +68,12 @@ export default function DashboardPage() {
         url={url}
         scanMode={scanMode}
         isScanning={isScanning}
+        canCancel={canCancel}
+        isCancelling={isCancelling}
         onUrlChange={setUrl}
         onScanModeChange={setScanMode}
         onScan={() => handleScan(scanMode, preferences)}
+        onCancel={() => void cancelScan()}
       />
 
       <main className="flex flex-1 flex-col gap-4 overflow-y-auto p-4 md:p-6">
@@ -73,6 +82,12 @@ export default function DashboardPage() {
             {error}
           </div>
         )}
+
+        <ScanNotifications
+          notifications={notifications}
+          onDismiss={dismissNotification}
+          animate={!preferences.reduced_motion}
+        />
 
         <ProgressPanel
           progress={progress}

@@ -29,6 +29,9 @@ export interface AppPreferences {
   notify_on_scan_complete: boolean
   notify_on_scan_failed: boolean
   notify_on_high_severity: boolean
+  notify_score_threshold_enabled: boolean
+  notify_score_threshold: number
+  notify_severities: string[]
   weekly_summary: boolean
 
   theme: string
@@ -66,6 +69,9 @@ const defaultPreferences: AppPreferences = {
   notify_on_scan_complete: true,
   notify_on_scan_failed: true,
   notify_on_high_severity: false,
+  notify_score_threshold_enabled: true,
+  notify_score_threshold: 70,
+  notify_severities: ["high", "medium"],
   weekly_summary: false,
 
   theme: "light",

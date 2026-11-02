@@ -1,11 +1,18 @@
 from __future__ import annotations
 
 import json
+import re
 from urllib.request import urlopen
 
 from app.schemas.scan import ScanIssue
 
 AXE_CDN_URL = "https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.10.2/axe.min.js"
+
+DEFAULT_WCAG_STANDARD = "wcag21aa"
+BEST_PRACTICE_TAG = "best-practice"
+
+# axe-core tag values are version + conformance-level (for example wcag21aa).
+_WCAG_STANDARD_PATTERN = re.compile(r"^(2|21|22)(a{1,3})$")
 
 AXE_IMPACT_TO_SEVERITY: dict[str, str] = {
     "critical": "high",
@@ -39,19 +46,69 @@ def _get_axe_script() -> str:
     return _axe_script_cache
 
 
-def run_axe_core(page) -> list[ScanIssue]:
+def _parse_wcag_standard(wcag_standard: str) -> tuple[str, str] | None:
+    normalized = (wcag_standard or "").strip().lower().replace("wcag", "").replace(".", "")
+    match = _WCAG_STANDARD_PATTERN.fullmatch(normalized)
+    if match is None:
+        return None
+    return match.group(1), match.group(2)
+
+
+def build_axe_tag_values(
+    wcag_standard: str = DEFAULT_WCAG_STANDARD,
+    include_best_practices: bool = True,
+) -> list[str]:
+    """Translate a saved WCAG preference into axe-core ``runOnly`` tag values.
+
+    Base coverage is WCAG 2.0 A/AA. Selecting a newer standard adds that
+    version's A/AA tags, AAA selections add the matching AAA tags, and A-only
+    selections omit every AA tag. The ``best-practice`` tag is opt-out.
+    Unknown values fall back to the default standard.
+    """
+    version_level = _parse_wcag_standard(wcag_standard) or _parse_wcag_standard(
+        DEFAULT_WCAG_STANDARD
+    )
+    version, level = version_level or ("21", "aa")
+
+    tags = ["wcag2a"]
+    if level in {"aa", "aaa"}:
+        tags.append("wcag2aa")
+    if level == "aaa":
+        tags.append("wcag2aaa")
+
+    if version in {"21", "22"}:
+        tags.append(f"wcag{version}a")
+        if level in {"aa", "aaa"}:
+            tags.append(f"wcag{version}aa")
+        if level == "aaa":
+            tags.append(f"wcag{version}aaa")
+
+    if include_best_practices:
+        tags.append(BEST_PRACTICE_TAG)
+
+    return tags
+
+
+def run_axe_core(
+    page,
+    *,
+    wcag_standard: str = DEFAULT_WCAG_STANDARD,
+    include_best_practices: bool = True,
+) -> list[ScanIssue]:
     """Inject axe-core into a Playwright page and return detected issues."""
     script = _get_axe_script()
     page.evaluate(script)
 
+    tag_values = build_axe_tag_values(wcag_standard, include_best_practices)
+    tag_values_json = json.dumps(tag_values)
     raw_results = page.evaluate(
-        """
-        () => axe.run(document, {
-            runOnly: {
+        f"""
+        () => axe.run(document, {{
+            runOnly: {{
                 type: 'tag',
-                values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice']
-            }
-        })
+                values: {tag_values_json}
+            }}
+        }})
         """
     )
 

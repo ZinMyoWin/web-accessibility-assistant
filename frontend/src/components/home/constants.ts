@@ -33,6 +33,7 @@ export const progressStateClass: Record<ProgressState, string> = {
   active: "text-primary",
   done: "text-accent-foreground font-medium",
   error: "text-destructive",
+  cancelled: "text-muted-foreground font-medium",
 }
 
 export const severityFilters = ["all", "high", "medium", "low"] as const

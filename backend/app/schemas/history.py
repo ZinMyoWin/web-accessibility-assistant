@@ -24,6 +24,7 @@ class SavedScanListItem(BaseModel):
     started_at: str
     completed_at: str | None = None
     duration_seconds: int | None = None
+    cancel_requested_at: str | None = None
     summary: ScanSummary
     score: int | None = None
     error_message: str | None = None

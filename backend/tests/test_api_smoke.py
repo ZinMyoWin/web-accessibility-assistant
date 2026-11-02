@@ -34,6 +34,23 @@ def _auth_headers(token: str = "test-token"):
     return {"Authorization": f"Bearer {token}"}
 
 
+def _fake_preferences():
+    """Preference stub used by /scan/page tests (fake DB sessions cannot query)."""
+    return SimpleNamespace(
+        default_scan_mode="single",
+        default_page_limit=5,
+        crawl_depth=3,
+        request_delay_ms=250,
+        page_timeout_ms=15000,
+        ignored_url_patterns=["/logout", "/admin", "*.pdf"],
+        stay_within_domain=True,
+        respect_robots_txt=True,
+        skip_previously_scanned_pages=True,
+        wcag_standard="wcag2aa",
+        include_best_practices=True,
+    )
+
+
 def test_health_endpoint():
     client = TestClient(app)
     response = client.get("/health")
@@ -433,6 +450,10 @@ def test_scan_page_multi_mode_endpoint(monkeypatch):
     scan_id = uuid4()
     current_user = _auth_user()
     monkeypatch.setattr("app.main.get_user_for_token", lambda _db, _token: current_user)
+    monkeypatch.setattr(
+        "app.main.get_preferences",
+        lambda _db, _user_id: _fake_preferences(),
+    )
 
     def fake_scan_page(url, options, queue_control=None):
         captured["url"] = url
@@ -478,6 +499,7 @@ def test_scan_page_multi_mode_endpoint(monkeypatch):
     monkeypatch.setattr("app.main.scan_page", fake_scan_page)
     monkeypatch.setattr("app.main.create_scan_job", fake_create_scan_job)
     monkeypatch.setattr("app.main.complete_running_scan", fake_complete_running_scan)
+    monkeypatch.setattr("app.main.is_scan_cancel_requested", lambda _db, _scan_id: False)
     monkeypatch.setattr("app.main.get_session_factory", lambda: _fake_db)
     monkeypatch.setattr(
         "app.main.get_previously_scanned_page_urls_for_domain",
@@ -557,6 +579,10 @@ def test_scan_page_multi_mode_can_enqueue_for_worker(monkeypatch):
     monkeypatch.setenv("SCAN_EXECUTION_MODE", "worker")
     monkeypatch.setattr("app.main.create_scan_job", fake_create_scan_job)
     monkeypatch.setattr(
+        "app.main.get_preferences",
+        lambda _db, _user_id: _fake_preferences(),
+    )
+    monkeypatch.setattr(
         "app.main.get_previously_scanned_page_urls_for_domain",
         lambda _db, _user_id, _url: set(),
     )
@@ -614,6 +640,10 @@ def test_scan_page_single_mode_can_enqueue_for_worker(monkeypatch):
     monkeypatch.setenv("SCAN_EXECUTION_MODE", "worker")
     monkeypatch.setattr("app.main.create_scan_job", fake_create_scan_job)
     monkeypatch.setattr("app.main.scan_page", fail_scan_page)
+    monkeypatch.setattr(
+        "app.main.get_preferences",
+        lambda _db, _user_id: _fake_preferences(),
+    )
 
     client = TestClient(app)
     response = client.post(

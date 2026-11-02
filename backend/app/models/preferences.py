@@ -1,10 +1,14 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 import sqlalchemy as sa
 
 from app.models.base import Base
+
+
+# JSONB on PostgreSQL, portable JSON elsewhere (used by the SQLite unit tests).
+JSON_TYPE = sa.JSON().with_variant(JSONB(), "postgresql")
 
 
 class AppPreferences(Base):
@@ -32,13 +36,13 @@ class AppPreferences(Base):
     crawl_depth = Column(Integer, default=3)
     request_delay_ms = Column(Integer, default=250)
     page_timeout_ms = Column(Integer, default=15000)
-    ignored_url_patterns = Column(JSONB, default=["/logout", "/admin", "*.pdf"])
+    ignored_url_patterns = Column(JSON_TYPE, default=["/logout", "/admin", "*.pdf"])
     stay_within_domain = Column(Boolean, default=True)
     respect_robots_txt = Column(Boolean, default=True)
     skip_previously_scanned_pages = Column(Boolean, default=True)
 
     # WCAG Standard
-    wcag_standard = Column(String, default="wcag2aa")
+    wcag_standard = Column(String, default="wcag21aa")
     include_best_practices = Column(Boolean, default=True)
     fail_on_experimental = Column(Boolean, default=False)
 
@@ -50,10 +54,20 @@ class AppPreferences(Base):
     notify_on_high_severity = Column(Boolean, default=False)
     weekly_summary = Column(Boolean, default=False)
 
+    # Notification thresholds (delivery is handled by the frontend; the backend
+    # only persists the user's choices so scans can be filtered client-side).
+    notify_score_threshold_enabled = Column(Boolean, default=False)
+    notify_score_threshold = Column(Integer, default=70)
+    notify_severities = Column(JSON_TYPE, default=["high"])
+
     # Appearance
     theme = Column(String, default="light")
     reduced_motion = Column(Boolean, default=False)
     high_contrast = Column(Boolean, default=False)
     density = Column(String, default="comfortable")
 
-    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )

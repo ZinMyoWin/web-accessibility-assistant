@@ -24,7 +24,13 @@ import {
 } from "@/lib/saved-scans"
 import { useAuth } from "@/lib/contexts/AuthContext"
 
-type StatusFilter = "all" | "queued" | "running" | "complete" | "error"
+type StatusFilter =
+  | "all"
+  | "queued"
+  | "running"
+  | "complete"
+  | "error"
+  | "cancelled"
 type ModeFilter = "all" | "single" | "multi"
 type SortBy = "newest" | "oldest" | "most" | "fewest"
 

@@ -1,6 +1,11 @@
 import { API_BASE_URL, authHeaders } from "@/lib/api"
 
-export type SavedScanStatus = "queued" | "running" | "complete" | "error"
+export type SavedScanStatus =
+  | "queued"
+  | "running"
+  | "complete"
+  | "error"
+  | "cancelled"
 export type SavedScanMode = "single" | "multi"
 export type IssueSeverity = "high" | "medium" | "low"
 
@@ -218,6 +223,19 @@ export type RepairSuggestionGroupsResponse = {
   groups: RepairSuggestionGroup[]
 }
 
+export type RepairSuggestionBundleFormat = "markdown"
+
+export type RepairSuggestionBundle = {
+  scan_id: string
+  generated_at: string
+  filename: string
+  content_type: string
+  group_count: number
+  generated_count: number
+  missing_count: number
+  content: string
+}
+
 export type ReportViewData = {
   meta: ReportMeta
   severityBreakdown: ReportSeverityBreakdownItem[]
@@ -318,6 +336,29 @@ export async function generateRepairSuggestionGroup(
   return (await response.json()) as RepairSuggestion
 }
 
+export async function fetchRepairSuggestionBundle(
+  scanId: string,
+  token: string,
+  format: RepairSuggestionBundleFormat = "markdown"
+): Promise<RepairSuggestionBundle> {
+  const url = new URL(
+    `/scans/${scanId}/repair-suggestion-bundle`,
+    API_BASE_URL
+  )
+  url.searchParams.set("format", format)
+
+  const response = await fetch(url.toString(), {
+    headers: authHeaders(token),
+    cache: "no-store",
+  })
+
+  if (!response.ok) {
+    throw new Error(await getApiErrorMessage(response))
+  }
+
+  return (await response.json()) as RepairSuggestionBundle
+}
+
 async function getApiErrorMessage(response: Response): Promise<string> {
   try {
     const body = (await response.json()) as ApiErrorBody
@@ -386,6 +427,33 @@ export async function prioritizeScanQueuePage(
   token: string
 ): Promise<SavedScanDetail> {
   return updateScanQueue(scanId, "prioritize", pageUrl, token)
+}
+
+export async function cancelSavedScan(
+  scanId: string,
+  token: string
+): Promise<SavedScanDetail> {
+  const response = await fetch(`${API_BASE_URL}/scans/${scanId}/cancel`, {
+    method: "POST",
+    headers: authHeaders(token),
+  })
+
+  if (!response.ok) {
+    if (response.status === 409) {
+      throw new ScanAlreadyFinishedError()
+    }
+    throw new Error(await getApiErrorMessage(response))
+  }
+
+  return (await response.json()) as SavedScanDetail
+}
+
+/** Raised when cancelling a scan that already reached a terminal state. */
+export class ScanAlreadyFinishedError extends Error {
+  constructor() {
+    super("This scan has already finished. Refresh scan history to see the final result.")
+    this.name = "ScanAlreadyFinishedError"
+  }
 }
 
 async function updateScanQueue(
@@ -513,7 +581,14 @@ export function mapSavedScanToReportData(scan: SavedScanDetail): ReportViewData 
       scanMode: scan.mode === "multi" ? "Multi-page" : "Single page",
       totalIssues: total,
       wcagLevel: "WCAG 2.1 AA",
-      status: scan.status === "error" ? "Scan failed" : total > 0 ? "Action needed" : "Pass",
+      status:
+        scan.status === "error"
+          ? "Scan failed"
+          : scan.status === "cancelled"
+            ? "Scan cancelled"
+            : total > 0
+              ? "Action needed"
+              : "Pass",
       score,
       pagesScanned: scan.pages_scanned,
       pagesSkipped: scan.pages_skipped,
@@ -533,7 +608,7 @@ export function mapSavedScanToReportData(scan: SavedScanDetail): ReportViewData 
 }
 
 function calculateAccessibilityScore(scan: SavedScanDetail): number | null {
-  if (scan.status === "error") {
+  if (scan.status === "error" || scan.status === "cancelled") {
     return null
   }
 

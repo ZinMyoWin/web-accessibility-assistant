@@ -49,7 +49,9 @@ export function QueuePanel({
             <div className="rounded bg-background px-2 py-2 text-xs text-muted-foreground">
               {activeScan.status === "queued"
                 ? "Waiting for the scan worker to claim this job."
-                : "Preparing the next page."}
+                : activeScan.status === "cancelled"
+                  ? "Scan cancelled before this page was reached."
+                  : "Preparing the next page."}
             </div>
           )}
           {activeScan.last_error && (

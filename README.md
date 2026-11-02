@@ -14,17 +14,19 @@ AccessAudit lets a signed-in user:
 4. save scan results in PostgreSQL
 5. compare, review, and report on saved scans
 6. generate one AI repair suggestion for a group of similar issues
+7. export every grouped repair suggestion for a scan as one markdown patch bundle
+8. cancel a queued or running scan while keeping the partial results already found
 
-The scanner combines custom checks in `backend/app/services/page_scanner.py` with axe-core checks in `backend/app/services/axe_scanner.py`. API routes are defined in `backend/app/main.py`.
+Scan execution uses the saved Preferences by default (mode, page limits, crawl depth, WCAG standard, best practices); direct request fields still override them. The scanner combines custom checks in `backend/app/services/page_scanner.py` with axe-core checks in `backend/app/services/axe_scanner.py`. API routes are defined in `backend/app/main.py`.
 
 ## Tech Stack
 
-- Frontend: Next.js 15, React 19, Auth.js, Tailwind CSS v4, Vitest, Testing Library
+- Frontend: Next.js 15, React 19, Auth.js, Tailwind CSS v4, Vitest, Testing Library, Playwright
 - Backend: FastAPI, Pydantic, SQLAlchemy, Alembic, pytest
 - Scanning: Playwright/Chromium, axe-core, custom HTML checks
 - Data: PostgreSQL
 - Background work: `backend/app/scan_worker.py`
-- CI: `.github/workflows/quality-gate.yml`
+- CI: `.github/workflows/quality-gate.yml` (typecheck, Vitest, production build, Playwright E2E, backend pytest)
 
 ## Repository Structure
 
@@ -35,7 +37,8 @@ web-accessibility-assistant/
 |  |- alembic/              database migration setup and versions
 |  `- tests/                backend pytest suite
 |- frontend/
-|  `- src/                  Next.js routes, components, hooks, libraries, tests
+|  |- src/                  Next.js routes, components, hooks, libraries, tests
+|  `- e2e/                  Playwright browser end-to-end specs
 |- docs/                    architecture, guides, implementation notes, tracking
 |- docker-compose.yml       production-style local stack
 |- docker-compose.dev.yml   hot-reload development stack
@@ -53,6 +56,7 @@ Why this matters: route handlers live in `backend/app/main.py`; database work us
 - `docs/guides/database-setup-guide.md`: historical PostgreSQL/Alembic bootstrap guide
 - `docs/implementation/backend-persistence-implementation-guide.md`: historical persistence implementation plan
 - `docs/tracking/feature-checklist.md`: current implemented vs pending feature status
+- `docs/tracking/feature-inventory.md`: report-ready inventory of each feature (Lead-maintained snapshot)
 - `docs/tracking/implementation-log.md`: chronological implementation evidence
 
 Avoid duplicating details. Put quick setup here, feature status in `docs/tracking/feature-checklist.md`, and deep technical explanations in `docs/architecture/system-architecture.md`.
@@ -65,6 +69,13 @@ For local development without Docker:
 - Node.js 22 or later
 - npm
 - PostgreSQL, usually through Docker Compose
+
+For browser end-to-end tests, install the Playwright Chromium build once inside `frontend/`:
+
+```powershell
+cd "D:\Lithan\UOR\Final Year Project\web-accessibility-assistant\frontend"
+npx playwright install chromium
+```
 
 For Docker development:
 
@@ -196,9 +207,13 @@ cd "D:\Lithan\UOR\Final Year Project\web-accessibility-assistant\frontend"
 npx tsc --noEmit
 npm test
 npm run build
+npx playwright install chromium
+npm run test:e2e
 ```
 
-CI runs `npx tsc --noEmit`, `npm test`, `python -m compileall app`, and `python -m pytest -q tests` in `.github/workflows/quality-gate.yml`. It does not currently run a standalone lint command, coverage threshold, browser end-to-end suite, or `npm run build`.
+`npm run test:e2e` starts a production build of the Next.js app automatically (`npm run build && npm run start` via `webServer` in `frontend/playwright.config.ts`), so no backend or database is required. The browser suite stubs the FastAPI calls it needs and mints a signed NextAuth session cookie for authenticated flows. The first local run builds the app, so it takes a minute longer than later runs. Add `test:e2e:report` after a failure to open the HTML report.
+
+CI runs four jobs in `.github/workflows/quality-gate.yml`: frontend typecheck + Vitest, frontend production build, Playwright browser E2E (installs Chromium and uploads reports/traces on failure), and backend `compileall` + pytest. It does not run a standalone lint command or enforce coverage thresholds.
 
 Manual smoke flow:
 
@@ -218,15 +233,17 @@ Routes are implemented in `backend/app/main.py`.
 - `POST /auth/signup`, `POST /auth/login`, `GET /auth/me`, `POST /auth/logout`: account/session flow
 - `POST /auth/google`: env-gated Google profile exchange from the trusted Next.js server
 - `POST /auth/forgot-password`, `POST /auth/reset-password`: single-use reset-token scaffold
-- `POST /scan/page`: create a scan or queued crawl
+- `POST /scan/page`: create a scan or queued crawl; all fields other than `url` are optional and inherit saved Preferences (`mode`, page limits, crawl depth, delays, URL filters, WCAG standard, best practices), while explicit fields override them
 - `GET /scans`, `GET /scans/{scan_id}`: saved scan list/detail for the current user
+- `POST /scans/{scan_id}/cancel`: cancel a queued scan or request that a running scan stop between pages; already-finished scans return 409
+- `GET /scans/{scan_id}/repair-suggestion-bundle?format=markdown|json`: download every grouped repair suggestion for a scan as one document
 - `POST /scans/{scan_id}/queue/remove`, `POST /scans/{scan_id}/queue/prioritize`: queue controls; body is `{ "url": "..." }`
 - `DELETE /scans`: clear the current user's scan history
-- `GET /preferences`, `PUT /preferences`, `POST /preferences/reset`: user-scoped settings
+- `GET /preferences`, `PUT /preferences`, `POST /preferences/reset`: user-scoped settings, including notification threshold/severity fields
 - `GET /scans/{scan_id}/repair-suggestion-groups`: grouped issue patterns
 - `POST /scans/{scan_id}/repair-suggestion-groups/{group_key}/generate`: generate or reuse an AI suggestion
 
-Scan, preference, queue, history, and repair-suggestion routes require a backend bearer token. The frontend stores that token inside the Auth.js session.
+Scan, preference, queue, cancel, bundle, history, and repair-suggestion routes require a backend bearer token. The frontend stores that token inside the Auth.js session.
 
 ## Data Model At A Glance
 
@@ -237,7 +254,7 @@ SQLAlchemy models live in `backend/app/models/`.
 - `AppPreferences` in `backend/app/models/preferences.py`
 - `RepairSuggestion` in `backend/app/models/repair_suggestion.py`
 
-Migrations live in `backend/alembic/versions/`. Apply them with:
+Migrations live in `backend/alembic/versions/` (current head: `9848b576f074`, which adds notification preferences, the scan cancel flag, and the WCAG 2.1 AA default). Apply them with:
 
 ```powershell
 cd "D:\Lithan\UOR\Final Year Project\web-accessibility-assistant\backend"
@@ -260,6 +277,7 @@ Frontend changes:
 - Put shared API/data mapping in `frontend/src/lib/`.
 - Keep route-specific UI under `frontend/src/app/`.
 - Add or update Vitest tests for dashboard, report, history, and auth behavior.
+- Add or update Playwright specs under `frontend/e2e/` when dashboard scan, cancel, auth-guard, or landing behavior changes; keep selectors role/text-based.
 - Run `npx tsc --noEmit` after TypeScript changes.
 
 Documentation changes:
@@ -276,17 +294,18 @@ Documentation changes:
 - Screenshots: Cloudinary is preferred in production so PostgreSQL does not store large inline data URLs.
 - Crawl memory: repeat multi-page scans may skip previously scanned internal URLs; reports must show scanned and skipped pages clearly.
 - AI suggestions: provider keys are encrypted before persistence and must never be exposed in API responses.
+- Scan cancellation: `cancel_requested_at` is a request flag; the worker/background job owns the transition to the terminal `cancelled` status, so never mark `cancelled` from the web request for a running scan.
+- Preferences-driven scans: `scan_options_resolver.py` is the only place saved defaults are merged with request overrides, and the resolved options are what the queued worker consumes.
 - URL validation: `backend/app/utils/url_utils.py` currently checks scheme and host; confirm private-network blocking requirements before treating scans as safe for untrusted public use.
 
 ## Current Gaps
 
 Use `docs/tracking/feature-checklist.md` as the source of truth. Known open items include:
 
-- transactional email delivery for password reset links
+- transactional email delivery for password reset links and scan notifications
 - formal hosted deployment verification evidence
-- conversational remediation assistant
-- export-all patch generation for grouped suggestions
-- browser end-to-end tests and coverage thresholds
+- conversational remediation assistant and automatic per-issue code repair suggestions
+- automated coverage reporting/thresholds and a lint gate
 
 ## Troubleshooting
 

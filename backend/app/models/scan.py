@@ -36,6 +36,9 @@ class ScanRun(Base):
     worker_id: Mapped[str | None] = mapped_column(sa.String(128), nullable=True)
     locked_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
     heartbeat_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
+    cancel_requested_at: Mapped[datetime | None] = mapped_column(
+        sa.DateTime(timezone=True), nullable=True
+    )
     last_error: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
     started_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(

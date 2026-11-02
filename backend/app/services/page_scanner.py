@@ -76,6 +76,14 @@ class ScanError(Exception):
         self.status_code = status_code
 
 
+class ScanCancelled(Exception):
+    """Raised when the user's cancellation request is observed between pages."""
+
+    def __init__(self, message: str = "Scan was cancelled by the user.") -> None:
+        super().__init__(message)
+        self.message = message
+
+
 @dataclass
 class SourcePosition:
     line: int
@@ -107,6 +115,8 @@ class ScanOptions:
     skip_previously_scanned_pages: bool = True
     previously_scanned_urls: frozenset[str] = frozenset()
     run_browser_analysis_for_multi: bool = False
+    wcag_standard: str = "wcag21aa"
+    include_best_practices: bool = True
 
 
 @dataclass(frozen=True)
@@ -122,6 +132,7 @@ class CrawlQueueState:
 class CrawlQueueControl:
     publish: Callable[[CrawlQueueState], None] | None = None
     refresh: Callable[[], tuple[list[str], set[str]]] | None = None
+    should_cancel: Callable[[], bool] | None = None
 
 
 @dataclass
@@ -322,17 +333,32 @@ def scan_page(
             return _scan_multiple_pages(
                 url, resolved_options, queue_control, browser_session=browser_session
             )
-        return _scan_single_page(url, resolved_options, browser_session=browser_session)
+        return _scan_single_page(
+            url, resolved_options, queue_control, browser_session=browser_session
+        )
     finally:
         browser_session.close()
+
+
+def _cancel_requested(queue_control: CrawlQueueControl | None) -> bool:
+    if queue_control is None or queue_control.should_cancel is None:
+        return False
+    return bool(queue_control.should_cancel())
+
+
+def _raise_if_cancelled(queue_control: CrawlQueueControl | None) -> None:
+    if _cancel_requested(queue_control):
+        raise ScanCancelled()
 
 
 def _scan_single_page(
     url: str,
     options: ScanOptions,
+    queue_control: CrawlQueueControl | None = None,
     *,
     browser_session: BrowserSession | None = None,
 ) -> ScanPageResponse:
+    _raise_if_cancelled(queue_control)
     page_result = _scan_one_page(
         url,
         options,
@@ -369,6 +395,7 @@ def _scan_multiple_pages(
         scanned_pages=[],
         skipped_urls=set(),
     )
+    _raise_if_cancelled(queue_control)
     root_result = _scan_one_page(
         url,
         options,
@@ -407,6 +434,7 @@ def _scan_multiple_pages(
         )
 
     while queued_pages and len(scanned_pages) < options.page_limit:
+        _raise_if_cancelled(queue_control)
         queued_pages = _apply_queue_control(queued_pages, queue_control)
         if not queued_pages:
             break
@@ -634,7 +662,11 @@ def _scan_rendered_page(
 
             if run_axe_core is not None and merge_issues is not None:
                 try:
-                    axe_issues = run_axe_core(page)
+                    axe_issues = run_axe_core(
+                        page,
+                        wcag_standard=options.wcag_standard,
+                        include_best_practices=options.include_best_practices,
+                    )
                     issues = merge_issues(custom_issues, axe_issues)
                 except Exception:
                     issues = _mark_custom_issues(custom_issues)
@@ -837,7 +869,11 @@ def _run_playwright_analysis(
 
             # Run axe-core analysis and merge with custom issues
             try:
-                axe_issues = run_axe_core(page)
+                axe_issues = run_axe_core(
+                    page,
+                    wcag_standard=options.wcag_standard,
+                    include_best_practices=options.include_best_practices,
+                )
                 all_issues = merge_issues(custom_issues, axe_issues)
             except Exception:
                 all_issues = custom_issues

@@ -1,3 +1,7 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { Button } from "@/components/ui/button"
 import {
   Select,
   SelectContent,
@@ -10,21 +14,35 @@ type ScanToolbarProps = {
   url: string
   scanMode: "single" | "multi"
   isScanning: boolean
+  canCancel?: boolean
+  isCancelling?: boolean
   onUrlChange: (value: string) => void
   onScanModeChange: (value: "single" | "multi") => void
   onScan: () => void
+  onCancel?: () => void
 }
 
 export function ScanToolbar({
   url,
   scanMode,
   isScanning,
+  canCancel = false,
+  isCancelling = false,
   onUrlChange,
   onScanModeChange,
   onScan,
+  onCancel,
 }: ScanToolbarProps) {
+  const [confirmingCancel, setConfirmingCancel] = useState(false)
+
+  useEffect(() => {
+    if (!canCancel) {
+      setConfirmingCancel(false)
+    }
+  }, [canCancel])
+
   return (
-    <header className="flex items-center gap-2.5 border-b-[0.5px] border-border bg-card px-4 py-2.5 pl-14 md:px-6 md:py-3 md:pl-6">
+    <header className="flex flex-wrap items-center gap-2.5 border-b-[0.5px] border-border bg-card px-4 py-2.5 pl-14 md:px-6 md:py-3 md:pl-6">
       <input
         className="h-9 flex-1 rounded-[var(--radius)] border-[0.5px] border-input bg-muted px-3 text-sm text-foreground outline-none transition-[border-color,box-shadow] duration-150 focus:border-primary focus:shadow-[0_0_0_2px_rgba(29,158,117,0.2)]"
         type="url"
@@ -54,6 +72,55 @@ export function ScanToolbar({
       >
         {isScanning ? "Scanning..." : "Scan"}
       </button>
+
+      {canCancel && !confirmingCancel && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-9 border-severity-critical/30 text-xs text-severity-critical-text hover:bg-severity-critical-bg hover:text-severity-critical-text"
+          data-testid="cancel-scan-button"
+          disabled={isCancelling}
+          onClick={() => setConfirmingCancel(true)}
+        >
+          {isCancelling ? "Cancelling..." : "Cancel scan"}
+        </Button>
+      )}
+
+      {canCancel && confirmingCancel && (
+        <div
+          className="flex items-center gap-2 rounded-md border-[0.5px] border-border bg-muted px-3 py-1.5"
+          role="group"
+          aria-label="Confirm scan cancellation"
+        >
+          <span className="text-xs font-medium text-foreground">Cancel this scan?</span>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            className="h-8 text-xs"
+            data-testid="confirm-cancel-scan"
+            disabled={isCancelling}
+            onClick={() => {
+              setConfirmingCancel(false)
+              onCancel?.()
+            }}
+          >
+            {isCancelling ? "Cancelling..." : "Yes, cancel scan"}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs"
+            data-testid="dismiss-cancel-scan"
+            disabled={isCancelling}
+            onClick={() => setConfirmingCancel(false)}
+          >
+            Keep scanning
+          </Button>
+        </div>
+      )}
     </header>
   )
 }

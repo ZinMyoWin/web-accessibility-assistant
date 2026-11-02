@@ -18,6 +18,8 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Reset preferences endpoint `POST /preferences/reset`
 - [x] Repair suggestion group endpoint `GET /scans/{scan_id}/repair-suggestion-groups`
 - [x] Repair suggestion generation endpoint `POST /scans/{scan_id}/repair-suggestion-groups/{group_key}/generate`
+- [x] Repair suggestion patch-bundle export endpoint `GET /scans/{scan_id}/repair-suggestion-bundle`
+- [x] Scan cancel endpoint `POST /scans/{scan_id}/cancel`
 - [x] User sign-up endpoint `POST /auth/signup`
 - [x] User login endpoint `POST /auth/login`
 - [x] Google profile exchange endpoint `POST /auth/google`
@@ -30,6 +32,12 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Single-use password reset tokens with older-link invalidation
 - [x] Authenticated-user ownership for scan records
 - [x] Authenticated-user ownership for preferences
+- [x] Saved preferences applied as scan defaults for single, background, and worker paths
+- [x] WCAG standard and best-practice preferences drive axe-core tag selection (default `wcag21aa`)
+- [x] Notification preference fields persisted (`notify_score_threshold_enabled`, `notify_score_threshold`, `notify_severities`)
+- [x] `cancelled` terminal scan status with persisted `cancel_requested_at`
+- [x] Worker honours cancel requests between pages and never retries a cancelled scan
+- [x] Cancelled status accepted by saved-scan history filters
 - [x] Public URL validation
 - [x] Raw HTML fetch for submitted pages
 - [x] Custom HTML-based accessibility checks
@@ -65,7 +73,7 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Incremental per-page issue persistence while multi-page scans run
 - [x] Worker replica scaling via Compose (`SCAN_WORKER_REPLICAS`, safe row-locked job claiming)
 - [x] Fast worker job pickup (0.5s default poll interval)
-- [x] Automated backend pytest suite for current core API, scanner, repository, worker, and auth paths
+- [x] Automated backend pytest suite for core API, scanner, repository, worker, auth, preference resolution, bundle export, and cancel paths (130 tests)
 - [x] Minimal backend API smoke tests
 
 ## Frontend
@@ -124,8 +132,13 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Dashboard scan details show scanned and skipped page coverage
 - [x] Reports group similar issues for AI repair suggestions
 - [x] Reports can generate and display a saved AI repair suggestion per issue group
+- [x] Reports "Export all patches" downloads the grouped repair bundle as a markdown file
+- [x] Cancel scan control with inline confirmation for queued/running scans
+- [x] Cancelled terminal state rendered in dashboard progress, notifications, and scan history
+- [x] In-app terminal scan notifications (complete, failed, high severity, low score, cancelled)
+- [x] Preferences notification threshold/severity settings wired to backend fields
 - [x] Preferences expose current DeepSeek model choices for repair suggestions
-- [x] Automated frontend Vitest suite for current scan-state, queue, saved-scan, report, and AI-suggestion paths
+- [x] Automated frontend Vitest suite for scan-state, queue, saved-scan, report, AI-suggestion, notification, cancel, and export paths (41 tests)
 - [x] Minimal frontend smoke check via TypeScript gate
 
 ## AI / Intelligent Analysis
@@ -139,6 +152,7 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Automated contextual screenshot capture and persistence for issue review
 - [x] Grouped generative AI / LLM-based repair suggestions
 - [x] DeepSeek API support for grouped AI repair suggestions
+- [x] Export all grouped AI repair suggestions as one markdown or JSON patch bundle
 - [ ] Automatic code repair suggestions per issue
 - [ ] Conversational remediation assistant
 
@@ -152,6 +166,8 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Stored scan sessions scoped to the authenticated user
 - [x] Stored preferences scoped to the authenticated user
 - [x] Stored AI repair suggestions scoped to the authenticated user
+- [x] Stored notification preferences (score threshold and severity selection)
+- [x] Stored cancel-request state (`cancel_requested_at`) and cancelled terminal status
 - [x] Stored page-level issue records
 - [x] Historical comparison views
 - [x] Compare identity uses rule plus locator context
@@ -174,8 +190,8 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] CI pipeline
 - [x] Frontend typecheck/test and backend compile/test quality gate automation
 - [x] Frontend component/unit test gate in CI
-- [ ] Frontend production build gate in CI
-- [ ] Browser end-to-end test suite
+- [x] Frontend production build gate in CI
+- [x] Browser end-to-end test suite (Playwright, 8 tests across 5 spec files)
 - [ ] Automated coverage reporting and thresholds
 
 ## Current Gaps Worth Addressing Next
@@ -191,3 +207,8 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Add full JavaScript page rendering for SPA-heavy sites before analysis
 - [x] Scope saved scans and preferences by authenticated user
 - [x] Generate one AI repair suggestion for grouped similar issues
+- [x] Export all grouped AI repair suggestions as a single patch bundle
+- [x] Apply saved preferences (mode, crawl limits, WCAG standard, best practices) to scan execution
+- [x] Persist notification preferences and deliver in-app terminal scan notifications
+- [x] Allow users to cancel a queued or running scan
+- [x] Add a browser end-to-end test suite and gate the frontend production build in CI

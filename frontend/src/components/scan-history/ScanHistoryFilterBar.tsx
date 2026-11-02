@@ -10,7 +10,13 @@ import {
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 
-type StatusFilter = "all" | "queued" | "running" | "complete" | "error"
+type StatusFilter =
+  | "all"
+  | "queued"
+  | "running"
+  | "complete"
+  | "error"
+  | "cancelled"
 type ModeFilter = "all" | "single" | "multi"
 type SortBy = "newest" | "oldest" | "most" | "fewest"
 
@@ -20,6 +26,7 @@ const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "running", label: "Running" },
   { value: "complete", label: "Complete" },
   { value: "error", label: "Error" },
+  { value: "cancelled", label: "Cancelled" },
 ]
 
 const MODE_OPTIONS: { value: ModeFilter; label: string }[] = [

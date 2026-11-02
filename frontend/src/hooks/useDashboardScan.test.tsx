@@ -2,7 +2,8 @@ import { act, renderHook } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { useDashboardScan } from "@/hooks/useDashboardScan"
-import { fetchSavedScan } from "@/lib/saved-scans"
+import { cancelSavedScan, fetchSavedScan } from "@/lib/saved-scans"
+import { SCAN_CANCELLED_PROGRESS_TEXT } from "@/lib/scan-notifications"
 import { makeSavedScanDetail } from "@/test/saved-scan-fixtures"
 
 vi.mock("@/lib/contexts/AuthContext", () => ({
@@ -16,6 +17,7 @@ vi.mock("@/lib/saved-scans", async (importOriginal) => {
     fetchSavedScan: vi.fn(),
     removeScanQueuePage: vi.fn(),
     prioritizeScanQueuePage: vi.fn(),
+    cancelSavedScan: vi.fn(),
   }
 })
 
@@ -28,6 +30,11 @@ const preferences = {
   stay_within_domain: true,
   respect_robots_txt: true,
   skip_previously_scanned_pages: true,
+  notify_on_scan_complete: true,
+  notify_on_scan_failed: true,
+  notify_on_high_severity: false,
+  notify_score_threshold_enabled: false,
+  notify_score_threshold: 70,
 }
 
 const queuedScanResponse = {
@@ -50,16 +57,20 @@ const queuedScanResponse = {
   issues: [],
 }
 
+function stubScanRequest() {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => queuedScanResponse,
+    })
+  )
+}
+
 describe("useDashboardScan partial results", () => {
   beforeEach(() => {
     vi.useFakeTimers()
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => queuedScanResponse,
-      })
-    )
+    stubScanRequest()
   })
 
   afterEach(() => {
@@ -106,6 +117,151 @@ describe("useDashboardScan partial results", () => {
 
     expect(result.current.isScanning).toBe(false)
     expect(result.current.result?.summary.total_issues).toBe(2)
+    expect(result.current.progressState).toBe("done")
+    expect(result.current.notifications.map((item) => item.kind)).toEqual([
+      "scan-complete",
+    ])
+  })
+
+  it("surfaces a scan failed notification when the polled scan errors", async () => {
+    const failedScan = makeSavedScanDetail({
+      status: "error",
+      completed_at: null,
+      error_message: "Connection timeout",
+    })
+    vi.mocked(fetchSavedScan).mockResolvedValueOnce(failedScan)
+
+    const { result } = renderHook(() => useDashboardScan())
+    act(() => {
+      result.current.setUrl("https://example.com")
+    })
+
+    let scanPromise: Promise<void> = Promise.resolve()
+    act(() => {
+      scanPromise = result.current.handleScan("multi", preferences)
+    })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2100)
+    })
+    await act(async () => {
+      await scanPromise
+    })
+
+    expect(result.current.progressState).toBe("error")
+    expect(result.current.error).toBe("Connection timeout")
+    expect(result.current.notifications).toEqual([
+      expect.objectContaining({ kind: "scan-failed", title: "Scan failed" }),
+    ])
+  })
+})
+
+describe("useDashboardScan cancel", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    stubScanRequest()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+    vi.clearAllMocks()
+  })
+
+  it("calls the cancel endpoint, stops polling, and keeps partial results", async () => {
+    const runningScan = makeSavedScanDetail({
+      status: "running",
+      completed_at: null,
+      current_page_url: "https://example.com/contact",
+    })
+    vi.mocked(fetchSavedScan).mockResolvedValue(runningScan)
+    // A running scan is cancelled between pages: the backend returns the scan
+    // with the cancel request registered but the status may still be running.
+    vi.mocked(cancelSavedScan).mockResolvedValue(
+      makeSavedScanDetail({ status: "running", completed_at: null })
+    )
+
+    const { result } = renderHook(() => useDashboardScan())
+    act(() => {
+      result.current.setUrl("https://example.com")
+    })
+
+    let scanPromise: Promise<void> = Promise.resolve()
+    act(() => {
+      scanPromise = result.current.handleScan("multi", preferences)
+    })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2100)
+    })
+
+    expect(result.current.canCancel).toBe(true)
+    expect(result.current.activeScan?.status).toBe("running")
+    const pollCallsBeforeCancel = vi.mocked(fetchSavedScan).mock.calls.length
+
+    await act(async () => {
+      await result.current.cancelScan()
+    })
+
+    expect(cancelSavedScan).toHaveBeenCalledWith("scan-1", "test-token")
+    expect(result.current.progressState).toBe("cancelled")
+    expect(result.current.progressText).toBe(SCAN_CANCELLED_PROGRESS_TEXT)
+    expect(result.current.notifications.map((item) => item.kind)).toEqual([
+      "scan-cancelled",
+    ])
+    expect(result.current.activeScan?.status).toBe("cancelled")
+    expect(result.current.canCancel).toBe(false)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000)
+    })
+    await act(async () => {
+      await scanPromise
+    })
+
+    expect(vi.mocked(fetchSavedScan).mock.calls.length).toBe(pollCallsBeforeCancel)
+    expect(result.current.isScanning).toBe(false)
+    expect(result.current.result?.summary.total_issues).toBe(2)
+  })
+
+  it("shows the backend message and keeps polling when the scan already finished", async () => {
+    const runningScan = makeSavedScanDetail({
+      status: "running",
+      completed_at: null,
+    })
+    vi.mocked(fetchSavedScan).mockResolvedValue(runningScan)
+    vi.mocked(cancelSavedScan).mockRejectedValue(
+      new Error("This scan has already finished. Refresh scan history to see the final result.")
+    )
+
+    const { result } = renderHook(() => useDashboardScan())
+    act(() => {
+      result.current.setUrl("https://example.com")
+    })
+
+    act(() => {
+      void result.current.handleScan("multi", preferences)
+    })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2100)
+    })
+
+    await act(async () => {
+      await result.current.cancelScan()
+    })
+
+    expect(result.current.error).toContain("already finished")
+    expect(result.current.progressState).toBe("active")
+    expect(result.current.isCancelling).toBe(false)
+
+    // The scan keeps polling after the rejected cancel and can still finish.
+    vi.mocked(fetchSavedScan).mockResolvedValue(
+      makeSavedScanDetail({ status: "complete" })
+    )
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2100)
+    })
     expect(result.current.progressState).toBe("done")
   })
 })

@@ -7,14 +7,15 @@ The **Web Accessibility Audit and Repair Assistant** is a web-based system that 
 The current system is designed to do these main jobs:
 
 1. Accept a URL from the user.
-2. Scan one page directly in local background mode, or queue single-page and bounded multi-page scans when worker mode is enabled.
+2. Scan one page directly in local background mode, or queue single-page and bounded multi-page scans when worker mode is enabled, applying the user's saved scan preferences (mode, page limits, crawl depth, delays, URL filters, WCAG standard, best practices) as defaults with per-request overrides.
 3. Save the scan result in PostgreSQL for later use.
 4. Let the frontend show summaries, issues, scan history, and persisted reports.
 5. Give users actionable locator guidance so they can find the affected element on the original webpage.
 6. Let users create accounts, log in, and store session records.
 7. Keep saved scan history and preferences scoped to the authenticated user.
-8. Group similar accessibility issues and generate one persisted AI repair suggestion per issue pattern.
-9. Prepare the project for later work such as larger full-site scan orchestration and broader AI remediation workflows.
+8. Group similar accessibility issues, generate one persisted AI repair suggestion per issue pattern, and export every suggestion for a scan as one downloadable patch bundle.
+9. Let users cancel a queued or running scan while keeping the partial results already found.
+10. Prepare the project for later work such as larger full-site scan orchestration and broader AI remediation workflows.
 
 ## 2. High-Level Architecture
 
@@ -46,6 +47,7 @@ FastAPI Backend
   |       +--> Similar issue grouping
   |       +--> OpenAI or DeepSeek API call using the user's stored provider key
   |       +--> Persisted suggestion per user, scan, and group
+  |       +--> Patch bundle export as markdown or JSON
   |
   +--> Persistence Layer
   |       |
@@ -58,6 +60,8 @@ FastAPI Backend
           +--> Live scan result (`POST /scan/page`)
           +--> Saved scan list (`GET /scans`)
           +--> Saved scan detail (`GET /scans/{scan_id}`)
+          +--> Scan cancellation (`POST /scans/{scan_id}/cancel`)
+          +--> Repair bundle export (`GET /scans/{scan_id}/repair-suggestion-bundle`)
 ```
 
 ## 3. Main Project Folders
@@ -78,8 +82,12 @@ Current frontend responsibilities:
 - open the scan history page UI
 - open persisted reports with per-page issue grouping
 - generate grouped AI repair suggestions from the report view
+- export all grouped AI repair suggestions for a scan as one markdown patch bundle
+- cancel a queued or running scan from the dashboard toolbar with inline confirmation
+- evaluate saved notification preferences and show in-app terminal scan notifications (complete, failed, high severity, low score, cancelled)
+- render the `cancelled` terminal status distinctly in the dashboard, notifications, and scan history
 - show issue locator guidance using affected page URLs, DOM paths, line/column data, source snippets, and text previews
-- send the logged-in user's bearer token for scan, history, report, queue-control, and preferences API calls
+- send the logged-in user's bearer token for scan, history, report, queue-control, cancel, bundle-export, and preferences API calls
 
 Current technologies:
 
@@ -111,6 +119,11 @@ Current status:
 - multi-page scans can skip previously scanned internal pages when the user enables crawl memory in Preferences
 - reports show a computed accessibility score when persisted score data exists or can be derived from issue totals
 - reports group similar issues for AI repair suggestions and show the saved suggestion after generation
+- reports can export every grouped suggestion of a scan as one downloadable markdown patch bundle
+- the dashboard can cancel a queued/running scan; cancellation stops polling, keeps partial results, disables queue controls, and marks the run `cancelled`
+- terminal dashboard scans produce in-app notifications driven by the persisted notification preferences
+- scan history renders cancelled rows and exposes a "Cancelled" status filter
+- dashboard scan requests no longer need to re-send crawl defaults: the backend resolves omitted fields from saved preferences
 
 ### `backend/`
 
@@ -133,6 +146,11 @@ Current backend responsibilities:
 - persist score, mode, pages scanned, pages skipped, scanned/skipped page URL lists, issue page URLs, and element locator metadata
 - persist scan runs, preferences, and AI repair suggestions with the authenticated user's ID
 - generate one AI repair suggestion for a group of similar issues, then reuse the saved suggestion unless regeneration is requested later
+- export all grouped repair suggestions of a scan as one markdown or JSON patch bundle
+- resolve scan execution options from saved preferences, with explicit request values taking precedence, and persist the resolved options for queued worker jobs
+- translate the saved WCAG standard and best-practice preference into axe-core `runOnly` tags
+- accept and persist notification preferences (score-threshold switch/value, severity selection) without sending email
+- cancel queued scans immediately and request that running scans stop between pages, without retrying cancelled jobs or overwriting completed results
 
 Current technologies:
 
@@ -148,18 +166,25 @@ Contains setup guides, architecture notes, implementation guides, and project tr
 
 ### `backend/tests/`
 
-Contains backend API smoke tests and unit tests for scanner and repository behavior.
+Contains 130 backend tests across 12 files: API smoke tests plus unit tests for scanner, repository, worker, auth, preferences, preference resolution, bundle export, and cancel behaviour.
 
 Current coverage includes:
 
 - health and deterministic test routes
-- scan and queue-control API smoke paths
-- scanner custom rules, crawl filtering, queue ordering, and rendered fallback behavior
-- repository scoring, queue state updates, queued-page controls, and stale worker recovery
+- scan, queue-control, bundle-export, and cancel API smoke paths
+- scanner custom rules, crawl filtering, queue ordering, rendered fallback, and between-page cancellation
+- repository scoring, queue state updates, queued-page controls, stale worker recovery, user scoping, and cancelled-scan transitions
+- preference resolution (inherited defaults versus explicit overrides), notification-preference validation, WCAG-to-axe tag mapping, and repair-bundle rendering
 
 ### Frontend tests
 
-The frontend automated gate now includes TypeScript typechecking plus a Vitest and Testing Library suite for scan-state rendering, dashboard queue controls, saved-scan report mapping, and report page grouping.
+The frontend automated gate has three tiers:
+
+- TypeScript typechecking (`npx tsc --noEmit`)
+- Vitest + Testing Library unit/component tests: 41 tests across 11 files for scan state, queue controls, saved-scan mapping, report pages/grouping, AI suggestion generation and export, in-app notifications, scan cancellation, and helper utilities (jsdom, no backend)
+- Playwright browser E2E tests: 8 tests across 5 specs for the public landing/registration pages, login validation, the anonymous dashboard guard redirect, the authenticated dashboard scan flow with mocked API responses, and the scan-cancel flow (`frontend/e2e/`)
+
+The E2E suite needs no backend or database: it stubs browser-to-backend calls with `page.route()` fixtures and mints a real signed NextAuth session cookie for authenticated specs. Both the production build and the E2E suite are gated in CI.
 
 ### `README.md`
 
@@ -198,6 +223,8 @@ Current routes:
 - `POST /scan/page`
 - `GET /scans`
 - `GET /scans/{scan_id}`
+- `POST /scans/{scan_id}/cancel`
+- `GET /scans/{scan_id}/repair-suggestion-bundle`
 - `POST /scans/{scan_id}/queue/remove`
 - `POST /scans/{scan_id}/queue/prioritize`
 - `DELETE /scans`
@@ -220,6 +247,8 @@ Important models:
 
 Note:
 
+- `ScanPageRequest` fields are all optional: omitted values inherit the user's saved preferences (see `scan_options_resolver.py`), and explicitly sent values override them.
+- `ScanPageRequest` now also carries `wcag_standard` and `include_best_practices`, which are threaded to axe-core tag selection.
 - `ScanPageResponse` now includes an optional `scan_id` so the frontend can later reference the saved scan record.
 
 ### `backend/app/schemas/history.py`
@@ -231,6 +260,11 @@ Important models:
 - `SavedScanListItem`
 - `SavedScanListResponse`
 - `SavedScanResponse`
+
+Notes:
+
+- scan status is `queued`, `running`, `complete`, `error`, or `cancelled`; the history list filter accepts `cancelled`
+- saved-scan responses expose `cancel_requested_at` so the UI can distinguish an accepted cancellation request from a finished cancel
 
 ### `backend/app/schemas/auth.py`
 
@@ -260,6 +294,7 @@ Current behavior:
 - running multi-page scans publish queue state as links are discovered, including current page, queued pages, pages removed by the user, and the cumulative issues found so far so the dashboard can stream partial results
 - issue screenshots are captured once per unique element selector (issues sharing a selector or the viewport fallback share one capture) and uploads to Cloudinary run concurrently in a thread pool after capture instead of blocking the browser loop
 - the scan worker retries failed jobs while attempts remain and recovers stale `running` jobs after the stale timeout
+- a `should_cancel` callback (from the worker or in-process job) is checked between pages through `CrawlQueueControl`; when it returns true the scanner raises `ScanCancelled` so the run stops with its partial results preserved instead of being treated as a failure
 
 ### `backend/app/services/axe_scanner.py`
 
@@ -272,6 +307,38 @@ Responsibilities:
 - map violations into project issue format
 - format WCAG criteria
 - help merge custom and axe-core results
+- translate a saved WCAG preference into axe-core `runOnly` tag values (`build_axe_tag_values`)
+
+WCAG standard to axe tag mapping:
+
+- base coverage is always WCAG 2.0 A/AA (`wcag2a`, `wcag2aa`)
+- selecting 2.1 or 2.2 adds that version's A/AA tags (`wcag21a`, `wcag21aa`, `wcag22a`, `wcag22aa`)
+- AAA selections add the matching AAA tags (and `wcag2aaa` for the 2.0 base)
+- A-only selections omit all AA tags
+- `best-practice` is included unless the saved `include_best_practices` preference is false
+- the saved default is `wcag21aa` (migration `...f074`), which keeps the 2.1 rule coverage the scanner previously hardcoded
+
+### `backend/app/services/scan_options_resolver.py`
+
+Resolves scan execution options from saved preferences and request overrides.
+
+Current responsibilities:
+
+- treat every `POST /scan/page` field as optional and detect explicit values with Pydantic `model_fields_set`
+- inherit `default_scan_mode`, page limit, crawl depth, delays, ignored URL patterns, same-domain/robots/crawl-memory switches, `wcag_standard`, and `include_best_practices` from `AppPreferences` when omitted
+- let explicit request values win over saved preferences
+- clamp multi-page dashboard scans to five pages and persist the resolved settings in `scan_options` so the worker reconstructs the same configuration
+
+### `backend/app/services/repair_bundle_service.py`
+
+Renders a downloadable bundle of every repair suggestion for a scan.
+
+Current responsibilities:
+
+- accept `format=markdown` (default) or `format=json`, rejecting anything else with a validation error the route maps to 400
+- include scan URL/date/status/score plus every generated suggestion's full content, and list groups without a saved suggestion in a "Not yet generated" section
+- return the export envelope `{scan_id, generated_at, filename, content_type, group_count, generated_count, missing_count, content}` with filename `accessaudit-repair-bundle-<scan8>.md|json`
+- never include secrets such as provider API keys
 
 ### `backend/app/db.py`
 
@@ -293,9 +360,9 @@ Current models:
 - `User`
 - `UserSession`
 - `PasswordResetToken`
-- `ScanRun`
+- `ScanRun` (including `cancel_requested_at` for accepted cancellation requests)
 - `ScanIssueRecord`
-- `AppPreferences`
+- `AppPreferences` (including `notify_score_threshold_enabled`, `notify_score_threshold`, `notify_severities`, and `wcag_standard` defaulting to `wcag21aa`)
 - `RepairSuggestion`
 
 ### `backend/app/repositories/repair_suggestion_repository.py`
@@ -354,6 +421,8 @@ Responsibilities:
 - list saved scans for the current user
 - load one saved scan with its issues only when it belongs to the current user
 - convert ORM objects into API response models
+- request and apply scan cancellation (`request_scan_cancel`, `is_scan_cancel_requested`, `mark_scan_cancelled`): a queued scan becomes `cancelled` immediately, a running scan stores `cancel_requested_at` and is cancelled between pages, terminal scans return 409 at the route, cancelled runs are never requeued or retried, and a late cancel cannot overwrite a completed result
+- treat `cancelled` as a terminal status alongside `complete` and `error` (`TERMINAL_SCAN_STATUSES`) while `queued`/`running` remain the active statuses
 
 ### `backend/alembic/`
 
@@ -361,7 +430,8 @@ Contains database migration files.
 
 Current responsibility:
 
-- create and track the PostgreSQL schema for saved scans, issues, preferences, users, sessions, user ownership fields, and repair suggestions
+- create and track the PostgreSQL schema for saved scans, issues, preferences, users, sessions, password reset tokens, user ownership fields, notification preferences, scan cancellation, and repair suggestions
+- 16 revisions with a single linear head `9848b576f074` (`...f072` notification preferences, `...f073` scan cancel request flag, `...f074` default WCAG standard `wcag21aa`)
 
 Production startup rule:
 
@@ -373,8 +443,8 @@ Production startup rule:
 
 The current single-page scan flow in direct local mode is:
 
-1. The frontend or API client sends `POST /scan/page` with a bearer token and URL.
-2. FastAPI resolves the current user from the token and validates the request body.
+1. The frontend or API client sends `POST /scan/page` with a bearer token and URL (every other field is optional).
+2. FastAPI resolves the current user from the token, validates the request body, and resolves scan options from saved preferences overlaid with any explicit request fields.
 3. The backend validates the URL format.
 4. The scanner navigates to the page in Playwright, waits for rendered JavaScript content, and captures rendered HTML.
 5. If rendering is unavailable, the scanner falls back to raw HTTP HTML fetch.
@@ -394,7 +464,7 @@ In worker mode, including production-style deployments:
 
 The current multi-page scan flow is:
 
-1. The frontend sends `POST /scan/page` with a bearer token, `mode="multi"`, and crawl preferences.
+1. The frontend sends `POST /scan/page` with a bearer token, `mode="multi"`, and optional crawl overrides (omitted fields inherit saved preferences).
 2. The backend creates a user-owned saved scan record with `status="queued"` and clamps the page limit to a maximum of 5 pages.
 3. The crawler follows allowed internal links while respecting depth, ignore patterns, same-domain settings, and robots settings.
 4. Each page is rendered in Playwright when available, then analyzed with custom HTML checks plus axe-core.
@@ -406,6 +476,16 @@ The current multi-page scan flow is:
 10. If a worker stops updating heartbeat data, stale-job recovery requeues the scan while attempts remain or marks it failed after max attempts.
 11. The worker updates the row to `status="complete"` with actual `mode`, `pages_scanned`, `pages_skipped`, scanned/skipped page URL lists, issue counts, and a computed score.
 12. Reports provide a selectable page list so users can inspect issues tied to each scanned page and see which pages were skipped.
+
+### Scan cancellation lifecycle
+
+1. The dashboard shows "Cancel scan" only while the active scan is `queued` or `running`; the user confirms inline.
+2. The frontend sends `POST /scans/{scan_id}/cancel` with the session bearer token and stops polling once the request is accepted.
+3. A queued scan is marked terminal immediately (`status="cancelled"`, `completed_at`, `duration_seconds`, `error_message="Cancelled by user"`); a running scan persists `cancel_requested_at` and keeps its current status until a worker or background job observes the flag.
+4. `page_scanner.py` checks the cancel callback between pages and raises `ScanCancelled`; `scan_worker.py` also checks before claiming work and after the final page, and marks the run `cancelled` with partial issue data preserved.
+5. Cancelled jobs are never retried and stale-job recovery never requeues them; a cancellation that loses the race to completion leaves the completed result untouched.
+6. Terminal scans return HTTP 409 from the cancel route, and another user's scan returns 404.
+7. The frontend renders the cancelled state as a neutral terminal outcome (progress text `Scan cancelled - partial results are kept below.`, a dismissible "Scan cancelled" notification, a "Cancelled" history filter and row label) rather than an error.
 
 If a scan fails after request validation:
 
@@ -427,8 +507,9 @@ Important fields:
 - user ID
 - requested URL
 - final URL
-- status
+- status (`queued`, `running`, `complete`, `error`, or `cancelled`)
 - mode
+- resolved scan options snapshot (`scan_options`) used by queued worker jobs
 - started time
 - completed time
 - duration
@@ -437,6 +518,7 @@ Important fields:
 - pages skipped by crawl memory
 - scanned and skipped page URL lists
 - accessibility score
+- cancellation request time (`cancel_requested_at`)
 - optional error message
 
 ### `scan_issues`
@@ -462,6 +544,25 @@ Important fields:
 Current rule:
 
 - issue screenshots are uploaded to Cloudinary when `CLOUDINARY_URL` is configured, and saved issue records store the returned URL; local runs without Cloudinary still use inline data URLs. Production omits the screenshot when Cloudinary upload fails unless `CLOUDINARY_SCREENSHOT_FALLBACK=data_url` is explicitly enabled.
+
+### `app_preferences`
+
+Stores one preferences row per authenticated user (`user_id` is unique).
+
+Important fields:
+
+- AI provider, model, and the encrypted provider API key
+- crawl defaults: default scan mode, page limit, depth, request delay, page timeout, ignored URL patterns, same-domain and robots switches, crawl-memory switch
+- WCAG standard (`wcag21aa` default after migration `...f074`) and best-practices switch
+- notification switches (`notify_on_scan_complete`, `notify_on_scan_failed`, `notify_on_high_severity`, `weekly_summary`), score-threshold switch/value (`notify_score_threshold_enabled`, `notify_score_threshold`), severity selection (`notify_severities`), and inert email-notification fields
+- appearance fields (theme, reduced motion, high contrast, density) that are persisted but not applied at runtime
+
+Notification flow:
+
+1. The dashboard finishes polling a terminal scan (`complete`, `error`, or `cancelled`).
+2. `frontend/src/lib/scan-notifications.ts` evaluates the persisted notification preferences against the scan status, summary counts, and score.
+3. `components/home/ScanNotifications.tsx` renders dismissible, polite status banners; cancelled scans always produce a neutral "Scan cancelled" notification.
+4. No email transport exists: notification preferences are evaluated in-app only.
 
 ### `repair_suggestions`
 
@@ -511,6 +612,10 @@ axe-core runs inside Playwright and adds many standards-based checks, including:
 
 When both custom logic and axe-core find the same issue, the project keeps the custom version when it has better source detail, then enriches it with WCAG information from axe-core.
 
+### WCAG standard selection
+
+axe-core is run with `runOnly` tags derived from the user's saved `wcag_standard` and `include_best_practices` preferences (see `axe_scanner.build_axe_tag_values`). The default `wcag21aa` preserves the 2.1 rule coverage the scanner previously hardcoded; `wcag2aa` limits analysis to 2.0-only coverage, 2.2 selections add 2.2 tags, AAA selections add AAA tags, A-only selections drop AA tags, and best-practice rules are opt-out.
+
 ## 8. Current Frontend Status
 
 ### Home dashboard
@@ -519,10 +624,29 @@ Implemented:
 
 - URL input
 - scan trigger
-- progress panel
+- progress panel (idle, active, done, error, cancelled)
+- cancel-scan control with inline confirmation while queued/running
+- in-app terminal scan notifications driven by saved preferences
 - summary metrics
 - overview panels
 - issue list with expandable detail rows
+
+### Reports page
+
+Implemented:
+
+- persisted report data with score, severity, and per-page issue grouping
+- grouped AI repair suggestions per scan
+- "Export all patches" download of the full grouped repair bundle
+
+### Preferences page
+
+Implemented:
+
+- AI provider/model and encrypted API key
+- crawl defaults, WCAG standard, best practices
+- notification switches plus score-threshold and severity selection persisted through the backend
+- appearance and danger-zone settings
 
 ### Issues page
 
@@ -555,6 +679,7 @@ Planned future stages include:
 - current crawls support user-controlled crawl memory to skip already scanned internal pages
 - current crawls expose queue progress and support queued-page removal/prioritization during worker execution
 - current crawls reuse one Chromium browser per job and stream partial per-page results to the dashboard while the crawl runs
+- current crawls can be cancelled between pages from the dashboard, keeping the partial results already found
 - current worker jobs include retry and stale-job recovery; queued-job claiming uses `FOR UPDATE SKIP LOCKED` row locks, so multiple worker replicas can run safely (`docker compose up --scale scan-worker=N` or `SCAN_WORKER_REPLICAS`)
 
 ### Reporting
@@ -577,8 +702,9 @@ Current implemented AI behavior:
 Future AI work from the project overview:
 
 - conversational remediation assistant
-- exportable patch bundles
 - broader code-repair workflows outside the current grouped report suggestion flow
+
+Exportable patch bundles are now implemented: `GET /scans/{scan_id}/repair-suggestion-bundle` renders every grouped suggestion (plus a "Not yet generated" list) as one markdown or JSON document for download.
 
 The current AI layer does not generate a separate suggestion for every individual issue instance.
 
@@ -614,24 +740,24 @@ Purpose:
 Purpose:
 
 - scan one page or a bounded multi-page crawl, save the result, and return the live response
-
-Example request:
+- every field other than `url` is optional; omitted fields inherit the user's saved scan preferences, explicit fields override them
 
 ```json
 {
-  "url": "https://example.com",
-  "mode": "single"
+  "url": "https://example.com"
 }
 ```
 
-Example bounded multi-page request:
+Example request with explicit overrides:
 
 ```json
 {
   "url": "https://example.com",
   "mode": "multi",
   "page_limit": 5,
-  "crawl_depth": 1
+  "crawl_depth": 1,
+  "wcag_standard": "wcag22aa",
+  "include_best_practices": false
 }
 ```
 
@@ -685,9 +811,26 @@ Purpose:
 - persist the suggestion by authenticated user, scan, and group key
 - return the saved suggestion on repeat calls unless forced regeneration is added by a future UI flow
 
+### `POST /scans/{scan_id}/cancel`
+
+Purpose:
+
+- cancel a queued scan (immediate terminal `cancelled` status) or request that a running scan stop between pages (persist `cancel_requested_at`)
+- authenticated and ownership scoped; another user's scan returns 404, an already-finished scan returns 409
+- returns the saved scan JSON with status `cancelled` (queued) or the still-active status plus `cancel_requested_at` (running)
+
+### `GET /scans/{scan_id}/repair-suggestion-bundle`
+
+Purpose:
+
+- export every repair suggestion of a saved scan as one downloadable document
+- query parameter `format` accepts `markdown` (default) or `json`; invalid formats return 400
+- returns `{scan_id, generated_at, filename, content_type, group_count, generated_count, missing_count, content}`; groups without a saved suggestion are listed in a "Not yet generated" section
+- authenticated and ownership scoped; another user's scan returns 404
+
 ## 11. Current Status
 
-The current implementation includes the complete browser-to-API-to-worker-to-database scan flow, user-scoped history/preferences, report views, queue controls, screenshot persistence, and grouped OpenAI/DeepSeek repair suggestions.
+The current implementation includes the complete browser-to-API-to-worker-to-database scan flow, user-scoped history/preferences, report views, queue controls, screenshot persistence, grouped OpenAI/DeepSeek repair suggestions with patch-bundle export, preference-driven scan options with WCAG-to-axe mapping, persisted notification preferences with in-app delivery, scan cancellation with a preserved partial-result terminal state, and a three-tier frontend gate (typecheck, Vitest, Playwright) plus a production build gate in CI.
 
 Use `../tracking/feature-checklist.md` as the source of truth for the detailed implemented/pending list. This architecture document explains how those features fit together; it intentionally does not repeat the full checklist.
 
@@ -728,7 +871,10 @@ Use this map before editing. It reduces the chance of putting logic in the wrong
 | Change worker behavior | `backend/app/scan_worker.py` | queue functions in `scan_repository.py`, both Compose files |
 | Change login/session behavior | `frontend/src/lib/auth-options.ts` and `backend/app/main.py` | `AuthContext.tsx`, auth repository/service, auth tests |
 | Change saved scan/report data | `backend/app/schemas/history.py` and `frontend/src/lib/saved-scans.ts` | reports/issues/history components and tests |
-| Change preferences | `backend/app/schemas/preferences.py` | model, repository, `PreferencesContext.tsx`, preferences components |
+| Change preferences | `backend/app/schemas/preferences.py` | model, repository, `PreferencesContext.tsx`, preferences components, `backend/app/services/scan_options_resolver.py`, `axe_scanner.build_axe_tag_values` |
+| Change scan cancellation | `POST /scans/{scan_id}/cancel` in `backend/app/main.py` | cancel functions in `scan_repository.py`, `page_scanner.py`/`scan_worker.py`, dashboard cancel UI, `frontend/e2e/scan-cancel.spec.ts` |
+| Change repair-bundle export | `backend/app/services/repair_bundle_service.py` | `GET /scans/{scan_id}/repair-suggestion-bundle`, `AiSuggestionsTab.tsx`, bundle/export tests |
+| Change browser E2E coverage | `frontend/e2e/` | `frontend/playwright.config.ts`, `.github/workflows/quality-gate.yml`; keep role/text selectors stable |
 
 ### Safe backend sequence
 
@@ -787,13 +933,30 @@ Why this matters: local fallback secrets in `auth_service.py` and `encryption.py
 
 ### Automated tests
 
-- Backend pytest tests live in `backend/tests/`.
+- Backend pytest tests live in `backend/tests/` (130 tests across 12 files).
 - `test_api_smoke.py` exercises FastAPI routes in-process with `TestClient`.
 - `test_page_scanner_unit.py` covers custom checks, crawling, rendering fallback, and scan behavior.
-- `test_scan_repository_unit.py`, `test_auth_unit.py`, and repair suggestion tests cover persistence and domain rules, often with in-memory SQLite.
-- Frontend Vitest tests sit beside components or under `frontend/src/lib/`; `frontend/src/test/setup.ts` configures Testing Library matchers.
+- `test_scan_repository_unit.py`, `test_auth_unit.py`, `test_scan_options_resolver_unit.py`, `test_scan_cancel_unit.py`, `test_preferences_unit.py`, `test_repair_bundle_unit.py`, `test_bundle_and_cancel_api.py`, and the repair suggestion tests cover persistence, domain rules, preference resolution, bundle rendering, and cancellation, often with in-memory SQLite.
+- Frontend Vitest tests sit beside components or under `frontend/src/lib/` (41 tests across 11 files); `frontend/src/test/setup.ts` configures Testing Library matchers.
+- Playwright browser E2E tests live in `frontend/e2e/` (8 tests across 5 specs) and run against a production build (`npm run build && npm run start`) via `playwright.config.ts`; they stub browser-to-backend requests and mint a NextAuth session cookie, so no backend is required. Running the suite against `next dev` was avoided because dev-server HMR recompiles during a run made multi-test runs flaky.
 
-CI is defined in `.github/workflows/quality-gate.yml`. It currently runs frontend typecheck/tests and backend compile/tests. It does not currently run a frontend production build, browser end-to-end suite, lint command, or coverage threshold.
+Run them with:
+
+```powershell
+# backend
+cd backend
+.\venv\Scripts\python.exe -m pytest -q tests
+
+# frontend unit/component tests
+cd frontend
+npm test
+
+# browser E2E (requires Chromium: npx playwright install chromium)
+npx playwright install chromium
+npm run test:e2e
+```
+
+CI is defined in `.github/workflows/quality-gate.yml` and runs four jobs: frontend typecheck + Vitest, frontend production build, Playwright E2E, and backend compile + pytest. It does not run a lint command or enforce coverage thresholds.
 
 ### Debugging order
 
@@ -809,7 +972,7 @@ CI is defined in `.github/workflows/quality-gate.yml`. It currently runs fronten
 
 ### Worker state and retries
 
-`ScanRun` stores status, queue URLs, worker ownership, lock time, heartbeat, and retry counts. Changes must stay aligned across `backend/app/models/scan.py`, `scan_repository.py`, `scan_worker.py`, scan response schemas, and dashboard polling.
+`ScanRun` stores status, queue URLs, worker ownership, lock time, heartbeat, retry counts, and `cancel_requested_at`. Changes must stay aligned across `backend/app/models/scan.py`, `scan_repository.py`, `scan_worker.py`, scan response schemas, and dashboard polling. Cancellation adds a fourth terminal status (`cancelled`) and must never be treated as a retryable failure.
 
 ### Two-layer authentication
 
@@ -829,7 +992,7 @@ The database and persistence guides describe the sequence used to build the firs
 
 ### Test boundaries
 
-In-process API tests and jsdom component tests are valuable but do not prove the complete browser-to-worker-to-database flow. Use the manual smoke flow in the root README until browser end-to-end tests are added.
+Vitest component tests, in-process API tests, and the Playwright suite (which mocks the backend) are valuable but they do not collectively prove the live browser-to-worker-to-database flow, and no automated suite runs against a seeded PostgreSQL instance. Use the deployment verification checklist in the root README for hosted end-to-end evidence until that layer is automated.
 
 ## 18. Glossary
 
@@ -841,11 +1004,15 @@ In-process API tests and jsdom component tests are valuable but do not prove the
 - **Crawl memory**: saved knowledge of previously scanned internal URLs for a user/domain.
 - **DOM path**: a CSS-like path that helps locate an affected element in the page structure.
 - **ORM**: SQLAlchemy's mapping between Python classes and database tables.
+- **Cancel flag**: `scan_runs.cancel_requested_at`, set when a running scan is asked to stop; the worker turns it into the terminal `cancelled` status between pages.
+- **Patch bundle**: one downloadable markdown/JSON document containing every grouped repair suggestion for a scan.
+- **Playwright E2E**: browser-level tests under `frontend/e2e/` that drive the real Next.js UI without a backend.
 - **Repository**: a module that owns database queries and persistence operations.
 - **Schema**: a Pydantic class that defines accepted request data or returned response data.
-- **Scan run**: one persisted scan attempt in `scan_runs`, including queued, running, complete, or error states.
+- **Scan run**: one persisted scan attempt in `scan_runs`, including queued, running, complete, error, or cancelled states.
 - **Worker**: the separate process that claims queued scans and performs Playwright/axe analysis.
 - **WCAG**: Web Content Accessibility Guidelines, the standards referenced by issue tags.
+- **WCAG tag mapping**: the translation of a saved WCAG standard into axe-core `runOnly` tags (`build_axe_tag_values`).
 
 ## 19. Deployment Reference
 
@@ -857,6 +1024,7 @@ The repository is prepared for a split deployment: Next.js on Vercel, plus a Fas
 - Dockerfile: `backend/Dockerfile`
 - Health check: `/health`
 - Startup: keep the image default command so `backend/start.sh` runs `alembic upgrade head` before Uvicorn
+- Current migration head: `9848b576f074` (notification preferences, scan cancel flag, default WCAG 2.1 AA)
 - Required production values include `DATABASE_URL`, `AUTH_JWT_SECRET`, `FRONTEND_URL`, and a real `ENCRYPTION_KEY`
 - Add `CORS_ALLOWED_ORIGIN_REGEX` only when preview domains need access
 
@@ -895,9 +1063,9 @@ Formal hosted verification evidence is still marked incomplete in `../tracking/f
 ## 20. Open Questions
 
 - Are the production Render/Vercel environments configured with all required auth, encryption, Cloudinary, and OAuth secrets?
-- Has every deployed database applied Alembic migration `9848b576f071_add_password_reset_tokens.py`?
-- What transactional email provider will deliver password reset links?
+- Has every deployed database applied Alembic migration `9848b576f074`?
+- What transactional email provider will deliver password reset links and future scan notifications?
 - Should public URL validation block private, loopback, link-local, and cloud metadata addresses?
 - Should the empty root `database/` directory be removed or used for database assets?
-- Which browser end-to-end flows should be automated first: auth, worker scan completion, or saved report loading?
-- Should `npm run build`, linting, and coverage thresholds be added to CI?
+- Should the Playwright suite grow a seeded-backend mode that exercises the worker and database instead of only mocked API responses?
+- Should CI add a lint job and automated coverage thresholds?

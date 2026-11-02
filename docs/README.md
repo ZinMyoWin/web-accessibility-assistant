@@ -9,6 +9,7 @@ This folder contains deeper project documentation. Start with the root `README.m
 | How do I install, run, test, or troubleshoot the app? | `../README.md` |
 | How do the frontend, API, worker, scanner, and database fit together? | `architecture/system-architecture.md` |
 | What is implemented now? | `tracking/feature-checklist.md` |
+| What does each feature do, where does it live, and how complete is it? | `tracking/feature-inventory.md` |
 | What changed, when, and how was it verified? | `tracking/implementation-log.md` |
 | How was Docker introduced? | `guides/docker-setup-guide.md` |
 | How was PostgreSQL and Alembic originally bootstrapped? | `guides/database-setup-guide.md` |
@@ -37,6 +38,7 @@ Feature build plans and implementation notes. These may be historical after a fe
 ### `tracking/`
 
 - `feature-checklist.md` is the source of truth for implemented vs pending features.
+- `feature-inventory.md` explains what each feature does, where it lives, and how complete it is (report-ready snapshot with a gap register).
 - `implementation-log.md` is append-only history and verification evidence. Older entries describe the project as it existed at that date.
 
 ## Avoiding Duplicate Documentation

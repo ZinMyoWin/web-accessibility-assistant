@@ -45,3 +45,14 @@ class RepairSuggestionGroupsResponse(BaseModel):
 
 class GenerateRepairSuggestionRequest(BaseModel):
     force: bool = False
+
+
+class RepairSuggestionBundleResponse(BaseModel):
+    scan_id: str
+    generated_at: str
+    filename: str
+    content_type: str
+    group_count: int
+    generated_count: int
+    missing_count: int
+    content: str

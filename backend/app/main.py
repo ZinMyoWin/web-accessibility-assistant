@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db_session, get_session_factory
 from app.models.auth import User
 from app.repositories.scan_repository import (
+    ACTIVE_SCAN_STATUSES,
     clear_saved_scans,
     complete_running_scan,
     create_scan_job,
@@ -19,9 +20,12 @@ from app.repositories.scan_repository import (
     get_scan_queue_state,
     get_previously_scanned_page_urls_for_domain,
     get_saved_scan,
+    is_scan_cancel_requested,
     list_saved_scans,
+    mark_scan_cancelled,
     prioritize_queued_scan_page,
     remove_queued_scan_page,
+    request_scan_cancel,
     save_completed_scan,
     save_failed_scan,
     to_saved_scan_response,
@@ -62,10 +66,23 @@ from app.schemas.scan import ScanPageRequest, ScanPageResponse, ScanQueuePageReq
 from app.schemas.preferences import AppPreferencesResponse, AppPreferencesUpdate
 from app.schemas.repair_suggestion import (
     GenerateRepairSuggestionRequest,
+    RepairSuggestionBundleResponse,
     RepairSuggestionGroupsResponse,
     RepairSuggestionResponse,
 )
-from app.services.page_scanner import CrawlQueueControl, CrawlQueueState, ScanError, ScanOptions, scan_page
+from app.services.page_scanner import (
+    CrawlQueueControl,
+    CrawlQueueState,
+    ScanCancelled,
+    ScanError,
+    ScanOptions,
+    scan_page,
+)
+from app.services.scan_options_resolver import resolve_scan_settings
+from app.services.repair_bundle_service import (
+    RepairBundleError,
+    build_repair_bundle,
+)
 from app.services.auth_service import (
     create_session_token,
     generate_reset_token,
@@ -92,7 +109,6 @@ LOCAL_CORS_ORIGINS = [
     "http://localhost:3001",
     "http://127.0.0.1:3001",
 ]
-SYNC_CRAWL_PAGE_LIMIT = 5
 SCAN_EXECUTION_MODE_BACKGROUND = "background"
 SCAN_EXECUTION_MODE_WORKER = "worker"
 
@@ -217,28 +233,32 @@ def scan_single_page(
     current_user = _get_user_from_authorization_header(db, authorization)
     requested_url = str(request.url)
     started_at = datetime.now(UTC)
-    mode = request.mode
-    page_limit = min(request.page_limit, SYNC_CRAWL_PAGE_LIMIT) if request.mode == "multi" else None
+    preferences = get_preferences(db, current_user.id)
+    settings = resolve_scan_settings(request, preferences)
+    mode = settings.mode
+    page_limit = settings.page_limit
     previously_scanned_urls = (
         get_previously_scanned_page_urls_for_domain(db, current_user.id, requested_url)
-        if request.mode == "multi" and request.skip_previously_scanned_pages
+        if mode == "multi" and settings.skip_previously_scanned_pages
         else set()
     )
     options = ScanOptions(
-        mode=request.mode,
+        mode=mode,
         page_limit=page_limit or 1,
-        crawl_depth=request.crawl_depth,
-        request_delay_ms=request.request_delay_ms,
-        page_timeout_ms=request.page_timeout_ms,
-        ignored_url_patterns=tuple(request.ignored_url_patterns),
-        stay_within_domain=request.stay_within_domain,
-        respect_robots_txt=request.respect_robots_txt,
-        skip_previously_scanned_pages=request.skip_previously_scanned_pages,
+        crawl_depth=settings.crawl_depth,
+        request_delay_ms=settings.request_delay_ms,
+        page_timeout_ms=settings.page_timeout_ms,
+        ignored_url_patterns=settings.ignored_url_patterns,
+        stay_within_domain=settings.stay_within_domain,
+        respect_robots_txt=settings.respect_robots_txt,
+        skip_previously_scanned_pages=settings.skip_previously_scanned_pages,
+        wcag_standard=settings.wcag_standard,
+        include_best_practices=settings.include_best_practices,
         previously_scanned_urls=frozenset(previously_scanned_urls),
     )
 
     execution_mode = get_scan_execution_mode()
-    should_enqueue_scan = request.mode == "multi" or execution_mode == SCAN_EXECUTION_MODE_WORKER
+    should_enqueue_scan = mode == "multi" or execution_mode == SCAN_EXECUTION_MODE_WORKER
 
     if should_enqueue_scan:
         try:
@@ -258,7 +278,7 @@ def scan_single_page(
             raise HTTPException(status_code=500, detail="Failed to create scan job") from exc
 
         background_options = replace(options, run_browser_analysis_for_multi=True)
-        if request.mode == "multi" and execution_mode == SCAN_EXECUTION_MODE_BACKGROUND:
+        if mode == "multi" and execution_mode == SCAN_EXECUTION_MODE_BACKGROUND:
             background_tasks.add_task(
                 run_multi_page_scan_job,
                 scan_run.id,
@@ -333,12 +353,17 @@ def run_multi_page_scan_job(scan_id: UUID, requested_url: str, options: ScanOpti
     try:
         result = scan_page(requested_url, options, _build_queue_control(db, scan_id))
         result.scan_id = str(scan_id)
+        if is_scan_cancel_requested(db, scan_id):
+            mark_scan_cancelled(db, scan_id)
+            return
         complete_running_scan(
             db,
             scan_id,
             result=result,
             completed_at=datetime.fromisoformat(result.scanned_at),
         )
+    except ScanCancelled:
+        mark_scan_cancelled(db, scan_id)
     except ValueError as exc:
         fail_running_scan(
             db,
@@ -380,7 +405,14 @@ def _build_queue_control(db: Session, scan_id: UUID) -> CrawlQueueControl:
     def refresh() -> tuple[list[str], set[str]]:
         return get_scan_queue_state(db, scan_id)
 
-    return CrawlQueueControl(publish=publish, refresh=refresh)
+    def should_cancel() -> bool:
+        return is_scan_cancel_requested(db, scan_id)
+
+    return CrawlQueueControl(
+        publish=publish,
+        refresh=refresh,
+        should_cancel=should_cancel,
+    )
 
 
 def get_scan_execution_mode() -> str:
@@ -411,6 +443,8 @@ def serialize_scan_options(options: ScanOptions) -> dict[str, object]:
         "respect_robots_txt": options.respect_robots_txt,
         "skip_previously_scanned_pages": options.skip_previously_scanned_pages,
         "previously_scanned_urls": sorted(options.previously_scanned_urls),
+        "wcag_standard": options.wcag_standard,
+        "include_best_practices": options.include_best_practices,
     }
 
 
@@ -683,6 +717,56 @@ def generate_repair_suggestion_group(
         draft=draft,
     )
     return to_repair_suggestion_response(suggestion)
+
+
+@app.get(
+    "/scans/{scan_id}/repair-suggestion-bundle",
+    response_model=RepairSuggestionBundleResponse,
+)
+def get_repair_suggestion_bundle(
+    scan_id: UUID,
+    bundle_format: str = Query(default="markdown", alias="format"),
+    authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db_session),
+):
+    """Export every repair suggestion for a scan as one downloadable document.
+
+    ``format`` accepts ``markdown`` (default) or ``json``; any other value is a
+    400 so clients fail loudly instead of silently getting markdown.
+    """
+    current_user = _get_user_from_authorization_header(db, authorization)
+    scan_run = get_saved_scan(db, scan_id, current_user.id)
+    if scan_run is None:
+        raise HTTPException(status_code=404, detail="Scan not found")
+
+    groups = list_repair_suggestion_groups(db, scan_run)
+    try:
+        return build_repair_bundle(scan_run, groups, bundle_format=bundle_format)
+    except RepairBundleError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/scans/{scan_id}/cancel", response_model=SavedScanResponse)
+def cancel_scan(
+    scan_id: UUID,
+    authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db_session),
+):
+    """Cancel a queued scan or request that a running scan stop between pages."""
+    current_user = _get_user_from_authorization_header(db, authorization)
+    scan_run = get_saved_scan(db, scan_id, current_user.id)
+    if scan_run is None:
+        raise HTTPException(status_code=404, detail="Scan not found")
+    if scan_run.status not in ACTIVE_SCAN_STATUSES:
+        raise HTTPException(
+            status_code=409,
+            detail="Scan is already finished and can no longer be cancelled.",
+        )
+
+    updated_scan = request_scan_cancel(db, scan_id, current_user.id)
+    if updated_scan is None:
+        raise HTTPException(status_code=404, detail="Scan not found")
+    return to_saved_scan_response(updated_scan)
 
 
 @app.post("/scans/{scan_id}/queue/remove", response_model=SavedScanResponse)

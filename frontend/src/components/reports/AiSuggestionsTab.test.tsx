@@ -2,7 +2,9 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { AiSuggestionsTab } from "@/components/reports/AiSuggestionsTab"
+import { downloadTextFile } from "@/lib/download"
 import {
+  fetchRepairSuggestionBundle,
   fetchRepairSuggestionGroups,
   generateRepairSuggestionGroup,
   type RepairSuggestion,
@@ -19,8 +21,13 @@ vi.mock("@/lib/saved-scans", async () => {
   return {
     fetchRepairSuggestionGroups: vi.fn(),
     generateRepairSuggestionGroup: vi.fn(),
+    fetchRepairSuggestionBundle: vi.fn(),
   }
 })
+
+vi.mock("@/lib/download", () => ({
+  downloadTextFile: vi.fn(),
+}))
 
 const baseSuggestion: RepairSuggestion = {
   id: "suggestion-1",
@@ -63,6 +70,8 @@ describe("AiSuggestionsTab", () => {
   beforeEach(() => {
     vi.mocked(fetchRepairSuggestionGroups).mockReset()
     vi.mocked(generateRepairSuggestionGroup).mockReset()
+    vi.mocked(fetchRepairSuggestionBundle).mockReset()
+    vi.mocked(downloadTextFile).mockReset()
   })
 
   it("loads grouped issue patterns and generates one saved suggestion for the group", async () => {
@@ -133,5 +142,81 @@ describe("AiSuggestionsTab", () => {
       screen.getByText("No grouped accessibility issues are available for AI repair suggestions.")
     ).toBeInTheDocument()
     expect(fetchRepairSuggestionGroups).not.toHaveBeenCalled()
+  })
+
+  it("exports all patches by fetching the bundle and downloading it", async () => {
+    vi.mocked(fetchRepairSuggestionGroups).mockResolvedValue({
+      scan_id: "scan-1",
+      groups: [baseGroup],
+    })
+    vi.mocked(fetchRepairSuggestionBundle).mockResolvedValue({
+      scan_id: "scan-1",
+      generated_at: "2026-07-12T10:00:00Z",
+      filename: "scan-1-repair-suggestions.md",
+      content_type: "text/markdown;charset=utf-8",
+      group_count: 3,
+      generated_count: 2,
+      missing_count: 1,
+      content: "# Repair suggestions\n\n## image-alt\nAdd alt text.",
+    })
+
+    render(<AiSuggestionsTab scanId="scan-1" totalCriticalSerious={2} />)
+    await screen.findByText("Image is missing alternative text.")
+
+    fireEvent.click(screen.getByRole("button", { name: "Export all patches" }))
+
+    await waitFor(() => {
+      expect(fetchRepairSuggestionBundle).toHaveBeenCalledWith(
+        "scan-1",
+        "test-token",
+        "markdown"
+      )
+    })
+    expect(downloadTextFile).toHaveBeenCalledWith(
+      "scan-1-repair-suggestions.md",
+      "# Repair suggestions\n\n## image-alt\nAdd alt text.",
+      "text/markdown;charset=utf-8"
+    )
+    expect(await screen.findByTestId("ai-export-status")).toHaveTextContent(
+      "Downloaded scan-1-repair-suggestions.md - 2 of 3 groups have suggestions, 1 still missing."
+    )
+  })
+
+  it("shows an inline error when the bundle export fails", async () => {
+    vi.mocked(fetchRepairSuggestionGroups).mockResolvedValue({
+      scan_id: "scan-1",
+      groups: [baseGroup],
+    })
+    vi.mocked(fetchRepairSuggestionBundle).mockRejectedValue(
+      new Error("Bundle generation is unavailable.")
+    )
+
+    render(<AiSuggestionsTab scanId="scan-1" totalCriticalSerious={2} />)
+    await screen.findByText("Image is missing alternative text.")
+
+    fireEvent.click(screen.getByRole("button", { name: "Export all patches" }))
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Bundle generation is unavailable."
+    )
+    expect(downloadTextFile).not.toHaveBeenCalled()
+  })
+
+  it("disables the export button when there are no groups", async () => {
+    vi.mocked(fetchRepairSuggestionGroups).mockResolvedValue({
+      scan_id: "scan-1",
+      groups: [],
+    })
+
+    render(<AiSuggestionsTab scanId="scan-1" totalCriticalSerious={0} />)
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "No grouped accessibility issues are available for AI repair suggestions."
+        )
+      ).toBeInTheDocument()
+    })
+    expect(screen.getByRole("button", { name: "Export all patches" })).toBeDisabled()
   })
 })

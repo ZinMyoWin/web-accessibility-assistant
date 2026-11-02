@@ -26,6 +26,61 @@ jobs:
       - run: npx tsc --noEmit
       - run: npm test
 
+  frontend-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      # Build-time placeholders: the production build only needs these to be
+      # present, it never talks to a real backend or auth server.
+      NEXT_PUBLIC_API_BASE_URL: http://127.0.0.1:8000
+      AUTH_API_BASE_URL: http://127.0.0.1:8000
+      AUTH_SECRET: ci-placeholder-auth-secret-for-production-build
+      NEXTAUTH_URL: http://127.0.0.1:3000
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
+  frontend-e2e:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      # The E2E suite stubs every backend request with page.route(); these
+      # values only need to be consistent between the dev server and the specs.
+      NEXT_PUBLIC_API_BASE_URL: http://127.0.0.1:8000
+      AUTH_API_BASE_URL: http://127.0.0.1:8000
+      AUTH_SECRET: ci-placeholder-auth-secret-for-e2e-sessions
+      NEXTAUTH_URL: http://127.0.0.1:3000
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            frontend/playwright-report
+            frontend/playwright-results
+          retention-days: 7
+
   backend-tests:
     runs-on: ubuntu-latest
     defaults:

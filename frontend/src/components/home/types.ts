@@ -1,6 +1,6 @@
 export type IssueSeverity = "high" | "medium" | "low"
 
-export type ProgressState = "idle" | "active" | "done" | "error"
+export type ProgressState = "idle" | "active" | "done" | "error" | "cancelled"
 
 export type ScanIssue = {
   rule_id: string
@@ -28,7 +28,7 @@ export type ScanSummary = {
 
 export type ScanResponse = {
   scan_id?: string | null
-  status?: "queued" | "running" | "complete" | "error"
+  status?: "queued" | "running" | "complete" | "error" | "cancelled"
   url: string
   scanned_at: string
   mode: "single" | "multi"

@@ -1,4 +1,14 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+NOTIFY_SEVERITY_CHOICES = (
+    "critical",
+    "serious",
+    "moderate",
+    "minor",
+    "high",
+    "medium",
+    "low",
+)
 
 
 class AppPreferencesBase(BaseModel):
@@ -12,12 +22,12 @@ class AppPreferencesBase(BaseModel):
     crawl_depth: int = Field(default=3, ge=1, le=10)
     request_delay_ms: int = Field(default=250, ge=0, le=5000)
     page_timeout_ms: int = Field(default=15000, ge=1000, le=60000)
-    ignored_url_patterns: list[str] = ["/logout", "/admin", "*.pdf"]
+    ignored_url_patterns: list[str] = Field(default_factory=lambda: ["/logout", "/admin", "*.pdf"])
     stay_within_domain: bool = True
     respect_robots_txt: bool = True
     skip_previously_scanned_pages: bool = True
     
-    wcag_standard: str = "wcag2aa"
+    wcag_standard: str = "wcag21aa"
     include_best_practices: bool = True
     fail_on_experimental: bool = False
     
@@ -27,11 +37,31 @@ class AppPreferencesBase(BaseModel):
     notify_on_scan_failed: bool = True
     notify_on_high_severity: bool = False
     weekly_summary: bool = False
+
+    notify_score_threshold_enabled: bool = False
+    notify_score_threshold: int = Field(default=70, ge=0, le=100)
+    notify_severities: list[str] = Field(default_factory=lambda: ["high"])
     
     theme: str = "light"
     reduced_motion: bool = False
     high_contrast: bool = False
     density: str = "comfortable"
+
+    @field_validator("notify_severities")
+    @classmethod
+    def normalize_notify_severities(cls, value: list[str]) -> list[str]:
+        normalized: list[str] = []
+        for entry in value:
+            severity = str(entry).strip().lower()
+            if severity not in NOTIFY_SEVERITY_CHOICES:
+                raise ValueError(
+                    "notify_severities may only contain "
+                    + ", ".join(NOTIFY_SEVERITY_CHOICES)
+                    + "."
+                )
+            if severity not in normalized:
+                normalized.append(severity)
+        return normalized
 
 
 class AppPreferencesUpdate(AppPreferencesBase):

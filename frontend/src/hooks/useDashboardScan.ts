@@ -1,12 +1,20 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { API } from "@/components/home/constants"
+import { API, EMPTY_SUMMARY } from "@/components/home/constants"
 import type { ProgressState, ScanIssue, ScanResponse } from "@/components/home/types"
 import { authHeaders } from "@/lib/api"
 import { useAuth } from "@/lib/contexts/AuthContext"
 import type { AppPreferences } from "@/lib/contexts/PreferencesContext"
 import {
+  SCAN_CANCELLED_PROGRESS_TEXT,
+  buildScanCancelledNotification,
+  evaluateScanNotifications,
+  type ScanNotification,
+  type ScanNotificationPreferences,
+} from "@/lib/scan-notifications"
+import {
+  cancelSavedScan,
   fetchSavedScan,
   prioritizeScanQueuePage,
   removeScanQueuePage,
@@ -17,9 +25,33 @@ type ScanErrorBody = {
   detail?: string
 }
 
+export type DashboardScanPreferences = Pick<
+  AppPreferences,
+  | "default_page_limit"
+  | "crawl_depth"
+  | "request_delay_ms"
+  | "page_timeout_ms"
+  | "ignored_url_patterns"
+  | "stay_within_domain"
+  | "respect_robots_txt"
+  | "skip_previously_scanned_pages"
+> &
+  ScanNotificationPreferences
+
 const SYNC_CRAWL_PAGE_LIMIT = 5
 const POLL_INTERVAL_MS = 2000
 const MAX_POLL_ATTEMPTS = 180
+
+/** Thrown internally when the user cancels a running scan. */
+export class ScanCancelledError extends Error {
+  readonly scan: SavedScanDetail | null
+
+  constructor(scan: SavedScanDetail | null = null) {
+    super("Scan cancelled.")
+    this.name = "ScanCancelledError"
+    this.scan = scan
+  }
+}
 
 export function useDashboardScan() {
   const { token } = useAuth()
@@ -27,6 +59,7 @@ export function useDashboardScan() {
   const [result, setResult] = useState<ScanResponse | null>(null)
   const [error, setError] = useState("")
   const [isScanning, setIsScanning] = useState(false)
+  const [isCancelling, setIsCancelling] = useState(false)
   const [progress, setProgress] = useState(0)
   const [progressText, setProgressText] = useState(
     "Ready to scan - enter a URL above"
@@ -34,8 +67,11 @@ export function useDashboardScan() {
   const [progressState, setProgressState] = useState<ProgressState>("idle")
   const [activeScan, setActiveScan] = useState<SavedScanDetail | null>(null)
   const [queueActionUrl, setQueueActionUrl] = useState<string | null>(null)
+  const [notifications, setNotifications] = useState<ScanNotification[]>([])
 
   const progressRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const latestScanRef = useRef<SavedScanDetail | null>(null)
+  const cancelRequestedRef = useRef(false)
 
   useEffect(() => {
     return () => {
@@ -92,20 +128,33 @@ export function useDashboardScan() {
     }
   }
 
-  async function handleScan(
-    mode: "single" | "multi",
-    preferences: Pick<
-      AppPreferences,
-      | "default_page_limit"
-      | "crawl_depth"
-      | "request_delay_ms"
-      | "page_timeout_ms"
-      | "ignored_url_patterns"
-      | "stay_within_domain"
-      | "respect_robots_txt"
-      | "skip_previously_scanned_pages"
-    >
+  function getLatestScan(): SavedScanDetail | null {
+    return latestScanRef.current
+  }
+
+  function publishTerminalNotifications(
+    scan: SavedScanDetail | null,
+    fallback: {
+      status: ScanResponse["status"]
+      summary: ScanResponse["summary"]
+      pagesScanned: number
+      errorMessage?: string | null
+    },
+    preferences: ScanNotificationPreferences
   ) {
+    setNotifications(
+      evaluateScanNotifications({
+        status: scan?.status ?? fallback.status,
+        summary: scan?.summary ?? fallback.summary,
+        score: scan?.score ?? null,
+        errorMessage: fallback.errorMessage ?? scan?.error_message ?? null,
+        pagesScanned: scan?.pages_scanned ?? fallback.pagesScanned,
+        preferences,
+      })
+    )
+  }
+
+  async function handleScan(mode: "single" | "multi", preferences: DashboardScanPreferences) {
     if (isScanning || !url.trim()) {
       return
     }
@@ -118,6 +167,10 @@ export function useDashboardScan() {
     setError("")
     setResult(null)
     setActiveScan(null)
+    setNotifications([])
+    setIsCancelling(false)
+    cancelRequestedRef.current = false
+    latestScanRef.current = null
     beginProgress(mode)
 
     try {
@@ -157,12 +210,14 @@ export function useDashboardScan() {
         )
       }
 
-      const completedData =
-        pendingScanId
-          ? await pollScanUntilComplete(pendingScanId, (scan) => {
-              if (!token) {
+      const completedData = pendingScanId
+        ? await pollScanUntilComplete(
+            pendingScanId,
+            (scan) => {
+              if (!token || cancelRequestedRef.current) {
                 return
               }
+              latestScanRef.current = scan
               setActiveScan(scan)
               if (scan.summary.total_issues > 0 || scan.issues.length > 0) {
                 // Stream partial per-page results so issues appear while
@@ -180,8 +235,11 @@ export function useDashboardScan() {
                     ? `Scanning ${shortenUrl(scan.current_page_url)}...${liveIssueSuffix}`
                     : `Scan worker is running full page analysis...${liveIssueSuffix}`
               )
-            }, token)
-          : data
+            },
+            token,
+            () => cancelRequestedRef.current
+          )
+        : data
 
       setResult(completedData)
       if (!pendingScanId) {
@@ -192,7 +250,38 @@ export function useDashboardScan() {
         `${completedData.mode === "multi" ? "Multi-page crawl" : "Scan"} complete - ${completedData.summary.total_issues} issue${completedData.summary.total_issues !== 1 ? "s" : ""} found across ${completedData.pages_scanned} page${completedData.pages_scanned !== 1 ? "s" : ""}${completedData.pages_skipped > 0 ? `, skipped ${completedData.pages_skipped} already scanned` : ""}`
       )
       setProgressState("done")
+      publishTerminalNotifications(
+        getLatestScan(),
+        {
+          status: completedData.status ?? "complete",
+          summary: completedData.summary,
+          pagesScanned: completedData.pages_scanned,
+        },
+        preferences
+      )
     } catch (scanError) {
+      if (scanError instanceof ScanCancelledError) {
+        if (scanError.scan) {
+          latestScanRef.current = scanError.scan
+          setActiveScan(scanError.scan)
+        } else {
+          const currentScan = getLatestScan()
+          if (currentScan && currentScan.status !== "cancelled") {
+            const cancelledCurrentScan: SavedScanDetail = {
+              ...currentScan,
+              status: "cancelled",
+            }
+            latestScanRef.current = cancelledCurrentScan
+            setActiveScan(cancelledCurrentScan)
+          }
+        }
+        setProgressText(SCAN_CANCELLED_PROGRESS_TEXT)
+        setProgressState("cancelled")
+        setError("")
+        setNotifications([buildScanCancelledNotification()])
+        return
+      }
+
       const message =
         scanError instanceof Error
           ? scanError.message
@@ -201,10 +290,71 @@ export function useDashboardScan() {
       setProgress(0)
       setProgressText("Scan failed - check the URL and try again")
       setProgressState("error")
+      const terminalScan = getLatestScan()
+      publishTerminalNotifications(
+        terminalScan,
+        {
+          status: "error",
+          summary: terminalScan?.summary ?? EMPTY_SUMMARY,
+          pagesScanned: terminalScan?.pages_scanned ?? 0,
+          errorMessage: message,
+        },
+        preferences
+      )
     } finally {
       stopProgress()
       setIsScanning(false)
+      setIsCancelling(false)
     }
+  }
+
+  async function cancelScan() {
+    if (!activeScan || isCancelling) {
+      return
+    }
+    if (activeScan.status !== "queued" && activeScan.status !== "running") {
+      return
+    }
+    if (!token) {
+      setError("Please log in before cancelling a scan.")
+      return
+    }
+
+    setIsCancelling(true)
+    setError("")
+
+    try {
+      const updatedScan = await cancelSavedScan(activeScan.id, token)
+      // A running scan is cancelled between pages, so the backend may still
+      // report `running` with a pending cancel request. Treat it as cancelled
+      // locally so the UI locks immediately and stops polling.
+      const cancelledScan: SavedScanDetail =
+        updatedScan.status === "cancelled"
+          ? updatedScan
+          : { ...updatedScan, status: "cancelled" }
+      cancelRequestedRef.current = true
+      stopProgress()
+      latestScanRef.current = cancelledScan
+      setActiveScan(cancelledScan)
+      setProgressState("cancelled")
+      setProgressText(SCAN_CANCELLED_PROGRESS_TEXT)
+      setNotifications([buildScanCancelledNotification()])
+    } catch (cancelError) {
+      // The scan may have finished between the click and the request; let the
+      // poll loop settle on its terminal state instead of forcing a cancel.
+      cancelRequestedRef.current = false
+      setError(
+        cancelError instanceof Error ? cancelError.message : "Failed to cancel the scan."
+      )
+    } finally {
+      setIsCancelling(false)
+    }
+  }
+
+  function dismissNotification(kind: ScanNotification["kind"]) {
+    setNotifications((current) =>
+      current.filter((notification) => notification.kind !== kind)
+    )
   }
 
   async function removeQueuedPage(pageUrl: string) {
@@ -257,18 +407,27 @@ export function useDashboardScan() {
     }
   }
 
+  const canCancel =
+    isScanning &&
+    (activeScan?.status === "queued" || activeScan?.status === "running")
+
   return {
     url,
     setUrl,
     result,
     error,
     isScanning,
+    isCancelling,
+    canCancel,
     progress,
     progressText,
     progressState,
     activeScan,
     queueActionUrl,
+    notifications,
     handleScan,
+    cancelScan,
+    dismissNotification,
     removeQueuedPage,
     prioritizeQueuedPage,
   }
@@ -281,12 +440,26 @@ function isPendingScan(scan: ScanResponse): boolean {
 async function pollScanUntilComplete(
   scanId: string,
   onScanUpdate: ((scan: SavedScanDetail) => void) | undefined,
-  token: string
+  token: string,
+  shouldStop: () => boolean
 ): Promise<ScanResponse> {
   for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt += 1) {
+    if (shouldStop()) {
+      throw new ScanCancelledError()
+    }
+
     await wait(POLL_INTERVAL_MS)
 
+    if (shouldStop()) {
+      throw new ScanCancelledError()
+    }
+
     const scan = await fetchSavedScan(scanId, token)
+
+    if (scan.status === "cancelled") {
+      throw new ScanCancelledError(scan)
+    }
+
     onScanUpdate?.(scan)
 
     if (scan.status === "queued" || scan.status === "running") {

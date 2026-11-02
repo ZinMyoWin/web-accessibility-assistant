@@ -16,6 +16,12 @@ from app.schemas.history import (
 from app.schemas.scan import ScanIssue, ScanPageResponse, ScanSummary
 
 
+CANCELLED_STATUS = "cancelled"
+CANCELLED_ERROR_MESSAGE = "Cancelled by user"
+TERMINAL_SCAN_STATUSES = frozenset({"complete", "error", CANCELLED_STATUS})
+ACTIVE_SCAN_STATUSES = frozenset({"queued", "running"})
+
+
 def save_completed_scan(
     session: Session,
     *,
@@ -170,6 +176,11 @@ def recover_stale_running_scans(
 
     recovered_count = 0
     for scan_run in session.scalars(statement).all():
+        if scan_run.cancel_requested_at is not None:
+            # The user asked to stop; never requeue a cancelled scan.
+            _apply_cancelled_state(scan_run, datetime.now(UTC))
+            recovered_count += 1
+            continue
         attempts = scan_run.worker_attempts or 0
         max_attempts = scan_run.max_worker_attempts or 3
         if attempts >= max_attempts:
@@ -248,6 +259,11 @@ def fail_running_scan(
     scan_run = session.get(ScanRun, scan_id)
     if scan_run is None:
         return None
+    if _is_cancel_pending(scan_run):
+        _apply_cancelled_state(scan_run, completed_at)
+        session.commit()
+        session.refresh(scan_run)
+        return scan_run
 
     duration_seconds = _duration_seconds(scan_run.started_at, completed_at)
 
@@ -276,6 +292,11 @@ def retry_or_fail_running_scan(
     scan_run = session.get(ScanRun, scan_id)
     if scan_run is None:
         return None
+    if _is_cancel_pending(scan_run):
+        _apply_cancelled_state(scan_run, failed_at)
+        session.commit()
+        session.refresh(scan_run)
+        return scan_run
 
     attempts = scan_run.worker_attempts or 0
     max_attempts = scan_run.max_worker_attempts or 3
@@ -403,6 +424,85 @@ def clear_saved_scans(session: Session, user_id: UUID) -> int:
     return int(deleted_count or 0)
 
 
+def request_scan_cancel(
+    session: Session,
+    scan_id: UUID,
+    user_id: UUID,
+) -> ScanRun | None:
+    """Cancel a queued scan or ask a running one to stop between pages.
+
+    Returns ``None`` when the scan does not exist for this user. Terminal scans
+    are returned unchanged so callers can decide the HTTP status.
+    """
+    scan_run = session.scalar(
+        select(ScanRun).where(ScanRun.id == scan_id, ScanRun.user_id == user_id)
+    )
+    if scan_run is None:
+        return None
+
+    requested_at = datetime.now(UTC)
+    if scan_run.status == "queued":
+        scan_run.cancel_requested_at = requested_at
+        _apply_cancelled_state(scan_run, requested_at)
+    elif scan_run.status == "running":
+        scan_run.cancel_requested_at = requested_at
+    else:
+        return scan_run
+
+    session.commit()
+    session.refresh(scan_run)
+    return scan_run
+
+
+def is_scan_cancel_requested(session: Session, scan_id: UUID) -> bool:
+    """Return True when the user has asked this scan to stop."""
+    statement = select(ScanRun.cancel_requested_at, ScanRun.status).where(ScanRun.id == scan_id)
+    row = session.execute(statement).first()
+    if row is None:
+        return False
+    cancel_requested_at, status = row
+    return cancel_requested_at is not None or status == CANCELLED_STATUS
+
+
+def mark_scan_cancelled(session: Session, scan_id: UUID) -> ScanRun | None:
+    """Mark a claimed/running scan cancelled without touching partial results.
+
+    Called by the worker (or the in-process background job) once a cancel
+    request is observed. Already-terminal scans are left untouched so a late
+    cancellation can never overwrite a completed result.
+    """
+    scan_run = session.get(ScanRun, scan_id)
+    if scan_run is None:
+        return None
+    if scan_run.status in TERMINAL_SCAN_STATUSES:
+        return scan_run
+
+    _apply_cancelled_state(scan_run, datetime.now(UTC))
+    session.commit()
+    session.refresh(scan_run)
+    return scan_run
+
+
+def _apply_cancelled_state(scan_run: ScanRun, cancelled_at: datetime) -> None:
+    scan_run.status = CANCELLED_STATUS
+    scan_run.completed_at = cancelled_at
+    scan_run.duration_seconds = _duration_seconds(scan_run.started_at, cancelled_at)
+    scan_run.error_message = CANCELLED_ERROR_MESSAGE
+    scan_run.last_error = None
+    scan_run.current_page_url = None
+    scan_run.queued_page_urls = []
+    scan_run.worker_id = None
+    scan_run.locked_at = None
+    scan_run.heartbeat_at = None
+
+
+def _is_cancel_pending(scan_run: ScanRun) -> bool:
+    return (
+        scan_run.cancel_requested_at is not None
+        and scan_run.status not in TERMINAL_SCAN_STATUSES
+    )
+
+
 def to_saved_scan_list_item(scan_run: ScanRun) -> SavedScanListItem:
     return SavedScanListItem(
         id=str(scan_run.id),
@@ -425,6 +525,11 @@ def to_saved_scan_list_item(scan_run: ScanRun) -> SavedScanListItem:
         started_at=scan_run.started_at.isoformat(),
         completed_at=scan_run.completed_at.isoformat() if scan_run.completed_at else None,
         duration_seconds=scan_run.duration_seconds,
+        cancel_requested_at=(
+            scan_run.cancel_requested_at.isoformat()
+            if scan_run.cancel_requested_at
+            else None
+        ),
         summary=ScanSummary(
             total_issues=scan_run.total_issues,
             high=scan_run.high_count,

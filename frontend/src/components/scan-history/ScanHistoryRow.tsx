@@ -118,6 +118,7 @@ export function ScanHistoryRow({
                 scan.status === "running" && "animate-pulse bg-severity-serious-text",
                 scan.status === "complete" && "bg-primary",
                 scan.status === "error" && "bg-severity-critical-text",
+                scan.status === "cancelled" && "bg-muted-foreground/60",
               )}
             />
           )}
@@ -146,6 +147,11 @@ export function ScanHistoryRow({
                   <path d="M8 5v3M8 11h.01" strokeLinecap="round" />
                 </svg>
                 Failed &mdash; {scan.error_message}
+              </span>
+            ) : scan.status === "cancelled" ? (
+              <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                {clockIcon}
+                Cancelled &mdash; {formatDate(scan.started_at)}
               </span>
             ) : (
               <>
@@ -200,6 +206,11 @@ export function ScanHistoryRow({
               No results &mdash; scan failed
             </span>
           )}
+          {scan.status === "cancelled" && (
+            <span className="text-[11px] text-muted-foreground">
+              No results &mdash; scan cancelled
+            </span>
+          )}
           {(scan.status === "queued" || scan.status === "running") && (
             <span className="text-[11px] text-muted-foreground">
               Results pending
@@ -216,7 +227,10 @@ export function ScanHistoryRow({
               </div>
               <div className="text-[11px] text-muted-foreground">/ 100</div>
             </>
-          ) : scan.status === "error" || scan.status === "queued" || scan.status === "running" ? (
+          ) : scan.status === "error" ||
+            scan.status === "queued" ||
+            scan.status === "running" ||
+            scan.status === "cancelled" ? (
             <>
               <div className="text-lg font-semibold text-muted-foreground">&mdash;</div>
               <div className="text-[11px] text-muted-foreground">/ 100</div>

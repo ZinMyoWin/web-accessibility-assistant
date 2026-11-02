@@ -4,7 +4,9 @@ import { useEffect, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/contexts/AuthContext"
+import { downloadTextFile } from "@/lib/download"
 import {
+  fetchRepairSuggestionBundle,
   fetchRepairSuggestionGroups,
   generateRepairSuggestionGroup,
   type RepairSuggestion,
@@ -30,6 +32,9 @@ export function AiSuggestionsTab({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [generatingKey, setGeneratingKey] = useState<string | null>(null)
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState("")
+  const [exportStatus, setExportStatus] = useState("")
 
   useEffect(() => {
     if (!scanId || !token) {
@@ -96,7 +101,42 @@ export function AiSuggestionsTab({
     }
   }
 
+  async function handleExportBundle() {
+    if (!scanId || !token || exporting || groups.length === 0) {
+      return
+    }
+
+    setExporting(true)
+    setExportError("")
+    setExportStatus("")
+    try {
+      const bundle = await fetchRepairSuggestionBundle(scanId, token, "markdown")
+      const filename =
+        bundle.filename || `accessaudit-patch-bundle-${scanId}.md`
+      downloadTextFile(
+        filename,
+        bundle.content,
+        bundle.content_type || "text/markdown;charset=utf-8"
+      )
+      setExportStatus(
+        `Downloaded ${filename} - ${bundle.generated_count} of ${bundle.group_count} groups have suggestions` +
+          (bundle.missing_count > 0
+            ? `, ${bundle.missing_count} still missing.`
+            : ".")
+      )
+    } catch (exportFailure) {
+      setExportError(
+        exportFailure instanceof Error
+          ? exportFailure.message
+          : "Failed to export repair suggestions."
+      )
+    } finally {
+      setExporting(false)
+    }
+  }
+
   const generatedCount = groups.filter((group) => group.suggestion).length
+  const canExport = Boolean(scanId) && groups.length > 0 && !loading
 
   return (
     <div className="flex flex-col gap-0">
@@ -111,11 +151,37 @@ export function AiSuggestionsTab({
           <span className="text-[11px] text-muted-foreground">
             {generatedCount} of {groups.length || totalCriticalSerious} groups have saved suggestions
           </span>
-          <Button variant="outline" size="sm" className="gap-1.5 text-[11px]" disabled>
-            Export all patches
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-[11px]"
+            disabled={!canExport || exporting}
+            onClick={() => void handleExportBundle()}
+          >
+            {exporting ? "Preparing bundle..." : "Export all patches"}
           </Button>
         </div>
       </div>
+
+      {exportError && (
+        <div
+          role="alert"
+          data-testid="ai-export-error"
+          className="mx-5 mt-4 rounded-md border border-severity-critical/20 bg-severity-critical-bg px-4 py-3 text-[13px] text-severity-critical-text"
+        >
+          {exportError}
+        </div>
+      )}
+
+      {exportStatus && (
+        <div
+          role="status"
+          data-testid="ai-export-status"
+          className="mx-5 mt-4 rounded-md border border-border bg-muted px-4 py-3 text-[13px] text-muted-foreground"
+        >
+          {exportStatus}
+        </div>
+      )}
 
       {error && (
         <div className="m-5 rounded-md border border-red-600/20 bg-[var(--high-bg)] px-4 py-3 text-[13px] text-[var(--high-text)]">

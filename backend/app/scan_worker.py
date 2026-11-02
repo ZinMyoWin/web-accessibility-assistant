@@ -16,6 +16,8 @@ from app.repositories.scan_repository import (
     claim_next_queued_scan,
     complete_running_scan,
     get_scan_queue_state,
+    is_scan_cancel_requested,
+    mark_scan_cancelled,
     recover_stale_running_scans,
     retry_or_fail_running_scan,
     update_scan_progress,
@@ -23,10 +25,12 @@ from app.repositories.scan_repository import (
 from app.services.page_scanner import (
     CrawlQueueControl,
     CrawlQueueState,
+    ScanCancelled,
     ScanError,
     ScanOptions,
     scan_page,
 )
+from app.services.scan_options_resolver import DEFAULT_WCAG_STANDARD
 
 
 logger = logging.getLogger("scan-worker")
@@ -71,6 +75,10 @@ def run_worker_loop(*, run_once: bool = False) -> None:
 
 def _run_claimed_scan(db: Session, scan_run: ScanRun) -> None:
     try:
+        if is_scan_cancel_requested(db, scan_run.id):
+            mark_scan_cancelled(db, scan_run.id)
+            logger.info("cancelled scan job %s before it started", scan_run.id)
+            return
         options = _scan_options_from_payload(scan_run.scan_options or {})
         result = scan_page(
             scan_run.requested_url,
@@ -78,6 +86,12 @@ def _run_claimed_scan(db: Session, scan_run: ScanRun) -> None:
             _build_queue_control(db, scan_run.id),
         )
         result.scan_id = str(scan_run.id)
+        if is_scan_cancel_requested(db, scan_run.id):
+            # Honour a cancel requested during the final page instead of
+            # persisting a partial "complete" result.
+            mark_scan_cancelled(db, scan_run.id)
+            logger.info("cancelled scan job %s after the last page", scan_run.id)
+            return
         complete_running_scan(
             db,
             scan_run.id,
@@ -85,6 +99,9 @@ def _run_claimed_scan(db: Session, scan_run: ScanRun) -> None:
             completed_at=datetime.fromisoformat(result.scanned_at),
         )
         logger.info("completed scan job %s", scan_run.id)
+    except ScanCancelled:
+        mark_scan_cancelled(db, scan_run.id)
+        logger.info("cancelled scan job %s", scan_run.id)
     except ValueError as exc:
         _fail_scan(db, scan_run.id, str(exc))
     except ScanError as exc:
@@ -123,7 +140,14 @@ def _build_queue_control(db: Session, scan_id: UUID) -> CrawlQueueControl:
     def refresh() -> tuple[list[str], set[str]]:
         return get_scan_queue_state(db, scan_id)
 
-    return CrawlQueueControl(publish=publish, refresh=refresh)
+    def should_cancel() -> bool:
+        return is_scan_cancel_requested(db, scan_id)
+
+    return CrawlQueueControl(
+        publish=publish,
+        refresh=refresh,
+        should_cancel=should_cancel,
+    )
 
 
 def _scan_options_from_payload(payload: dict[str, object]) -> ScanOptions:
@@ -143,6 +167,8 @@ def _scan_options_from_payload(payload: dict[str, object]) -> ScanOptions:
             _string_list(payload.get("previously_scanned_urls"))
         ),
         run_browser_analysis_for_multi=True,
+        wcag_standard=str(payload.get("wcag_standard") or DEFAULT_WCAG_STANDARD),
+        include_best_practices=bool(payload.get("include_best_practices", True)),
     )
 
 

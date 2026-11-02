@@ -2851,3 +2851,186 @@ Deployment (`docker-compose.yml`, `docker-compose.dev.yml`)
 ### Next step
 
 Optional follow-ups: bounded intra-crawl page concurrency (async Playwright), capping screenshots per page for very issue-dense sites, and moving from DB polling to a Redis-backed queue if job volume grows.
+
+## 2026-11-02 - Branch Reconciliation (master merged into fullstack-dev)
+
+### Completed work
+
+- merged `master` into `fullstack-dev`; merged tip is `4e329f6` (`Merge branch 'master' into fullstack-dev`)
+- verified the merged tree is content-identical to `master` (`git diff master` empty): Google sign-in, forgot/reset-password pages, the public `/about` page, streamed partial scan results, shared-browser scan performance work, worker replica scaling, and master's newer docs all arrived through the merge
+- created safety tag `safety-pre-merge-20261102` before merging and fast-forwarded local `master` to the same tip; nothing was pushed
+- confirmed the pre-merge `fullstack-dev` branch had no content that `master` lacked; the credentials-auth pages were superseded by master's superset implementation
+- created `docs/tracking/feature-inventory.md` (report-ready baseline at `4e329f6`) as a reference snapshot while `feature-checklist.md` remains the status source of truth
+
+### Why
+
+Two divergent lines of work (public auth/about/marketing pages versus auth/scan-performance work) needed a single coherent tree before final-report evidence could be collected. Merging into `fullstack-dev` preserved both histories while making the local tree exactly match `master`, so every later feature, test, and document update references one tip.
+
+### Files changed
+
+- repository branch state only (merge commit `4e329f6`); the merged tree has no content difference from `master`
+- `docs/tracking/feature-inventory.md` (new inventory baseline)
+
+### Verification
+
+- `git log --oneline -1` -> `4e329f6 Merge branch 'master' into fullstack-dev`
+- `git diff master` -> empty
+- `git tag --list 'safety-*'` -> `safety-pre-merge-20261102`
+- no push performed
+
+### Next step
+
+Close the gaps recorded in the inventory on top of the merged tree (patch-bundle export, preference-driven scans, notification preferences, scan cancel, browser E2E, frontend build gate), then re-synchronise the tracking docs.
+
+## 2026-11-02 - Backend: Patch Bundles, Preference-Driven Scans, Notification Preferences, Scan Cancel
+
+### Completed work
+
+Patch-bundle export:
+- added `GET /scans/{scan_id}/repair-suggestion-bundle?format=markdown|json` (bearer auth, ownership scoped); unsupported formats return 400 and another user's scan returns 404
+- new `backend/app/services/repair_bundle_service.py` renders a single export envelope `{scan_id, generated_at, filename, content_type, group_count, generated_count, missing_count, content}`; markdown includes scan URL/date/status/score, full generated suggestions (title/rule/severity/affected counts and pages/provider/model/explanation/impact/fix/optional before-after code/confidence/limitations), and a "Not yet generated" section for uncovered groups; the JSON format mirrors the same data; no secrets are included
+- filename pattern `accessaudit-repair-bundle-<scan8>.md|json`
+
+Preference-driven scan execution:
+- new `backend/app/services/scan_options_resolver.py` merges explicit `POST /scan/page` fields (via Pydantic `model_fields_set`) over saved `AppPreferences`, so omitted fields inherit the user's saved defaults and explicit request values always win; multi-page limits are still clamped to 5 in the dashboard flow
+- resolved settings are persisted in `scan_options` for queued jobs, so the worker reconstructs exactly the same configuration
+- added `wcag_standard` and `include_best_practices` to `ScanOptions` and threaded them through `page_scanner.py` into `axe_scanner.build_axe_tag_values`; WCAG preferences now map to axe `runOnly` tags: `wcag2a` base plus version A/AA tags (`wcag21a/aa`, `wcag22a/aa`), AAA selections add AAA tags, A-only selections drop every AA tag, and `best-practice` is included unless opted out; default standard is `wcag21aa` (migration `...f074` backfills stored `wcag2aa` rows and sets the new server default)
+
+Notification preferences:
+- migration `...f072` adds `notify_score_threshold_enabled` (bool, default false), `notify_score_threshold` (int, default 70, validated 0-100) and `notify_severities` (JSONB, default `["high"]`, validated against high/medium/low) to `app_preferences`
+- model, request/response schemas, partial `PUT /preferences`, `GET /preferences`, and `/preferences/reset` all carry the new fields; existing `notify_on_*` toggles keep working; delivery stays frontend-side (no SMTP/email transport)
+
+Scan cancel:
+- migration `...f073` adds `scan_runs.cancel_requested_at`
+- added `POST /scans/{scan_id}/cancel` (bearer auth, ownership scoped): queued scans become `cancelled` immediately with `completed_at`, `duration_seconds`, and `error_message = "Cancelled by user"`; running scans persist the cancel flag; terminal scans return 409; other users' scans return 404
+- `scan_repository.py` gained `cancel_requested_at`-aware status handling (`cancelled` terminal status, `request_scan_cancel`, `is_scan_cancel_requested`, `mark_scan_cancelled`); cancelled scans are never requeued or retried, stale recovery respects the flag, and a late cancel never overwrites a completed result
+- `page_scanner.py` exposes a `should_cancel` hook and raises `ScanCancelled` between pages; `scan_worker.py` checks the flag before claiming work, between pages, and after the final page, and marks the run `cancelled` with partial results preserved
+- saved-scan responses expose `cancel_requested_at` and the `cancelled` status; history list filters accept it
+
+### Why
+
+The product promised preferences that actually drive scans, WCAG targeting that changes axe coverage, actionable grouped repair output that can leave the product, notification settings that are not decorative, and a way to stop long crawls. These were the four highest-impact gaps recorded in `feature-inventory.md`.
+
+### Files changed
+
+- `backend/app/main.py`
+- `backend/app/models/scan.py`, `backend/app/models/preferences.py`
+- `backend/app/schemas/scan.py`, `backend/app/schemas/history.py`, `backend/app/schemas/preferences.py`, `backend/app/schemas/repair_suggestion.py`
+- `backend/app/repositories/scan_repository.py`
+- `backend/app/services/repair_bundle_service.py`, `backend/app/services/scan_options_resolver.py`, `backend/app/services/page_scanner.py`, `backend/app/services/axe_scanner.py`
+- `backend/app/scan_worker.py`
+- `backend/alembic/versions/9848b576f072_add_notification_preferences.py`, `9848b576f073_add_scan_cancel_request.py`, `9848b576f074_default_wcag_standard_wcag21aa.py`
+- `backend/tests/test_bundle_and_cancel_api.py`, `test_preferences_unit.py`, `test_repair_bundle_unit.py`, `test_scan_cancel_unit.py`, `test_scan_options_resolver_unit.py`, plus extensions to existing tests
+
+### Verification
+
+- `python -m compileall app` passed
+- `python -m pytest -q tests` -> `130 passed in 7.14s` (was 62)
+- Alembic chain is linear with a single head: `...f071 -> ...f072 -> ...f073 -> ...f074`
+- bundle format errors, cross-user 404s, preference inheritance and override, axe tag mapping, cancel status transitions, worker cancel/retry behaviour, and notification preference round-trips are covered by the suites above
+
+### Next step
+
+Frontend consumes the new contracts (export UI, notification preferences, cancel UI); keep `axe_scanner.build_axe_tag_values` as the single place where a WCAG standard becomes axe tags.
+
+## 2026-11-02 - Frontend: Export-All Patches, In-App Notifications, Scan Cancel UI
+
+### Completed work
+
+- enabled "Export all patches" in the Reports AI suggestions tab: fetches `GET /scans/{id}/repair-suggestion-bundle?format=markdown` with the session bearer token, downloads the returned `content` as `filename` via the new `lib/download.ts` helper, shows a loading label ("Preparing bundle..."), an inline error (`data-testid="ai-export-error"`), and a success summary of generated/missing group counts (`data-testid="ai-export-status"`); disabled when no scan or no groups
+- wired the Preferences notification section to the persisted backend fields: `notify_score_threshold_enabled`, `notify_score_threshold`, and `notify_severities` now read/write through the `PreferencesContext` draft/save/reset flow instead of component-local state, while the existing `notify_on_*` toggles keep working
+- added in-app terminal scan notifications: the pure policy in `lib/scan-notifications.ts` evaluates scan complete, scan failed, high-severity issues, low score (threshold enabled and `score <= threshold`), and cancelled; `components/home/ScanNotifications.tsx` renders dismissible `role="status"`/`aria-live="polite"` banners near the progress panel and respects the user's preferences
+- added the dashboard cancel flow: `ScanToolbar` shows "Cancel scan" (`data-testid="cancel-scan-button"`) only while a queued/running scan exists, opens an inline "Cancel this scan?" confirmation group with "Yes, cancel scan" (`confirm-cancel-scan`) and "Keep scanning" (`dismiss-cancel-scan`), and shows a disabled "Cancelling..." state in flight
+- `useDashboardScan` stops the poll timer and fake progress interval on cancel, keeps partial issues on screen, sets progress state/text to `Scan cancelled - partial results are kept below.`, disables queue actions, raises a neutral "Scan cancelled" notification, and surfaces the backend 409 as "This scan has already finished. Refresh scan history to see the final result."
+- cancelled status is rendered distinctly across the UI: dashboard progress state, scan-history filter pill ("Cancelled"), history rows (`Cancelled — <date>` with no score), and the AI/report pages keep working from the preserved partial data
+
+### Why
+
+Users could not take the generated repair guidance out of the product, notification settings persisted without any visible effect, and long worker-backed crawls had no stop control. These changes close the last user-visible gaps recorded in `feature-inventory.md` for the current release.
+
+### Files changed
+
+- `frontend/src/lib/saved-scans.ts` (bundle fetch + `cancelSavedScan` + `ScanAlreadyFinishedError`), `frontend/src/lib/download.ts` (new), `frontend/src/lib/scan-notifications.ts` (new)
+- `frontend/src/lib/contexts/PreferencesContext.tsx`
+- `frontend/src/hooks/useDashboardScan.ts`
+- `frontend/src/components/home/ScanToolbar.tsx`, `frontend/src/components/home/ScanNotifications.tsx` (new)
+- `frontend/src/components/reports/AiSuggestionsTab.tsx`
+- `frontend/src/components/preferences/NotificationsSection.tsx`
+- `frontend/src/components/scan-history/ScanHistoryFilterBar.tsx`, `ScanHistoryRow.tsx`
+- `frontend/src/app/(dashboard)/dashboard/page.tsx`, `frontend/src/app/(dashboard)/scan-history/page.tsx`
+- tests: `ScanNotifications.test.tsx`, `ScanToolbar.test.tsx`, `NotificationsSection.test.tsx`, `download.test.ts`, `scan-notifications.test.ts` (new) and updated `AiSuggestionsTab.test.tsx`, `useDashboardScan.test.tsx`
+
+### Verification
+
+- `npx tsc --noEmit` clean
+- `npm test` -> `11 passed` test files, `41 passed` tests (was 12)
+- `npm run build` succeeded (15 routes plus middleware)
+
+### Next step
+
+The Playwright browser E2E suite added the same day covers the cancel contract end to end; keep the labels/selectors in `ScanToolbar` and the notification banner in sync if that markup is refactored.
+
+## 2026-11-02 - Infra: Playwright Browser E2E Suite And Frontend Production Build CI Gate
+
+### Completed work
+
+- added a Playwright browser E2E suite under `frontend/e2e/` with `frontend/playwright.config.ts` (chromium project, baseURL `http://127.0.0.1:3000`, `webServer: npm run build && npm run start -- --hostname 127.0.0.1 --port 3000`, `reuseExistingServer` locally, CI retries 1 / workers 1, list + HTML reporter, trace and screenshot on failure); the suite initially used `npm run dev`, but dev-server HMR recompiles during a two-test run left the second page stuck on the session-loading state, so the web server was switched to a production build, after which the full suite passed 8/8
+- the suite runs with **no backend, database, scan worker, or AI provider**: network helpers (`e2e/helpers/backend.ts`, `fixtures.ts`) stub preferences, `POST /scan/page`, scan polling, and cancel with deterministic payloads; authenticated specs mint a real signed NextAuth JWT session cookie (`e2e/helpers/session.ts`) so the middleware guard and `useSession()` behave exactly as in production
+- spec coverage: marketing landing page + registration form, login rendering and client-side validation, anonymous `/dashboard` -> `/login` guard redirect, authenticated dashboard scan flow with mocked issues, and scan cancel (button visible while queued/running, inline confirm, single authenticated `POST /scans/{id}/cancel`, cancelled progress/banner state, dismiss path)
+- added `test:e2e` (`playwright test`) and `test:e2e:report` npm scripts; scoped the Vitest `include` to `src/**` so the Playwright specs are not collected by `npm test`
+- added two CI jobs to `.github/workflows/quality-gate.yml`: `frontend-build` (placeholder `NEXT_PUBLIC_API_BASE_URL`/`AUTH_API_BASE_URL`/`AUTH_SECRET`/`NEXTAUTH_URL` + `npm run build`) and `frontend-e2e` (`playwright install --with-deps chromium`, `npm run test:e2e`, artifact upload of `frontend/playwright-report` + `frontend/playwright-results` on failure); the existing typecheck and backend jobs are unchanged
+
+### Why
+
+Two long-standing checklist gaps were the browser end-to-end suite and the frontend production build gate. The E2E suite exercises real Next.js routing, middleware, and client data flows without needing the full local stack, while the build gate catches production-build regressions that typechecking and jsdom tests cannot.
+
+### Files changed
+
+- `frontend/playwright.config.ts` (new)
+- `frontend/e2e/helpers/env.ts`, `session.ts`, `fixtures.ts`, `backend.ts` (new)
+- `frontend/e2e/landing.spec.ts`, `auth-login.spec.ts`, `auth-guard.spec.ts`, `dashboard.spec.ts`, `scan-cancel.spec.ts` (new)
+- `frontend/package.json` (scripts)
+- `frontend/vitest.config.mts` (`include` scoped to `src/**`)
+- `.github/workflows/quality-gate.yml` (`frontend-build` and `frontend-e2e` jobs)
+
+### Verification
+
+- `npx playwright test --list` -> 8 tests in 5 files
+- `npx playwright test` -> `8 passed (58.8s)` locally against the production-build web server (`npm run build && npm run start`); the scan-cancel spec was also re-run repeatedly (2/2 each time) to confirm the earlier dev-server flake was gone
+- CI-simulated run (`CI=true`, `.env.local` removed, workflow env only) -> 8 passed
+- `npx tsc --noEmit --incremental false` clean; `npm test` -> 11 files / 41 tests passed; `npm run build` -> succeeded (15 routes + middleware), also verified without `.env.local`
+
+### Next step
+
+Keep the two new CI jobs green on future PRs, and extend the suite when the remaining planned remediation UI lands. Playwright output folders are now listed in `.gitignore`.
+
+## 2026-11-02 - Documentation Sync: Checklist, Log, Architecture, README
+
+### Completed work
+
+- `docs/tracking/feature-checklist.md`: added/flipped items for the four backend features, the three frontend flows, and the two quality items (frontend production build gate, browser E2E); refreshed the backend/frontend suite items with the current test counts (130 backend, 41 frontend)
+- `docs/tracking/implementation-log.md`: added dated entries for branch reconciliation, the backend workstream, the frontend workstream, the infra workstream, and this documentation sync
+- `docs/architecture/system-architecture.md`: documented the two new routes, the preference resolution + WCAG-to-axe tag mapping, the notification preference fields and in-app delivery flow, the scan cancel lifecycle, migration head `9848b576f074`, and the new E2E/CI testing structure
+- root `README.md`: added the E2E commands and Chromium prerequisite, the new API routes and optional `POST /scan/page` behaviour, migration/head notes, and an updated gap list (export-all patch generation is now implemented; conversational assistant, email delivery, deployment evidence, and coverage thresholds remain)
+
+### Why
+
+`docs/README.md` requires tracking, architecture, and README updates whenever behavior changes. After the merge and the four workstreams the docs no longer matched the code (routes, migrations, test counts, and gaps were stale).
+
+### Files changed
+
+- `docs/tracking/feature-checklist.md`
+- `docs/tracking/implementation-log.md`
+- `docs/architecture/system-architecture.md`
+- `README.md`
+
+### Verification
+
+- cross-checked against the code at `4e329f6`: routes in `backend/app/main.py`, new services, migrations `...f072`/`...f073`/`...f074`, and frontend export/cancel/notification components
+- re-ran the evidence commands: `pytest -q tests` -> `130 passed`; `npm test` -> 41 passed; `npx playwright test` -> 8 passed; `npx tsc --noEmit` clean; `npm run build` -> 15 routes + middleware
+- `git status` shows only the three tracking/architecture docs plus the root README changed by this entry
+
+### Next step
+
+Keep the log append-only; the Lead-owned `docs/README.md` index and `docs/tracking/feature-inventory.md` status table need their own refresh, and future entries should be added when the conversational assistant or hosted deployment verification evidence lands.
+
