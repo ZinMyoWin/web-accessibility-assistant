@@ -1,0 +1,4948 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-11-02T18:03:42.416332+00:00",
+  "generated_by": "scripts/perf/bench_scan.py",
+  "started_at_utc": "2026-11-02T18:00:05.632689+00:00",
+  "duration_seconds": 216.8,
+  "machine": {
+    "hostname": "Zin",
+    "platform": "Windows-11-10.0.26300-SP0",
+    "system": "Windows",
+    "release": "11",
+    "machine": "AMD64",
+    "processor": "Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz",
+    "cpu_logical": 12,
+    "ram_total_gb": 23.8,
+    "python": "3.13.3 (tags/v3.13.3:6280bb5, Apr  8 2025, 14:47:33) [MSC v.1943 64 bit (AMD64)]",
+    "python_executable": "D:\\Lithan\\UOR\\Final Year Project\\web-accessibility-assistant\\backend\\venv\\Scripts\\python.exe",
+    "packages": {
+      "playwright": "1.58.0",
+      "sqlalchemy": "2.0.49",
+      "pydantic": "2.12.5",
+      "cloudinary": null
+    },
+    "git": {
+      "commit": "a2bc60993fb1ac8056a4c2de8ef6e319224e7b94",
+      "branch": "HEAD"
+    }
+  },
+  "environment": {
+    "process_python": {
+      "python": "3.13.3 (tags/v3.13.3:6280bb5, Apr  8 2025, 14:47:33) [MSC v.1943 64 bit (AMD64)]",
+      "python_executable": "D:\\Lithan\\UOR\\Final Year Project\\web-accessibility-assistant\\backend\\venv\\Scripts\\python.exe"
+    },
+    "playwright": "1.58.0",
+    "chromium_version": "145.0.7632.6",
+    "axe_script_bytes": 553283,
+    "cloudinary_configured": false,
+    "screenshot_storage_mode": "inline-data-url",
+    "scan_execution_context": "direct scanner import per job; no FastAPI, no database, no auth"
+  },
+  "host_calibration": {
+    "before": {
+      "workload": "200k modular accumulate iterations",
+      "count": 5,
+      "median_ms": 18.894,
+      "min_ms": 17.804,
+      "max_ms": 19.313,
+      "p90_ms": 19.254,
+      "mean_ms": 18.709,
+      "stdev_ms": 0.621,
+      "cv_pct": 3.32,
+      "samples_ms": [
+        17.804,
+        18.369,
+        19.166,
+        19.313,
+        18.894
+      ]
+    },
+    "after": {
+      "workload": "200k modular accumulate iterations",
+      "count": 5,
+      "median_ms": 31.047,
+      "min_ms": 24.581,
+      "max_ms": 39.026,
+      "p90_ms": 36.272,
+      "mean_ms": 30.576,
+      "stdev_ms": 5.705,
+      "cv_pct": 18.66,
+      "samples_ms": [
+        24.581,
+        39.026,
+        26.083,
+        31.047,
+        32.141
+      ]
+    },
+    "median_drift_ratio": 1.643,
+    "contention_flag": true
+  },
+  "cold_process": {
+    "fresh_process": true,
+    "pid": 20664,
+    "import_seconds": 0.1505,
+    "axe_script_cache_cold_at_scan_1": true,
+    "scans": [
+      {
+        "duration_ms": 4608.47,
+        "phases_s": {
+          "nested:browser_start": 0.9320113,
+          "nested:context_create": 0.0110027,
+          "browser_setup": 1.0046292,
+          "goto": 0.0152545,
+          "nested:networkidle_wait": 0.5024322,
+          "nested:fixed_settle_wait": 0.3804844,
+          "render_wait": 0.8829272,
+          "page_content": 0.0065394,
+          "parse_html": 0.0004148,
+          "build_issues": 0.0001232,
+          "nested:axe_script_fetch": 0.4109071,
+          "axe_core": 0.5738833,
+          "merge_issues": 5.49e-05,
+          "nested:screenshot_capture": 1.4182955,
+          "nested:screenshot_store": 0.0025141,
+          "screenshots_total": 1.4209285,
+          "context_close": 0.0078443,
+          "browser_close": 0.6956943
+        },
+        "calls": {
+          "nested:browser_start": 1,
+          "nested:context_create": 1,
+          "browser_setup": 1,
+          "goto": 1,
+          "nested:networkidle_wait": 1,
+          "nested:fixed_settle_wait": 1,
+          "render_wait": 1,
+          "page_content": 1,
+          "parse_html": 1,
+          "build_issues": 1,
+          "nested:axe_script_fetch": 1,
+          "axe_core": 1,
+          "merge_issues": 1,
+          "nested:screenshot_capture": 19,
+          "nested:screenshot_store": 1,
+          "screenshots_total": 1,
+          "context_close": 1,
+          "browser_close": 1
+        },
+        "issues": 22,
+        "pages_scanned": 1,
+        "pages_skipped": 0,
+        "scanned_page_urls": [
+          "http://127.0.0.1:64523/issue-dense"
+        ],
+        "rule_counts": {
+          "button-name": 1,
+          "color-contrast": 1,
+          "document-title": 1,
+          "duplicate-id": 1,
+          "heading-order": 1,
+          "html-lang": 1,
+          "image-alt": 1,
+          "label": 1,
+          "landmark-one-main": 1,
+          "link-name": 1,
+          "marquee": 1,
+          "region": 10,
+          "select-name": 1
+        },
+        "severity_counts": {
+          "high": 7,
+          "low": 1,
+          "medium": 14
+        },
+        "source_counts": {
+          "axe-core": 16,
+          "both": 4,
+          "custom": 2
+        },
+        "issues_with_screenshots": 22,
+        "summary": {
+          "total_issues": 22,
+          "high": 7,
+          "medium": 14,
+          "low": 1
+        }
+      },
+      {
+        "duration_ms": 4121.8,
+        "phases_s": {
+          "nested:browser_start": 0.8158491,
+          "nested:context_create": 0.0094791,
+          "browser_setup": 0.8865816,
+          "goto": 0.0140095,
+          "nested:networkidle_wait": 0.5097775,
+          "nested:fixed_settle_wait": 0.3912447,
+          "render_wait": 0.9010366,
+          "page_content": 0.0081635,
+          "parse_html": 0.0005967,
+          "build_issues": 9.65e-05,
+          "nested:axe_script_fetch": 1.6e-06,
+          "axe_core": 0.1618882,
+          "merge_issues": 2e-05,
+          "nested:screenshot_capture": 1.4390114,
+          "nested:screenshot_store": 0.0020326,
+          "screenshots_total": 1.4411446,
+          "context_close": 0.0068568,
+          "browser_close": 0.7012608
+        },
+        "calls": {
+          "nested:browser_start": 1,
+          "nested:context_create": 1,
+          "browser_setup": 1,
+          "goto": 1,
+          "nested:networkidle_wait": 1,
+          "nested:fixed_settle_wait": 1,
+          "render_wait": 1,
+          "page_content": 1,
+          "parse_html": 1,
+          "build_issues": 1,
+          "nested:axe_script_fetch": 1,
+          "axe_core": 1,
+          "merge_issues": 1,
+          "nested:screenshot_capture": 19,
+          "nested:screenshot_store": 1,
+          "screenshots_total": 1,
+          "context_close": 1,
+          "browser_close": 1
+        },
+        "issues": 22,
+        "pages_scanned": 1,
+        "pages_skipped": 0,
+        "scanned_page_urls": [
+          "http://127.0.0.1:64523/issue-dense"
+        ],
+        "rule_counts": {
+          "button-name": 1,
+          "color-contrast": 1,
+          "document-title": 1,
+          "duplicate-id": 1,
+          "heading-order": 1,
+          "html-lang": 1,
+          "image-alt": 1,
+          "label": 1,
+          "landmark-one-main": 1,
+          "link-name": 1,
+          "marquee": 1,
+          "region": 10,
+          "select-name": 1
+        },
+        "severity_counts": {
+          "high": 7,
+          "low": 1,
+          "medium": 14
+        },
+        "source_counts": {
+          "axe-core": 16,
+          "both": 4,
+          "custom": 2
+        },
+        "issues_with_screenshots": 22,
+        "summary": {
+          "total_issues": 22,
+          "high": 7,
+          "medium": 14,
+          "low": 1
+        }
+      },
+      {
+        "duration_ms": 4063.836,
+        "phases_s": {
+          "nested:browser_start": 0.8121057,
+          "nested:context_create": 0.0088706,
+          "browser_setup": 0.880308,
+          "goto": 0.0139908,
+          "nested:networkidle_wait": 0.5172933,
+          "nested:fixed_settle_wait": 0.3902726,
+          "render_wait": 0.9075742,
+          "page_content": 0.0057056,
+          "parse_html": 0.0003253,
+          "build_issues": 5.52e-05,
+          "nested:axe_script_fetch": 1.1e-06,
+          "axe_core": 0.1636307,
+          "merge_issues": 1.96e-05,
+          "nested:screenshot_capture": 1.3507522,
+          "nested:screenshot_store": 0.0021503,
+          "screenshots_total": 1.3530014,
+          "context_close": 0.0070096,
+          "browser_close": 0.732042
+        },
+        "calls": {
+          "nested:browser_start": 1,
+          "nested:context_create": 1,
+          "browser_setup": 1,
+          "goto": 1,
+          "nested:networkidle_wait": 1,
+          "nested:fixed_settle_wait": 1,
+          "render_wait": 1,
+          "page_content": 1,
+          "parse_html": 1,
+          "build_issues": 1,
+          "nested:axe_script_fetch": 1,
+          "axe_core": 1,
+          "merge_issues": 1,
+          "nested:screenshot_capture": 19,
+          "nested:screenshot_store": 1,
+          "screenshots_total": 1,
+          "context_close": 1,
+          "browser_close": 1
+        },
+        "issues": 22,
+        "pages_scanned": 1,
+        "pages_skipped": 0,
+        "scanned_page_urls": [
+          "http://127.0.0.1:64523/issue-dense"
+        ],
+        "rule_counts": {
+          "button-name": 1,
+          "color-contrast": 1,
+          "document-title": 1,
+          "duplicate-id": 1,
+          "heading-order": 1,
+          "html-lang": 1,
+          "image-alt": 1,
+          "label": 1,
+          "landmark-one-main": 1,
+          "link-name": 1,
+          "marquee": 1,
+          "region": 10,
+          "select-name": 1
+        },
+        "severity_counts": {
+          "high": 7,
+          "low": 1,
+          "medium": 14
+        },
+        "source_counts": {
+          "axe-core": 16,
+          "both": 4,
+          "custom": 2
+        },
+        "issues_with_screenshots": 22,
+        "summary": {
+          "total_issues": 22,
+          "high": 7,
+          "medium": 14,
+          "low": 1
+        }
+      }
+    ],
+    "durations_ms": [
+      4608.47,
+      4121.8,
+      4063.836
+    ],
+    "chromium_version": "145.0.7632.6",
+    "axe_script_bytes": 553283,
+    "stderr_tail": ""
+  },
+  "process_first_scan": {
+    "duration_ms": 3634.593,
+    "phases_s": {
+      "nested:browser_start": 0.9297972,
+      "nested:context_create": 0.0096906,
+      "browser_setup": 0.9971595,
+      "goto": 0.0150209,
+      "nested:networkidle_wait": 0.5163334,
+      "nested:fixed_settle_wait": 0.3901161,
+      "render_wait": 0.906461,
+      "page_content": 0.0057672,
+      "parse_html": 0.0002907,
+      "build_issues": 3.94e-05,
+      "nested:axe_script_fetch": 0.8615076,
+      "axe_core": 1.0087388,
+      "merge_issues": 7.6e-06,
+      "nested:screenshot_store": 1.6e-06,
+      "screenshots_total": 4.5e-06,
+      "context_close": 0.0092508,
+      "browser_close": 0.6916755
+    },
+    "calls": {
+      "nested:browser_start": 1,
+      "nested:context_create": 1,
+      "browser_setup": 1,
+      "goto": 1,
+      "nested:networkidle_wait": 1,
+      "nested:fixed_settle_wait": 1,
+      "render_wait": 1,
+      "page_content": 1,
+      "parse_html": 1,
+      "build_issues": 1,
+      "nested:axe_script_fetch": 1,
+      "axe_core": 1,
+      "merge_issues": 1,
+      "nested:screenshot_store": 1,
+      "screenshots_total": 1,
+      "context_close": 1,
+      "browser_close": 1
+    },
+    "issues": 0,
+    "pages_scanned": 1,
+    "pages_skipped": 0,
+    "scanned_page_urls": [
+      "http://127.0.0.1:64523/clean"
+    ],
+    "rule_counts": {},
+    "severity_counts": {},
+    "source_counts": {},
+    "issues_with_screenshots": 0,
+    "summary": {
+      "total_issues": 0,
+      "high": 0,
+      "medium": 0,
+      "low": 0
+    }
+  },
+  "axe_script_cold_warm": null,
+  "browser_lifecycle_micro": null,
+  "scenarios": [
+    {
+      "scenario_id": "single_clean",
+      "description": "Single page, clean fixture (production single-page path with screenshots)",
+      "url": "http://127.0.0.1:64523/clean",
+      "fixture_path": "/clean",
+      "special": null,
+      "session_mode": "per_call",
+      "worker_session": null,
+      "scan_options": {
+        "mode": "single",
+        "page_limit": 1,
+        "crawl_depth": 1,
+        "request_delay_ms": 0,
+        "page_timeout_ms": 15000,
+        "wcag_standard": "wcag21aa",
+        "include_best_practices": true
+      },
+      "iterations_measured": 7,
+      "warmups": 1,
+      "warmup": {
+        "duration_ms": 2676.548,
+        "phases_s": {
+          "nested:browser_start": 0.8465265,
+          "nested:context_create": 0.0094348,
+          "browser_setup": 0.9156593,
+          "goto": 0.0143085,
+          "nested:networkidle_wait": 0.5139415,
+          "nested:fixed_settle_wait": 0.3789648,
+          "render_wait": 0.8929153,
+          "page_content": 0.0059986,
+          "parse_html": 0.0002533,
+          "build_issues": 1.19e-05,
+          "nested:axe_script_fetch": 9e-07,
+          "axe_core": 0.144725,
+          "merge_issues": 5.6e-06,
+          "nested:screenshot_store": 1.4e-06,
+          "screenshots_total": 8.94e-05,
+          "context_close": 0.0094867,
+          "browser_close": 0.6929602
+        },
+        "calls": {
+          "nested:browser_start": 1,
+          "nested:context_create": 1,
+          "browser_setup": 1,
+          "goto": 1,
+          "nested:networkidle_wait": 1,
+          "nested:fixed_settle_wait": 1,
+          "render_wait": 1,
+          "page_content": 1,
+          "parse_html": 1,
+          "build_issues": 1,
+          "nested:axe_script_fetch": 1,
+          "axe_core": 1,
+          "merge_issues": 1,
+          "nested:screenshot_store": 1,
+          "screenshots_total": 1,
+          "context_close": 1,
+          "browser_close": 1
+        },
+        "issues": 0,
+        "pages_scanned": 1,
+        "pages_skipped": 0,
+        "scanned_page_urls": [
+          "http://127.0.0.1:64523/clean"
+        ],
+        "rule_counts": {},
+        "severity_counts": {},
+        "source_counts": {},
+        "issues_with_screenshots": 0,
+        "summary": {
+          "total_issues": 0,
+          "high": 0,
+          "medium": 0,
+          "low": 0
+        }
+      },
+      "iterations": [
+        {
+          "duration_ms": 2713.777,
+          "phases_s": {
+            "nested:browser_start": 0.85578,
+            "nested:context_create": 0.0097508,
+            "browser_setup": 0.9240338,
+            "goto": 0.0140459,
+            "nested:networkidle_wait": 0.5031727,
+            "nested:fixed_settle_wait": 0.3794466,
+            "render_wait": 0.882627,
+            "page_content": 0.0075715,
+            "parse_html": 0.0002211,
+            "build_issues": 9.7e-06,
+            "nested:axe_script_fetch": 8e-07,
+            "axe_core": 0.1495343,
+            "merge_issues": 4.5e-06,
+            "nested:screenshot_store": 1.2e-06,
+            "screenshots_total": 9.34e-05,
+            "context_close": 0.0095918,
+            "browser_close": 0.7259309
+          },
+          "calls": {
+            "nested:browser_start": 1,
+            "nested:context_create": 1,
+            "browser_setup": 1,
+            "goto": 1,
+            "nested:networkidle_wait": 1,
+            "nested:fixed_settle_wait": 1,
+            "render_wait": 1,
+            "page_content": 1,
+            "parse_html": 1,
+            "build_issues": 1,
+            "nested:axe_script_fetch": 1,
+            "axe_core": 1,
+            "merge_issues": 1,
+            "nested:screenshot_store": 1,
+            "screenshots_total": 1,
+            "context_close": 1,
+            "browser_close": 1
+          },
+          "issues": 0,
+          "pages_scanned": 1,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/clean"
+          ],
+          "rule_counts": {},
+          "severity_counts": {},
+          "source_counts": {},
+          "issues_with_screenshots": 0,
+          "summary": {
+            "total_issues": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+          }
+        },
+        {
+          "duration_ms": 2717.23,
+          "phases_s": {
+            "nested:browser_start": 0.8697132,
+            "nested:context_create": 0.0105173,
+            "browser_setup": 0.9413439,
+            "goto": 0.0153145,
+            "nested:networkidle_wait": 0.5032258,
+            "nested:fixed_settle_wait": 0.3922523,
+            "render_wait": 0.8954867,
+            "page_content": 0.0060757,
+            "parse_html": 0.0002208,
+            "build_issues": 9.6e-06,
+            "nested:axe_script_fetch": 6e-07,
+            "axe_core": 0.1470767,
+            "merge_issues": 4.3e-06,
+            "nested:screenshot_store": 1.1e-06,
+            "screenshots_total": 4.3e-06,
+            "context_close": 0.0100992,
+            "browser_close": 0.7013455
+          },
+          "calls": {
+            "nested:browser_start": 1,
+            "nested:context_create": 1,
+            "browser_setup": 1,
+            "goto": 1,
+            "nested:networkidle_wait": 1,
+            "nested:fixed_settle_wait": 1,
+            "render_wait": 1,
+            "page_content": 1,
+            "parse_html": 1,
+            "build_issues": 1,
+            "nested:axe_script_fetch": 1,
+            "axe_core": 1,
+            "merge_issues": 1,
+            "nested:screenshot_store": 1,
+            "screenshots_total": 1,
+            "context_close": 1,
+            "browser_close": 1
+          },
+          "issues": 0,
+          "pages_scanned": 1,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/clean"
+          ],
+          "rule_counts": {},
+          "severity_counts": {},
+          "source_counts": {},
+          "issues_with_screenshots": 0,
+          "summary": {
+            "total_issues": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+          }
+        },
+        {
+          "duration_ms": 2654.297,
+          "phases_s": {
+            "nested:browser_start": 0.8222111,
+            "nested:context_create": 0.0095417,
+            "browser_setup": 0.8890424,
+            "goto": 0.0141723,
+            "nested:networkidle_wait": 0.5108254,
+            "nested:fixed_settle_wait": 0.3897744,
+            "render_wait": 0.9006093,
+            "page_content": 0.0058085,
+            "parse_html": 0.0002207,
+            "build_issues": 9.6e-06,
+            "nested:axe_script_fetch": 6e-07,
+            "axe_core": 0.1445056,
+            "merge_issues": 4.7e-06,
+            "nested:screenshot_store": 1.3e-06,
+            "screenshots_total": 9.37e-05,
+            "context_close": 0.0110513,
+            "browser_close": 0.6885618
+          },
+          "calls": {
+            "nested:browser_start": 1,
+            "nested:context_create": 1,
+            "browser_setup": 1,
+            "goto": 1,
+            "nested:networkidle_wait": 1,
+            "nested:fixed_settle_wait": 1,
+            "render_wait": 1,
+            "page_content": 1,
+            "parse_html": 1,
+            "build_issues": 1,
+            "nested:axe_script_fetch": 1,
+            "axe_core": 1,
+            "merge_issues": 1,
+            "nested:screenshot_store": 1,
+            "screenshots_total": 1,
+            "context_close": 1,
+            "browser_close": 1
+          },
+          "issues": 0,
+          "pages_scanned": 1,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/clean"
+          ],
+          "rule_counts": {},
+          "severity_counts": {},
+          "source_counts": {},
+          "issues_with_screenshots": 0,
+          "summary": {
+            "total_issues": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+          }
+        },
+        {
+          "duration_ms": 2653.569,
+          "phases_s": {
+            "nested:browser_start": 0.815787,
+            "nested:context_create": 0.0096622,
+            "browser_setup": 0.8851131,
+            "goto": 0.0137893,
+            "nested:networkidle_wait": 0.516288,
+            "nested:fixed_settle_wait": 0.3924933,
+            "render_wait": 0.908788,
+            "page_content": 0.0059184,
+            "parse_html": 0.0002237,
+            "build_issues": 9.8e-06,
+            "nested:axe_script_fetch": 9e-07,
+            "axe_core": 0.1421035,
+            "merge_issues": 6.4e-06,
+            "nested:screenshot_store": 1.1e-06,
+            "screenshots_total": 4.3e-06,
+            "context_close": 0.0100587,
+            "browser_close": 0.68746
+          },
+          "calls": {
+            "nested:browser_start": 1,
+            "nested:context_create": 1,
+            "browser_setup": 1,
+            "goto": 1,
+            "nested:networkidle_wait": 1,
+            "nested:fixed_settle_wait": 1,
+            "render_wait": 1,
+            "page_content": 1,
+            "parse_html": 1,
+            "build_issues": 1,
+            "nested:axe_script_fetch": 1,
+            "axe_core": 1,
+            "merge_issues": 1,
+            "nested:screenshot_store": 1,
+            "screenshots_total": 1,
+            "context_close": 1,
+            "browser_close": 1
+          },
+          "issues": 0,
+          "pages_scanned": 1,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/clean"
+          ],
+          "rule_counts": {},
+          "severity_counts": {},
+          "source_counts": {},
+          "issues_with_screenshots": 0,
+          "summary": {
+            "total_issues": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+          }
+        },
+        {
+          "duration_ms": 2654.558,
+          "phases_s": {
+            "nested:browser_start": 0.8142322,
+            "nested:context_create": 0.0100925,
+            "browser_setup": 0.8835522,
+            "goto": 0.0142291,
+            "nested:networkidle_wait": 0.5014578,
+            "nested:fixed_settle_wait": 0.3766368,
+            "render_wait": 0.8781026,
+            "page_content": 0.006644,
+            "parse_html": 0.000214,
+            "build_issues": 9.5e-06,
+            "nested:axe_script_fetch": 6e-07,
+            "axe_core": 0.1630806,
+            "merge_issues": 4.9e-06,
+            "nested:screenshot_store": 1.4e-06,
+            "screenshots_total": 4.4e-06,
+            "context_close": 0.0100907,
+            "browser_close": 0.6985042
+          },
+          "calls": {
+            "nested:browser_start": 1,
+            "nested:context_create": 1,
+            "browser_setup": 1,
+            "goto": 1,
+            "nested:networkidle_wait": 1,
+            "nested:fixed_settle_wait": 1,
+            "render_wait": 1,
+            "page_content": 1,
+            "parse_html": 1,
+            "build_issues": 1,
+            "nested:axe_script_fetch": 1,
+            "axe_core": 1,
+            "merge_issues": 1,
+            "nested:screenshot_store": 1,
+            "screenshots_total": 1,
+            "context_close": 1,
+            "browser_close": 1
+          },
+          "issues": 0,
+          "pages_scanned": 1,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/clean"
+          ],
+          "rule_counts": {},
+          "severity_counts": {},
+          "source_counts": {},
+          "issues_with_screenshots": 0,
+          "summary": {
+            "total_issues": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+          }
+        },
+        {
+          "duration_ms": 2706.748,
+          "phases_s": {
+            "nested:browser_start": 0.851537,
+            "nested:context_create": 0.0100935,
+            "browser_setup": 0.9199009,
+            "goto": 0.013702,
+            "nested:networkidle_wait": 0.5116274,
+            "nested:fixed_settle_wait": 0.3919378,
+            "render_wait": 0.9035723,
+            "page_content": 0.0058528,
+            "parse_html": 0.0002136,
+            "build_issues": 9.4e-06,
+            "nested:axe_script_fetch": 9e-07,
+            "axe_core": 0.1419905,
+            "merge_issues": 5.2e-06,
+            "nested:screenshot_store": 1.5e-06,
+            "screenshots_total": 0.0001068,
+            "context_close": 0.010394,
+            "browser_close": 0.710889
+          },
+          "calls": {
+            "nested:browser_start": 1,
+            "nested:context_create": 1,
+            "browser_setup": 1,
+            "goto": 1,
+            "nested:networkidle_wait": 1,
+            "nested:fixed_settle_wait": 1,
+            "render_wait": 1,
+            "page_content": 1,
+            "parse_html": 1,
+            "build_issues": 1,
+            "nested:axe_script_fetch": 1,
+            "axe_core": 1,
+            "merge_issues": 1,
+            "nested:screenshot_store": 1,
+            "screenshots_total": 1,
+            "context_close": 1,
+            "browser_close": 1
+          },
+          "issues": 0,
+          "pages_scanned": 1,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/clean"
+          ],
+          "rule_counts": {},
+          "severity_counts": {},
+          "source_counts": {},
+          "issues_with_screenshots": 0,
+          "summary": {
+            "total_issues": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+          }
+        },
+        {
+          "duration_ms": 2760.812,
+          "phases_s": {
+            "nested:browser_start": 0.885136,
+            "nested:context_create": 0.0103586,
+            "browser_setup": 0.9608331,
+            "goto": 0.0144413,
+            "nested:networkidle_wait": 0.5118556,
+            "nested:fixed_settle_wait": 0.378025,
+            "render_wait": 0.8898885,
+            "page_content": 0.0066538,
+            "parse_html": 0.0002218,
+            "build_issues": 1.05e-05,
+            "nested:axe_script_fetch": 7e-07,
+            "axe_core": 0.1524833,
+            "merge_issues": 4.6e-06,
+            "nested:screenshot_store": 1.1e-06,
+            "screenshots_total": 4.2e-06,
+            "context_close": 0.0117668,
+            "browser_close": 0.7243606
+          },
+          "calls": {
+            "nested:browser_start": 1,
+            "nested:context_create": 1,
+            "browser_setup": 1,
+            "goto": 1,
+            "nested:networkidle_wait": 1,
+            "nested:fixed_settle_wait": 1,
+            "render_wait": 1,
+            "page_content": 1,
+            "parse_html": 1,
+            "build_issues": 1,
+            "nested:axe_script_fetch": 1,
+            "axe_core": 1,
+            "merge_issues": 1,
+            "nested:screenshot_store": 1,
+            "screenshots_total": 1,
+            "context_close": 1,
+            "browser_close": 1
+          },
+          "issues": 0,
+          "pages_scanned": 1,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/clean"
+          ],
+          "rule_counts": {},
+          "severity_counts": {},
+          "source_counts": {},
+          "issues_with_screenshots": 0,
+          "summary": {
+            "total_issues": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+          }
+        }
+      ],
+      "aggregates": {
+        "duration_ms": {
+          "count": 7,
+          "median_ms": 2706.748,
+          "min_ms": 2653.569,
+          "max_ms": 2760.812,
+          "p90_ms": 2734.663,
+          "mean_ms": 2694.427,
+          "stdev_ms": 41.478,
+          "cv_pct": 1.54,
+          "samples_ms": [
+            2713.777,
+            2717.23,
+            2654.297,
+            2653.569,
+            2654.558,
+            2706.748,
+            2760.812
+          ]
+        },
+        "issue_counts": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "samples": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "pages_scanned": {
+          "median": 1,
+          "samples": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ]
+        },
+        "ms_per_page": 2706.75,
+        "ms_per_issue": null,
+        "screenshots_per_scan_median": 0,
+        "phase_share": {
+          "measured_total_s": 18.861,
+          "sum_of_top_level_phases_s": 18.8599,
+          "unattributed_s": 0.001,
+          "unattributed_share_pct": 0.01,
+          "attribution_warning": false
+        },
+        "phases": {
+          "axe_core": {
+            "total_s": 1.0408,
+            "per_scan_ms": 148.682,
+            "share_of_total_pct": 5.52,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "browser_close": {
+            "total_s": 4.9371,
+            "per_scan_ms": 705.293,
+            "share_of_total_pct": 26.18,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "browser_setup": {
+            "total_s": 6.4038,
+            "per_scan_ms": 914.831,
+            "share_of_total_pct": 33.95,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "build_issues": {
+            "total_s": 0.0001,
+            "per_scan_ms": 0.01,
+            "share_of_total_pct": 0.0,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "context_close": {
+            "total_s": 0.0731,
+            "per_scan_ms": 10.436,
+            "share_of_total_pct": 0.39,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "goto": {
+            "total_s": 0.0997,
+            "per_scan_ms": 14.242,
+            "share_of_total_pct": 0.53,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "merge_issues": {
+            "total_s": 0.0,
+            "per_scan_ms": 0.005,
+            "share_of_total_pct": 0.0,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "nested:axe_script_fetch": {
+            "total_s": 0.0,
+            "per_scan_ms": 0.001,
+            "share_of_total_pct": 0.0,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "nested:browser_start": {
+            "total_s": 5.9144,
+            "per_scan_ms": 844.914,
+            "share_of_total_pct": 31.36,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "nested:context_create": {
+            "total_s": 0.07,
+            "per_scan_ms": 10.002,
+            "share_of_total_pct": 0.37,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "nested:fixed_settle_wait": {
+            "total_s": 2.7006,
+            "per_scan_ms": 385.795,
+            "share_of_total_pct": 14.32,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "nested:networkidle_wait": {
+            "total_s": 3.5585,
+            "per_scan_ms": 508.35,
+            "share_of_total_pct": 18.87,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "nested:screenshot_store": {
+            "total_s": 0.0,
+            "per_scan_ms": 0.001,
+            "share_of_total_pct": 0.0,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "page_content": {
+            "total_s": 0.0445,
+            "per_scan_ms": 6.361,
+            "share_of_total_pct": 0.24,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "parse_html": {
+            "total_s": 0.0015,
+            "per_scan_ms": 0.219,
+            "share_of_total_pct": 0.01,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "render_wait": {
+            "total_s": 6.2591,
+            "per_scan_ms": 894.153,
+            "share_of_total_pct": 33.19,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "screenshots_total": {
+            "total_s": 0.0003,
+            "per_scan_ms": 0.044,
+            "share_of_total_pct": 0.0,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          }
+        }
+      },
+      "observed_rule_ids": [],
+      "observed_severities": [],
+      "median_issue_counts_by_rule": {}
+    },
+    {
+      "scenario_id": "single_issue_dense_screenshots",
+      "description": "Single page, issue-dense fixture WITH screenshot capture (production single-page path)",
+      "url": "http://127.0.0.1:64523/issue-dense",
+      "fixture_path": "/issue-dense",
+      "special": null,
+      "session_mode": "per_call",
+      "worker_session": null,
+      "scan_options": {
+        "mode": "single",
+        "page_limit": 1,
+        "crawl_depth": 1,
+        "request_delay_ms": 0,
+        "page_timeout_ms": 15000,
+        "wcag_standard": "wcag21aa",
+        "include_best_practices": true
+      },
+      "iterations_measured": 7,
+      "warmups": 1,
+      "warmup": {
+        "duration_ms": 4082.777,
+        "phases_s": {
+          "nested:browser_start": 0.8214463,
+          "nested:context_create": 0.0117412,
+          "browser_setup": 0.8966799,
+          "goto": 0.0202867,
+          "nested:networkidle_wait": 0.5047155,
+          "nested:fixed_settle_wait": 0.3787978,
+          "render_wait": 0.8835215,
+          "page_content": 0.0063465,
+          "parse_html": 0.0003595,
+          "build_issues": 6.04e-05,
+          "nested:axe_script_fetch": 6e-07,
+          "axe_core": 0.1673447,
+          "merge_issues": 8.27e-05,
+          "nested:screenshot_capture": 1.3945732,
+          "nested:screenshot_store": 0.0019086,
+          "screenshots_total": 1.3966403,
+          "context_close": 0.006871,
+          "browser_close": 0.7044034
+        },
+        "calls": {
+          "nested:browser_start": 1,
+          "nested:context_create": 1,
+          "browser_setup": 1,
+          "goto": 1,
+          "nested:networkidle_wait": 1,
+          "nested:fixed_settle_wait": 1,
+          "render_wait": 1,
+          "page_content": 1,
+          "parse_html": 1,
+          "build_issues": 1,
+          "nested:axe_script_fetch": 1,
+          "axe_core": 1,
+          "merge_issues": 1,
+          "nested:screenshot_capture": 19,
+          "nested:screenshot_store": 1,
+          "screenshots_total": 1,
+          "context_close": 1,
+          "browser_close": 1
+        },
+        "issues": 22,
+        "pages_scanned": 1,
+        "pages_skipped": 0,
+        "scanned_page_urls": [
+          "http://127.0.0.1:64523/issue-dense"
+        ],
+        "rule_counts": {
+          "button-name": 1,
+          "color-contrast": 1,
+          "document-title": 1,
+          "duplicate-id": 1,
+          "heading-order": 1,
+          "html-lang": 1,
+          "image-alt": 1,
+          "label": 1,
+          "landmark-one-main": 1,
+          "link-name": 1,
+          "marquee": 1,
+          "region": 10,
+          "select-name": 1
+        },
+        "severity_counts": {
+          "high": 7,
+          "low": 1,
+          "medium": 14
+        },
+        "source_counts": {
+          "axe-core": 16,
+          "both": 4,
+          "custom": 2
+        },
+        "issues_with_screenshots": 22,
+        "summary": {
+          "total_issues": 22,
+          "high": 7,
+          "medium": 14,
+          "low": 1
+        }
+      },
+      "iterations": [
+        {
+          "duration_ms": 4175.625,
+          "phases_s": {
+            "nested:browser_start": 0.8597241,
+            "nested:context_create": 0.0098814,
+            "browser_setup": 0.931711,
+            "goto": 0.0145117,
+            "nested:networkidle_wait": 0.5033913,
+            "nested:fixed_settle_wait": 0.3769115,
+            "render_wait": 0.8803117,
+            "page_content": 0.0098725,
+            "parse_html": 0.0003416,
+            "build_issues": 5.94e-05,
+            "nested:axe_script_fetch": 8e-07,
+            "axe_core": 0.1774397,
+            "merge_issues": 3.11e-05,
+            "nested:screenshot_capture": 1.4546999,
+            "nested:screenshot_store": 0.0017928,
+            "screenshots_total": 1.4565918,
+            "context_close": 0.0071307,
+            "browser_close": 0.6974618
+          },
+          "calls": {
+            "nested:browser_start": 1,
+            "nested:context_create": 1,
+            "browser_setup": 1,
+            "goto": 1,
+            "nested:networkidle_wait": 1,
+            "nested:fixed_settle_wait": 1,
+            "render_wait": 1,
+            "page_content": 1,
+            "parse_html": 1,
+            "build_issues": 1,
+            "nested:axe_script_fetch": 1,
+            "axe_core": 1,
+            "merge_issues": 1,
+            "nested:screenshot_capture": 19,
+            "nested:screenshot_store": 1,
+            "screenshots_total": 1,
+            "context_close": 1,
+            "browser_close": 1
+          },
+          "issues": 22,
+          "pages_scanned": 1,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/issue-dense"
+          ],
+          "rule_counts": {
+            "button-name": 1,
+            "color-contrast": 1,
+            "document-title": 1,
+            "duplicate-id": 1,
+            "heading-order": 1,
+            "html-lang": 1,
+            "image-alt": 1,
+            "label": 1,
+            "landmark-one-main": 1,
+            "link-name": 1,
+            "marquee": 1,
+            "region": 10,
+            "select-name": 1
+          },
+          "severity_counts": {
+            "high": 7,
+            "low": 1,
+            "medium": 14
+          },
+          "source_counts": {
+            "axe-core": 16,
+            "both": 4,
+            "custom": 2
+          },
+          "issues_with_screenshots": 22,
+          "summary": {
+            "total_issues": 22,
+            "high": 7,
+            "medium": 14,
+            "low": 1
+          }
+        },
+        {
+          "duration_ms": 4114.639,
+          "phases_s": {
+            "nested:browser_start": 0.8666219,
+            "nested:context_create": 0.0097811,
+            "browser_setup": 0.9387037,
+            "goto": 0.0155509,
+            "nested:networkidle_wait": 0.5130227,
+            "nested:fixed_settle_wait": 0.3775887,
+            "render_wait": 0.8906188,
+            "page_content": 0.0058091,
+            "parse_html": 0.0003193,
+            "build_issues": 5.17e-05,
+            "nested:axe_script_fetch": 6e-07,
+            "axe_core": 0.1618419,
+            "merge_issues": 1.88e-05,
+            "nested:screenshot_capture": 1.3801477,
+            "nested:screenshot_store": 0.0019263,
+            "screenshots_total": 1.3821726,
+            "context_close": 0.007717,
+            "browser_close": 0.7116938
+          },
+          "calls": {
+            "nested:browser_start": 1,
+            "nested:context_create": 1,
+            "browser_setup": 1,
+            "goto": 1,
+            "nested:networkidle_wait": 1,
+            "nested:fixed_settle_wait": 1,
+            "render_wait": 1,
+            "page_content": 1,
+            "parse_html": 1,
+            "build_issues": 1,
+            "nested:axe_script_fetch": 1,
+            "axe_core": 1,
+            "merge_issues": 1,
+            "nested:screenshot_capture": 19,
+            "nested:screenshot_store": 1,
+            "screenshots_total": 1,
+            "context_close": 1,
+            "browser_close": 1
+          },
+          "issues": 22,
+          "pages_scanned": 1,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/issue-dense"
+          ],
+          "rule_counts": {
+            "button-name": 1,
+            "color-contrast": 1,
+            "document-title": 1,
+            "duplicate-id": 1,
+            "heading-order": 1,
+            "html-lang": 1,
+            "image-alt": 1,
+            "label": 1,
+            "landmark-one-main": 1,
+            "link-name": 1,
+            "marquee": 1,
+            "region": 10,
+            "select-name": 1
+          },
+          "severity_counts": {
+            "high": 7,
+            "low": 1,
+            "medium": 14
+          },
+          "source_counts": {
+            "axe-core": 16,
+            "both": 4,
+            "custom": 2
+          },
+          "issues_with_screenshots": 22,
+          "summary": {
+            "total_issues": 22,
+            "high": 7,
+            "medium": 14,
+            "low": 1
+          }
+        },
+        {
+          "duration_ms": 4127.576,
+          "phases_s": {
+            "nested:browser_start": 0.8428738,
+            "nested:context_create": 0.0092758,
+            "browser_setup": 0.9133939,
+            "goto": 0.0146409,
+            "nested:networkidle_wait": 0.5049809,
+            "nested:fixed_settle_wait": 0.3910409,
+            "render_wait": 0.8960287,
+            "page_content": 0.0057258,
+            "parse_html": 0.0003218,
+            "build_issues": 5.09e-05,
+            "nested:axe_script_fetch": 6e-07,
+            "axe_core": 0.1644902,
+            "merge_issues": 1.69e-05,
+            "nested:screenshot_capture": 1.416825,
+            "nested:screenshot_store": 0.0018394,
+            "screenshots_total": 1.4187953,
+            "context_close": 0.007708,
+            "browser_close": 0.7062731
+          },
+          "calls": {
+            "nested:browser_start": 1,
+            "nested:context_create": 1,
+            "browser_setup": 1,
+            "goto": 1,
+            "nested:networkidle_wait": 1,
+            "nested:fixed_settle_wait": 1,
+            "render_wait": 1,
+            "page_content": 1,
+            "parse_html": 1,
+            "build_issues": 1,
+            "nested:axe_script_fetch": 1,
+            "axe_core": 1,
+            "merge_issues": 1,
+            "nested:screenshot_capture": 19,
+            "nested:screenshot_store": 1,
+            "screenshots_total": 1,
+            "context_close": 1,
+            "browser_close": 1
+          },
+          "issues": 22,
+          "pages_scanned": 1,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/issue-dense"
+          ],
+          "rule_counts": {
+            "button-name": 1,
+            "color-contrast": 1,
+            "document-title": 1,
+            "duplicate-id": 1,
+            "heading-order": 1,
+            "html-lang": 1,
+            "image-alt": 1,
+            "label": 1,
+            "landmark-one-main": 1,
+            "link-name": 1,
+            "marquee": 1,
+            "region": 10,
+            "select-name": 1
+          },
+          "severity_counts": {
+            "high": 7,
+            "low": 1,
+            "medium": 14
+          },
+          "source_counts": {
+            "axe-core": 16,
+            "both": 4,
+            "custom": 2
+          },
+          "issues_with_screenshots": 22,
+          "summary": {
+            "total_issues": 22,
+            "high": 7,
+            "medium": 14,
+            "low": 1
+          }
+        },
+        {
+          "duration_ms": 4142.21,
+          "phases_s": {
+            "nested:browser_start": 0.8457093,
+            "nested:context_create": 0.0105382,
+            "browser_setup": 0.9185127,
+            "goto": 0.0141168,
+            "nested:networkidle_wait": 0.5091964,
+            "nested:fixed_settle_wait": 0.3788521,
+            "render_wait": 0.8880551,
+            "page_content": 0.0057455,
+            "parse_html": 0.0003285,
+            "build_issues": 5.19e-05,
+            "nested:axe_script_fetch": 7e-07,
+            "axe_core": 0.1627859,
+            "merge_issues": 1.91e-05,
+            "nested:screenshot_capture": 1.4451142,
+            "nested:screenshot_store": 0.0023001,
+            "screenshots_total": 1.4475306,
+            "context_close": 0.0070276,
+            "browser_close": 0.6979031
+          },
+          "calls": {
+            "nested:browser_start": 1,
+            "nested:context_create": 1,
+            "browser_setup": 1,
+            "goto": 1,
+            "nested:networkidle_wait": 1,
+            "nested:fixed_settle_wait": 1,
+            "render_wait": 1,
+            "page_content": 1,
+            "parse_html": 1,
+            "build_issues": 1,
+            "nested:axe_script_fetch": 1,
+            "axe_core": 1,
+            "merge_issues": 1,
+            "nested:screenshot_capture": 19,
+            "nested:screenshot_store": 1,
+            "screenshots_total": 1,
+            "context_close": 1,
+            "browser_close": 1
+          },
+          "issues": 22,
+          "pages_scanned": 1,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/issue-dense"
+          ],
+          "rule_counts": {
+            "button-name": 1,
+            "color-contrast": 1,
+            "document-title": 1,
+            "duplicate-id": 1,
+            "heading-order": 1,
+            "html-lang": 1,
+            "image-alt": 1,
+            "label": 1,
+            "landmark-one-main": 1,
+            "link-name": 1,
+            "marquee": 1,
+            "region": 10,
+            "select-name": 1
+          },
+          "severity_counts": {
+            "high": 7,
+            "low": 1,
+            "medium": 14
+          },
+          "source_counts": {
+            "axe-core": 16,
+            "both": 4,
+            "custom": 2
+          },
+          "issues_with_screenshots": 22,
+          "summary": {
+            "total_issues": 22,
+            "high": 7,
+            "medium": 14,
+            "low": 1
+          }
+        },
+        {
+          "duration_ms": 4123.622,
+          "phases_s": {
+            "nested:browser_start": 0.8119711,
+            "nested:context_create": 0.0103771,
+            "browser_setup": 0.886192,
+            "goto": 0.0139722,
+            "nested:networkidle_wait": 0.506572,
+            "nested:fixed_settle_wait": 0.377312,
+            "render_wait": 0.8838908,
+            "page_content": 0.007186,
+            "parse_html": 0.0003579,
+            "build_issues": 5.3e-05,
+            "nested:axe_script_fetch": 6e-07,
+            "axe_core": 0.1899647,
+            "merge_issues": 1.95e-05,
+            "nested:screenshot_capture": 1.4098661,
+            "nested:screenshot_store": 0.0020959,
+            "screenshots_total": 1.4120827,
+            "context_close": 0.0075866,
+            "browser_close": 0.7220799
+          },
+          "calls": {
+            "nested:browser_start": 1,
+            "nested:context_create": 1,
+            "browser_setup": 1,
+            "goto": 1,
+            "nested:networkidle_wait": 1,
+            "nested:fixed_settle_wait": 1,
+            "render_wait": 1,
+            "page_content": 1,
+            "parse_html": 1,
+            "build_issues": 1,
+            "nested:axe_script_fetch": 1,
+            "axe_core": 1,
+            "merge_issues": 1,
+            "nested:screenshot_capture": 19,
+            "nested:screenshot_store": 1,
+            "screenshots_total": 1,
+            "context_close": 1,
+            "browser_close": 1
+          },
+          "issues": 22,
+          "pages_scanned": 1,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/issue-dense"
+          ],
+          "rule_counts": {
+            "button-name": 1,
+            "color-contrast": 1,
+            "document-title": 1,
+            "duplicate-id": 1,
+            "heading-order": 1,
+            "html-lang": 1,
+            "image-alt": 1,
+            "label": 1,
+            "landmark-one-main": 1,
+            "link-name": 1,
+            "marquee": 1,
+            "region": 10,
+            "select-name": 1
+          },
+          "severity_counts": {
+            "high": 7,
+            "low": 1,
+            "medium": 14
+          },
+          "source_counts": {
+            "axe-core": 16,
+            "both": 4,
+            "custom": 2
+          },
+          "issues_with_screenshots": 22,
+          "summary": {
+            "total_issues": 22,
+            "high": 7,
+            "medium": 14,
+            "low": 1
+          }
+        },
+        {
+          "duration_ms": 4120.073,
+          "phases_s": {
+            "nested:browser_start": 0.8352723,
+            "nested:context_create": 0.0101779,
+            "browser_setup": 0.9051246,
+            "goto": 0.0143618,
+            "nested:networkidle_wait": 0.5040413,
+            "nested:fixed_settle_wait": 0.3783286,
+            "render_wait": 0.8823772,
+            "page_content": 0.0058555,
+            "parse_html": 0.0003353,
+            "build_issues": 5.26e-05,
+            "nested:axe_script_fetch": 6e-07,
+            "axe_core": 0.1658263,
+            "merge_issues": 1.89e-05,
+            "nested:screenshot_capture": 1.4105761,
+            "nested:screenshot_store": 0.0018087,
+            "screenshots_total": 1.4124848,
+            "context_close": 0.0071555,
+            "browser_close": 0.7263383
+          },
+          "calls": {
+            "nested:browser_start": 1,
+            "nested:context_create": 1,
+            "browser_setup": 1,
+            "goto": 1,
+            "nested:networkidle_wait": 1,
+            "nested:fixed_settle_wait": 1,
+            "render_wait": 1,
+            "page_content": 1,
+            "parse_html": 1,
+            "build_issues": 1,
+            "nested:axe_script_fetch": 1,
+            "axe_core": 1,
+            "merge_issues": 1,
+            "nested:screenshot_capture": 19,
+            "nested:screenshot_store": 1,
+            "screenshots_total": 1,
+            "context_close": 1,
+            "browser_close": 1
+          },
+          "issues": 22,
+          "pages_scanned": 1,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/issue-dense"
+          ],
+          "rule_counts": {
+            "button-name": 1,
+            "color-contrast": 1,
+            "document-title": 1,
+            "duplicate-id": 1,
+            "heading-order": 1,
+            "html-lang": 1,
+            "image-alt": 1,
+            "label": 1,
+            "landmark-one-main": 1,
+            "link-name": 1,
+            "marquee": 1,
+            "region": 10,
+            "select-name": 1
+          },
+          "severity_counts": {
+            "high": 7,
+            "low": 1,
+            "medium": 14
+          },
+          "source_counts": {
+            "axe-core": 16,
+            "both": 4,
+            "custom": 2
+          },
+          "issues_with_screenshots": 22,
+          "summary": {
+            "total_issues": 22,
+            "high": 7,
+            "medium": 14,
+            "low": 1
+          }
+        },
+        {
+          "duration_ms": 4084.577,
+          "phases_s": {
+            "nested:browser_start": 0.8225934,
+            "nested:context_create": 0.0098593,
+            "browser_setup": 0.8901923,
+            "goto": 0.0145978,
+            "nested:networkidle_wait": 0.5043721,
+            "nested:fixed_settle_wait": 0.3778611,
+            "render_wait": 0.8822416,
+            "page_content": 0.0085282,
+            "parse_html": 0.0005709,
+            "build_issues": 7.77e-05,
+            "nested:axe_script_fetch": 7e-07,
+            "axe_core": 0.1687634,
+            "merge_issues": 2.28e-05,
+            "nested:screenshot_capture": 1.3991301,
+            "nested:screenshot_store": 0.0021485,
+            "screenshots_total": 1.40138,
+            "context_close": 0.006945,
+            "browser_close": 0.7111101
+          },
+          "calls": {
+            "nested:browser_start": 1,
+            "nested:context_create": 1,
+            "browser_setup": 1,
+            "goto": 1,
+            "nested:networkidle_wait": 1,
+            "nested:fixed_settle_wait": 1,
+            "render_wait": 1,
+            "page_content": 1,
+            "parse_html": 1,
+            "build_issues": 1,
+            "nested:axe_script_fetch": 1,
+            "axe_core": 1,
+            "merge_issues": 1,
+            "nested:screenshot_capture": 19,
+            "nested:screenshot_store": 1,
+            "screenshots_total": 1,
+            "context_close": 1,
+            "browser_close": 1
+          },
+          "issues": 22,
+          "pages_scanned": 1,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/issue-dense"
+          ],
+          "rule_counts": {
+            "button-name": 1,
+            "color-contrast": 1,
+            "document-title": 1,
+            "duplicate-id": 1,
+            "heading-order": 1,
+            "html-lang": 1,
+            "image-alt": 1,
+            "label": 1,
+            "landmark-one-main": 1,
+            "link-name": 1,
+            "marquee": 1,
+            "region": 10,
+            "select-name": 1
+          },
+          "severity_counts": {
+            "high": 7,
+            "low": 1,
+            "medium": 14
+          },
+          "source_counts": {
+            "axe-core": 16,
+            "both": 4,
+            "custom": 2
+          },
+          "issues_with_screenshots": 22,
+          "summary": {
+            "total_issues": 22,
+            "high": 7,
+            "medium": 14,
+            "low": 1
+          }
+        }
+      ],
+      "aggregates": {
+        "duration_ms": {
+          "count": 7,
+          "median_ms": 4123.622,
+          "min_ms": 4084.577,
+          "max_ms": 4175.625,
+          "p90_ms": 4155.576,
+          "mean_ms": 4126.903,
+          "stdev_ms": 27.713,
+          "cv_pct": 0.67,
+          "samples_ms": [
+            4175.625,
+            4114.639,
+            4127.576,
+            4142.21,
+            4123.622,
+            4120.073,
+            4084.577
+          ]
+        },
+        "issue_counts": {
+          "median": 22,
+          "min": 22,
+          "max": 22,
+          "samples": [
+            22,
+            22,
+            22,
+            22,
+            22,
+            22,
+            22
+          ]
+        },
+        "pages_scanned": {
+          "median": 1,
+          "samples": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ]
+        },
+        "ms_per_page": 4123.62,
+        "ms_per_issue": 187.44,
+        "screenshots_per_scan_median": 22,
+        "phase_share": {
+          "measured_total_s": 28.8883,
+          "sum_of_top_level_phases_s": 28.8872,
+          "unattributed_s": 0.0011,
+          "unattributed_share_pct": 0.0,
+          "attribution_warning": false
+        },
+        "phases": {
+          "axe_core": {
+            "total_s": 1.1911,
+            "per_scan_ms": 170.159,
+            "share_of_total_pct": 4.12,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "browser_close": {
+            "total_s": 4.9729,
+            "per_scan_ms": 710.409,
+            "share_of_total_pct": 17.21,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "browser_setup": {
+            "total_s": 6.3838,
+            "per_scan_ms": 911.976,
+            "share_of_total_pct": 22.1,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "build_issues": {
+            "total_s": 0.0004,
+            "per_scan_ms": 0.057,
+            "share_of_total_pct": 0.0,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "context_close": {
+            "total_s": 0.0513,
+            "per_scan_ms": 7.324,
+            "share_of_total_pct": 0.18,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "goto": {
+            "total_s": 0.1018,
+            "per_scan_ms": 14.536,
+            "share_of_total_pct": 0.35,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "merge_issues": {
+            "total_s": 0.0001,
+            "per_scan_ms": 0.021,
+            "share_of_total_pct": 0.0,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "nested:axe_script_fetch": {
+            "total_s": 0.0,
+            "per_scan_ms": 0.001,
+            "share_of_total_pct": 0.0,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "nested:browser_start": {
+            "total_s": 5.8848,
+            "per_scan_ms": 840.681,
+            "share_of_total_pct": 20.37,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "nested:context_create": {
+            "total_s": 0.0699,
+            "per_scan_ms": 9.984,
+            "share_of_total_pct": 0.24,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "nested:fixed_settle_wait": {
+            "total_s": 2.6579,
+            "per_scan_ms": 379.699,
+            "share_of_total_pct": 9.2,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "nested:networkidle_wait": {
+            "total_s": 3.5456,
+            "per_scan_ms": 506.511,
+            "share_of_total_pct": 12.27,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "nested:screenshot_capture": {
+            "total_s": 9.9164,
+            "per_scan_ms": 1416.623,
+            "share_of_total_pct": 34.33,
+            "calls_total": 133,
+            "calls_per_scan": 19.0
+          },
+          "nested:screenshot_store": {
+            "total_s": 0.0139,
+            "per_scan_ms": 1.987,
+            "share_of_total_pct": 0.05,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "page_content": {
+            "total_s": 0.0487,
+            "per_scan_ms": 6.96,
+            "share_of_total_pct": 0.17,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "parse_html": {
+            "total_s": 0.0026,
+            "per_scan_ms": 0.368,
+            "share_of_total_pct": 0.01,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "render_wait": {
+            "total_s": 6.2035,
+            "per_scan_ms": 886.218,
+            "share_of_total_pct": 21.47,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "screenshots_total": {
+            "total_s": 9.931,
+            "per_scan_ms": 1418.72,
+            "share_of_total_pct": 34.38,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          }
+        }
+      },
+      "observed_rule_ids": [
+        "button-name",
+        "color-contrast",
+        "document-title",
+        "duplicate-id",
+        "heading-order",
+        "html-lang",
+        "image-alt",
+        "label",
+        "landmark-one-main",
+        "link-name",
+        "marquee",
+        "region",
+        "select-name"
+      ],
+      "observed_severities": [
+        "high",
+        "low",
+        "medium"
+      ],
+      "median_issue_counts_by_rule": {
+        "button-name": 1,
+        "color-contrast": 1,
+        "document-title": 1,
+        "duplicate-id": 1,
+        "heading-order": 1,
+        "html-lang": 1,
+        "image-alt": 1,
+        "label": 1,
+        "landmark-one-main": 1,
+        "link-name": 1,
+        "marquee": 1,
+        "region": 10,
+        "select-name": 1
+      }
+    },
+    {
+      "scenario_id": "single_issue_dense_no_screenshots",
+      "description": "Single page, issue-dense fixture with _attach_issue_screenshots patched to a no-op",
+      "url": "http://127.0.0.1:64523/issue-dense",
+      "fixture_path": "/issue-dense",
+      "special": "no_screenshots",
+      "session_mode": "per_call",
+      "worker_session": null,
+      "scan_options": {
+        "mode": "single",
+        "page_limit": 1,
+        "crawl_depth": 1,
+        "request_delay_ms": 0,
+        "page_timeout_ms": 15000,
+        "wcag_standard": "wcag21aa",
+        "include_best_practices": true
+      },
+      "iterations_measured": 7,
+      "warmups": 1,
+      "warmup": {
+        "duration_ms": 2727.791,
+        "phases_s": {
+          "nested:browser_start": 0.8622851,
+          "nested:context_create": 0.0091549,
+          "browser_setup": 0.9293926,
+          "goto": 0.0146112,
+          "nested:networkidle_wait": 0.5062065,
+          "nested:fixed_settle_wait": 0.3911878,
+          "render_wait": 0.8974019,
+          "page_content": 0.0060897,
+          "parse_html": 0.0003172,
+          "build_issues": 5.22e-05,
+          "nested:axe_script_fetch": 6e-07,
+          "axe_core": 0.1808517,
+          "merge_issues": 1.7e-05,
+          "context_close": 0.008224,
+          "browser_close": 0.6906998
+        },
+        "calls": {
+          "nested:browser_start": 1,
+          "nested:context_create": 1,
+          "browser_setup": 1,
+          "goto": 1,
+          "nested:networkidle_wait": 1,
+          "nested:fixed_settle_wait": 1,
+          "render_wait": 1,
+          "page_content": 1,
+          "parse_html": 1,
+          "build_issues": 1,
+          "nested:axe_script_fetch": 1,
+          "axe_core": 1,
+          "merge_issues": 1,
+          "context_close": 1,
+          "browser_close": 1
+        },
+        "issues": 22,
+        "pages_scanned": 1,
+        "pages_skipped": 0,
+        "scanned_page_urls": [
+          "http://127.0.0.1:64523/issue-dense"
+        ],
+        "rule_counts": {
+          "button-name": 1,
+          "color-contrast": 1,
+          "document-title": 1,
+          "duplicate-id": 1,
+          "heading-order": 1,
+          "html-lang": 1,
+          "image-alt": 1,
+          "label": 1,
+          "landmark-one-main": 1,
+          "link-name": 1,
+          "marquee": 1,
+          "region": 10,
+          "select-name": 1
+        },
+        "severity_counts": {
+          "high": 7,
+          "low": 1,
+          "medium": 14
+        },
+        "source_counts": {
+          "axe-core": 16,
+          "both": 4,
+          "custom": 2
+        },
+        "issues_with_screenshots": 0,
+        "summary": {
+          "total_issues": 22,
+          "high": 7,
+          "medium": 14,
+          "low": 1
+        }
+      },
+      "iterations": [
+        {
+          "duration_ms": 2680.428,
+          "phases_s": {
+            "nested:browser_start": 0.8336169,
+            "nested:context_create": 0.0093223,
+            "browser_setup": 0.9007071,
+            "goto": 0.0135833,
+            "nested:networkidle_wait": 0.5095332,
+            "nested:fixed_settle_wait": 0.3786292,
+            "render_wait": 0.8881691,
+            "page_content": 0.0063011,
+            "parse_html": 0.0003376,
+            "build_issues": 5.49e-05,
+            "nested:axe_script_fetch": 6e-07,
+            "axe_core": 0.1668665,
+            "merge_issues": 1.98e-05,
+            "context_close": 0.0105072,
+            "browser_close": 0.6937219
+          },
+          "calls": {
+            "nested:browser_start": 1,
+            "nested:context_create": 1,
+            "browser_setup": 1,
+            "goto": 1,
+            "nested:networkidle_wait": 1,
+            "nested:fixed_settle_wait": 1,
+            "render_wait": 1,
+            "page_content": 1,
+            "parse_html": 1,
+            "build_issues": 1,
+            "nested:axe_script_fetch": 1,
+            "axe_core": 1,
+            "merge_issues": 1,
+            "context_close": 1,
+            "browser_close": 1
+          },
+          "issues": 22,
+          "pages_scanned": 1,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/issue-dense"
+          ],
+          "rule_counts": {
+            "button-name": 1,
+            "color-contrast": 1,
+            "document-title": 1,
+            "duplicate-id": 1,
+            "heading-order": 1,
+            "html-lang": 1,
+            "image-alt": 1,
+            "label": 1,
+            "landmark-one-main": 1,
+            "link-name": 1,
+            "marquee": 1,
+            "region": 10,
+            "select-name": 1
+          },
+          "severity_counts": {
+            "high": 7,
+            "low": 1,
+            "medium": 14
+          },
+          "source_counts": {
+            "axe-core": 16,
+            "both": 4,
+            "custom": 2
+          },
+          "issues_with_screenshots": 0,
+          "summary": {
+            "total_issues": 22,
+            "high": 7,
+            "medium": 14,
+            "low": 1
+          }
+        },
+        {
+          "duration_ms": 2681.347,
+          "phases_s": {
+            "nested:browser_start": 0.8175864,
+            "nested:context_create": 0.0100659,
+            "browser_setup": 0.8852723,
+            "goto": 0.0136584,
+            "nested:networkidle_wait": 0.5079073,
+            "nested:fixed_settle_wait": 0.3922264,
+            "render_wait": 0.9001414,
+            "page_content": 0.0061381,
+            "parse_html": 0.0003201,
+            "build_issues": 5.16e-05,
+            "nested:axe_script_fetch": 6e-07,
+            "axe_core": 0.1630748,
+            "merge_issues": 1.77e-05,
+            "context_close": 0.0086846,
+            "browser_close": 0.7038277
+          },
+          "calls": {
+            "nested:browser_start": 1,
+            "nested:context_create": 1,
+            "browser_setup": 1,
+            "goto": 1,
+            "nested:networkidle_wait": 1,
+            "nested:fixed_settle_wait": 1,
+            "render_wait": 1,
+            "page_content": 1,
+            "parse_html": 1,
+            "build_issues": 1,
+            "nested:axe_script_fetch": 1,
+            "axe_core": 1,
+            "merge_issues": 1,
+            "context_close": 1,
+            "browser_close": 1
+          },
+          "issues": 22,
+          "pages_scanned": 1,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/issue-dense"
+          ],
+          "rule_counts": {
+            "button-name": 1,
+            "color-contrast": 1,
+            "document-title": 1,
+            "duplicate-id": 1,
+            "heading-order": 1,
+            "html-lang": 1,
+            "image-alt": 1,
+            "label": 1,
+            "landmark-one-main": 1,
+            "link-name": 1,
+            "marquee": 1,
+            "region": 10,
+            "select-name": 1
+          },
+          "severity_counts": {
+            "high": 7,
+            "low": 1,
+            "medium": 14
+          },
+          "source_counts": {
+            "axe-core": 16,
+            "both": 4,
+            "custom": 2
+          },
+          "issues_with_screenshots": 0,
+          "summary": {
+            "total_issues": 22,
+            "high": 7,
+            "medium": 14,
+            "low": 1
+          }
+        },
+        {
+          "duration_ms": 2736.304,
+          "phases_s": {
+            "nested:browser_start": 0.8521174,
+            "nested:context_create": 0.0105064,
+            "browser_setup": 0.9274174,
+            "goto": 0.0165209,
+            "nested:networkidle_wait": 0.5068255,
+            "nested:fixed_settle_wait": 0.3789052,
+            "render_wait": 0.8857385,
+            "page_content": 0.0073166,
+            "parse_html": 0.0004675,
+            "build_issues": 7.6e-05,
+            "nested:axe_script_fetch": 7e-07,
+            "axe_core": 0.1804599,
+            "merge_issues": 1.96e-05,
+            "context_close": 0.0102399,
+            "browser_close": 0.7079092
+          },
+          "calls": {
+            "nested:browser_start": 1,
+            "nested:context_create": 1,
+            "browser_setup": 1,
+            "goto": 1,
+            "nested:networkidle_wait": 1,
+            "nested:fixed_settle_wait": 1,
+            "render_wait": 1,
+            "page_content": 1,
+            "parse_html": 1,
+            "build_issues": 1,
+            "nested:axe_script_fetch": 1,
+            "axe_core": 1,
+            "merge_issues": 1,
+            "context_close": 1,
+            "browser_close": 1
+          },
+          "issues": 22,
+          "pages_scanned": 1,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/issue-dense"
+          ],
+          "rule_counts": {
+            "button-name": 1,
+            "color-contrast": 1,
+            "document-title": 1,
+            "duplicate-id": 1,
+            "heading-order": 1,
+            "html-lang": 1,
+            "image-alt": 1,
+            "label": 1,
+            "landmark-one-main": 1,
+            "link-name": 1,
+            "marquee": 1,
+            "region": 10,
+            "select-name": 1
+          },
+          "severity_counts": {
+            "high": 7,
+            "low": 1,
+            "medium": 14
+          },
+          "source_counts": {
+            "axe-core": 16,
+            "both": 4,
+            "custom": 2
+          },
+          "issues_with_screenshots": 0,
+          "summary": {
+            "total_issues": 22,
+            "high": 7,
+            "medium": 14,
+            "low": 1
+          }
+        },
+        {
+          "duration_ms": 2730.734,
+          "phases_s": {
+            "nested:browser_start": 0.8628295,
+            "nested:context_create": 0.0101838,
+            "browser_setup": 0.9328719,
+            "goto": 0.01517,
+            "nested:networkidle_wait": 0.5069548,
+            "nested:fixed_settle_wait": 0.3907613,
+            "render_wait": 0.8977234,
+            "page_content": 0.0066986,
+            "parse_html": 0.0003358,
+            "build_issues": 5.19e-05,
+            "nested:axe_script_fetch": 9e-07,
+            "axe_core": 0.160674,
+            "merge_issues": 1.96e-05,
+            "context_close": 0.0102274,
+            "browser_close": 0.7068342
+          },
+          "calls": {
+            "nested:browser_start": 1,
+            "nested:context_create": 1,
+            "browser_setup": 1,
+            "goto": 1,
+            "nested:networkidle_wait": 1,
+            "nested:fixed_settle_wait": 1,
+            "render_wait": 1,
+            "page_content": 1,
+            "parse_html": 1,
+            "build_issues": 1,
+            "nested:axe_script_fetch": 1,
+            "axe_core": 1,
+            "merge_issues": 1,
+            "context_close": 1,
+            "browser_close": 1
+          },
+          "issues": 22,
+          "pages_scanned": 1,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/issue-dense"
+          ],
+          "rule_counts": {
+            "button-name": 1,
+            "color-contrast": 1,
+            "document-title": 1,
+            "duplicate-id": 1,
+            "heading-order": 1,
+            "html-lang": 1,
+            "image-alt": 1,
+            "label": 1,
+            "landmark-one-main": 1,
+            "link-name": 1,
+            "marquee": 1,
+            "region": 10,
+            "select-name": 1
+          },
+          "severity_counts": {
+            "high": 7,
+            "low": 1,
+            "medium": 14
+          },
+          "source_counts": {
+            "axe-core": 16,
+            "both": 4,
+            "custom": 2
+          },
+          "issues_with_screenshots": 0,
+          "summary": {
+            "total_issues": 22,
+            "high": 7,
+            "medium": 14,
+            "low": 1
+          }
+        },
+        {
+          "duration_ms": 2700.84,
+          "phases_s": {
+            "nested:browser_start": 0.820307,
+            "nested:context_create": 0.0097577,
+            "browser_setup": 0.8900457,
+            "goto": 0.0137212,
+            "nested:networkidle_wait": 0.5097878,
+            "nested:fixed_settle_wait": 0.3783156,
+            "render_wait": 0.8881102,
+            "page_content": 0.0088521,
+            "parse_html": 0.0003451,
+            "build_issues": 5.38e-05,
+            "nested:axe_script_fetch": 6e-07,
+            "axe_core": 0.1663548,
+            "merge_issues": 2.34e-05,
+            "context_close": 0.008268,
+            "browser_close": 0.7249319
+          },
+          "calls": {
+            "nested:browser_start": 1,
+            "nested:context_create": 1,
+            "browser_setup": 1,
+            "goto": 1,
+            "nested:networkidle_wait": 1,
+            "nested:fixed_settle_wait": 1,
+            "render_wait": 1,
+            "page_content": 1,
+            "parse_html": 1,
+            "build_issues": 1,
+            "nested:axe_script_fetch": 1,
+            "axe_core": 1,
+            "merge_issues": 1,
+            "context_close": 1,
+            "browser_close": 1
+          },
+          "issues": 22,
+          "pages_scanned": 1,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/issue-dense"
+          ],
+          "rule_counts": {
+            "button-name": 1,
+            "color-contrast": 1,
+            "document-title": 1,
+            "duplicate-id": 1,
+            "heading-order": 1,
+            "html-lang": 1,
+            "image-alt": 1,
+            "label": 1,
+            "landmark-one-main": 1,
+            "link-name": 1,
+            "marquee": 1,
+            "region": 10,
+            "select-name": 1
+          },
+          "severity_counts": {
+            "high": 7,
+            "low": 1,
+            "medium": 14
+          },
+          "source_counts": {
+            "axe-core": 16,
+            "both": 4,
+            "custom": 2
+          },
+          "issues_with_screenshots": 0,
+          "summary": {
+            "total_issues": 22,
+            "high": 7,
+            "medium": 14,
+            "low": 1
+          }
+        },
+        {
+          "duration_ms": 2680.361,
+          "phases_s": {
+            "nested:browser_start": 0.8153771,
+            "nested:context_create": 0.0103976,
+            "browser_setup": 0.8841362,
+            "goto": 0.0158762,
+            "nested:networkidle_wait": 0.5026146,
+            "nested:fixed_settle_wait": 0.3781744,
+            "render_wait": 0.8808095,
+            "page_content": 0.0062527,
+            "parse_html": 0.000315,
+            "build_issues": 5.19e-05,
+            "nested:axe_script_fetch": 5e-07,
+            "axe_core": 0.1751118,
+            "merge_issues": 2.03e-05,
+            "context_close": 0.0120753,
+            "browser_close": 0.7055647
+          },
+          "calls": {
+            "nested:browser_start": 1,
+            "nested:context_create": 1,
+            "browser_setup": 1,
+            "goto": 1,
+            "nested:networkidle_wait": 1,
+            "nested:fixed_settle_wait": 1,
+            "render_wait": 1,
+            "page_content": 1,
+            "parse_html": 1,
+            "build_issues": 1,
+            "nested:axe_script_fetch": 1,
+            "axe_core": 1,
+            "merge_issues": 1,
+            "context_close": 1,
+            "browser_close": 1
+          },
+          "issues": 22,
+          "pages_scanned": 1,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/issue-dense"
+          ],
+          "rule_counts": {
+            "button-name": 1,
+            "color-contrast": 1,
+            "document-title": 1,
+            "duplicate-id": 1,
+            "heading-order": 1,
+            "html-lang": 1,
+            "image-alt": 1,
+            "label": 1,
+            "landmark-one-main": 1,
+            "link-name": 1,
+            "marquee": 1,
+            "region": 10,
+            "select-name": 1
+          },
+          "severity_counts": {
+            "high": 7,
+            "low": 1,
+            "medium": 14
+          },
+          "source_counts": {
+            "axe-core": 16,
+            "both": 4,
+            "custom": 2
+          },
+          "issues_with_screenshots": 0,
+          "summary": {
+            "total_issues": 22,
+            "high": 7,
+            "medium": 14,
+            "low": 1
+          }
+        },
+        {
+          "duration_ms": 2714.537,
+          "phases_s": {
+            "nested:browser_start": 0.815055,
+            "nested:context_create": 0.0097539,
+            "browser_setup": 0.8851586,
+            "goto": 0.014164,
+            "nested:networkidle_wait": 0.5164417,
+            "nested:fixed_settle_wait": 0.3778789,
+            "render_wait": 0.8943281,
+            "page_content": 0.0063532,
+            "parse_html": 0.000564,
+            "build_issues": 8.83e-05,
+            "nested:axe_script_fetch": 8e-07,
+            "axe_core": 0.185893,
+            "merge_issues": 6.84e-05,
+            "context_close": 0.0095926,
+            "browser_close": 0.7181646
+          },
+          "calls": {
+            "nested:browser_start": 1,
+            "nested:context_create": 1,
+            "browser_setup": 1,
+            "goto": 1,
+            "nested:networkidle_wait": 1,
+            "nested:fixed_settle_wait": 1,
+            "render_wait": 1,
+            "page_content": 1,
+            "parse_html": 1,
+            "build_issues": 1,
+            "nested:axe_script_fetch": 1,
+            "axe_core": 1,
+            "merge_issues": 1,
+            "context_close": 1,
+            "browser_close": 1
+          },
+          "issues": 22,
+          "pages_scanned": 1,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/issue-dense"
+          ],
+          "rule_counts": {
+            "button-name": 1,
+            "color-contrast": 1,
+            "document-title": 1,
+            "duplicate-id": 1,
+            "heading-order": 1,
+            "html-lang": 1,
+            "image-alt": 1,
+            "label": 1,
+            "landmark-one-main": 1,
+            "link-name": 1,
+            "marquee": 1,
+            "region": 10,
+            "select-name": 1
+          },
+          "severity_counts": {
+            "high": 7,
+            "low": 1,
+            "medium": 14
+          },
+          "source_counts": {
+            "axe-core": 16,
+            "both": 4,
+            "custom": 2
+          },
+          "issues_with_screenshots": 0,
+          "summary": {
+            "total_issues": 22,
+            "high": 7,
+            "medium": 14,
+            "low": 1
+          }
+        }
+      ],
+      "aggregates": {
+        "duration_ms": {
+          "count": 7,
+          "median_ms": 2700.84,
+          "min_ms": 2680.361,
+          "max_ms": 2736.304,
+          "p90_ms": 2732.962,
+          "mean_ms": 2703.507,
+          "stdev_ms": 24.17,
+          "cv_pct": 0.89,
+          "samples_ms": [
+            2680.428,
+            2681.347,
+            2736.304,
+            2730.734,
+            2700.84,
+            2680.361,
+            2714.537
+          ]
+        },
+        "issue_counts": {
+          "median": 22,
+          "min": 22,
+          "max": 22,
+          "samples": [
+            22,
+            22,
+            22,
+            22,
+            22,
+            22,
+            22
+          ]
+        },
+        "pages_scanned": {
+          "median": 1,
+          "samples": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ]
+        },
+        "ms_per_page": 2700.84,
+        "ms_per_issue": 122.77,
+        "screenshots_per_scan_median": 0,
+        "phase_share": {
+          "measured_total_s": 18.9246,
+          "sum_of_top_level_phases_s": 18.9235,
+          "unattributed_s": 0.001,
+          "unattributed_share_pct": 0.01,
+          "attribution_warning": false
+        },
+        "phases": {
+          "axe_core": {
+            "total_s": 1.1984,
+            "per_scan_ms": 171.205,
+            "share_of_total_pct": 6.33,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "browser_close": {
+            "total_s": 4.961,
+            "per_scan_ms": 708.708,
+            "share_of_total_pct": 26.21,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "browser_setup": {
+            "total_s": 6.3056,
+            "per_scan_ms": 900.801,
+            "share_of_total_pct": 33.32,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "build_issues": {
+            "total_s": 0.0004,
+            "per_scan_ms": 0.061,
+            "share_of_total_pct": 0.0,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "context_close": {
+            "total_s": 0.0696,
+            "per_scan_ms": 9.942,
+            "share_of_total_pct": 0.37,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "goto": {
+            "total_s": 0.1027,
+            "per_scan_ms": 14.671,
+            "share_of_total_pct": 0.54,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "merge_issues": {
+            "total_s": 0.0002,
+            "per_scan_ms": 0.027,
+            "share_of_total_pct": 0.0,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "nested:axe_script_fetch": {
+            "total_s": 0.0,
+            "per_scan_ms": 0.001,
+            "share_of_total_pct": 0.0,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "nested:browser_start": {
+            "total_s": 5.8169,
+            "per_scan_ms": 830.984,
+            "share_of_total_pct": 30.74,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "nested:context_create": {
+            "total_s": 0.07,
+            "per_scan_ms": 9.998,
+            "share_of_total_pct": 0.37,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "nested:fixed_settle_wait": {
+            "total_s": 2.6749,
+            "per_scan_ms": 382.127,
+            "share_of_total_pct": 14.13,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "nested:networkidle_wait": {
+            "total_s": 3.5601,
+            "per_scan_ms": 508.581,
+            "share_of_total_pct": 18.81,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "page_content": {
+            "total_s": 0.0479,
+            "per_scan_ms": 6.845,
+            "share_of_total_pct": 0.25,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "parse_html": {
+            "total_s": 0.0027,
+            "per_scan_ms": 0.384,
+            "share_of_total_pct": 0.01,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "render_wait": {
+            "total_s": 6.235,
+            "per_scan_ms": 890.717,
+            "share_of_total_pct": 32.95,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          }
+        }
+      },
+      "observed_rule_ids": [
+        "button-name",
+        "color-contrast",
+        "document-title",
+        "duplicate-id",
+        "heading-order",
+        "html-lang",
+        "image-alt",
+        "label",
+        "landmark-one-main",
+        "link-name",
+        "marquee",
+        "region",
+        "select-name"
+      ],
+      "observed_severities": [
+        "high",
+        "low",
+        "medium"
+      ],
+      "median_issue_counts_by_rule": {
+        "button-name": 1,
+        "color-contrast": 1,
+        "document-title": 1,
+        "duplicate-id": 1,
+        "heading-order": 1,
+        "html-lang": 1,
+        "image-alt": 1,
+        "label": 1,
+        "landmark-one-main": 1,
+        "link-name": 1,
+        "marquee": 1,
+        "region": 10,
+        "select-name": 1
+      }
+    },
+    {
+      "scenario_id": "single_js_rendered_spa",
+      "description": "Single page, JS-rendered SPA fixture (violations injected via setTimeout)",
+      "url": "http://127.0.0.1:64523/spa",
+      "fixture_path": "/spa",
+      "special": null,
+      "session_mode": "per_call",
+      "worker_session": null,
+      "scan_options": {
+        "mode": "single",
+        "page_limit": 1,
+        "crawl_depth": 1,
+        "request_delay_ms": 0,
+        "page_timeout_ms": 15000,
+        "wcag_standard": "wcag21aa",
+        "include_best_practices": true
+      },
+      "iterations_measured": 7,
+      "warmups": 1,
+      "warmup": {
+        "duration_ms": 3399.258,
+        "phases_s": {
+          "nested:browser_start": 0.8268742,
+          "nested:context_create": 0.0103495,
+          "browser_setup": 0.8985101,
+          "goto": 0.013785,
+          "nested:networkidle_wait": 0.6622475,
+          "nested:fixed_settle_wait": 0.3784271,
+          "render_wait": 1.0406835,
+          "page_content": 0.0065584,
+          "parse_html": 0.0003232,
+          "build_issues": 3.65e-05,
+          "nested:axe_script_fetch": 1.1e-06,
+          "axe_core": 0.1440871,
+          "merge_issues": 1.28e-05,
+          "nested:screenshot_capture": 0.5528464,
+          "nested:screenshot_store": 0.0011608,
+          "screenshots_total": 0.5540514,
+          "context_close": 0.0071375,
+          "browser_close": 0.7338833
+        },
+        "calls": {
+          "nested:browser_start": 1,
+          "nested:context_create": 1,
+          "browser_setup": 1,
+          "goto": 1,
+          "nested:networkidle_wait": 1,
+          "nested:fixed_settle_wait": 1,
+          "render_wait": 1,
+          "page_content": 1,
+          "parse_html": 1,
+          "build_issues": 1,
+          "nested:axe_script_fetch": 1,
+          "axe_core": 1,
+          "merge_issues": 1,
+          "nested:screenshot_capture": 8,
+          "nested:screenshot_store": 1,
+          "screenshots_total": 1,
+          "context_close": 1,
+          "browser_close": 1
+        },
+        "issues": 8,
+        "pages_scanned": 1,
+        "pages_skipped": 0,
+        "scanned_page_urls": [
+          "http://127.0.0.1:64523/spa"
+        ],
+        "rule_counts": {
+          "button-name": 1,
+          "image-alt": 1,
+          "landmark-one-main": 1,
+          "link-name": 1,
+          "region": 4
+        },
+        "severity_counts": {
+          "high": 1,
+          "low": 1,
+          "medium": 6
+        },
+        "source_counts": {
+          "axe-core": 6,
+          "both": 1,
+          "custom": 1
+        },
+        "issues_with_screenshots": 8,
+        "summary": {
+          "total_issues": 8,
+          "high": 1,
+          "medium": 6,
+          "low": 1
+        }
+      },
+      "iterations": [
+        {
+          "duration_ms": 3379.877,
+          "phases_s": {
+            "nested:browser_start": 0.8163381,
+            "nested:context_create": 0.0107308,
+            "browser_setup": 0.8843027,
+            "goto": 0.0131711,
+            "nested:networkidle_wait": 0.6767278,
+            "nested:fixed_settle_wait": 0.3776399,
+            "render_wait": 1.0543749,
+            "page_content": 0.006233,
+            "parse_html": 0.000242,
+            "build_issues": 3.56e-05,
+            "nested:axe_script_fetch": 9e-07,
+            "axe_core": 0.1511044,
+            "merge_issues": 1.08e-05,
+            "nested:screenshot_capture": 0.5648516,
+            "nested:screenshot_store": 0.001097,
+            "screenshots_total": 0.56599,
+            "context_close": 0.0071126,
+            "browser_close": 0.697194
+          },
+          "calls": {
+            "nested:browser_start": 1,
+            "nested:context_create": 1,
+            "browser_setup": 1,
+            "goto": 1,
+            "nested:networkidle_wait": 1,
+            "nested:fixed_settle_wait": 1,
+            "render_wait": 1,
+            "page_content": 1,
+            "parse_html": 1,
+            "build_issues": 1,
+            "nested:axe_script_fetch": 1,
+            "axe_core": 1,
+            "merge_issues": 1,
+            "nested:screenshot_capture": 8,
+            "nested:screenshot_store": 1,
+            "screenshots_total": 1,
+            "context_close": 1,
+            "browser_close": 1
+          },
+          "issues": 8,
+          "pages_scanned": 1,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/spa"
+          ],
+          "rule_counts": {
+            "button-name": 1,
+            "image-alt": 1,
+            "landmark-one-main": 1,
+            "link-name": 1,
+            "region": 4
+          },
+          "severity_counts": {
+            "high": 1,
+            "low": 1,
+            "medium": 6
+          },
+          "source_counts": {
+            "axe-core": 6,
+            "both": 1,
+            "custom": 1
+          },
+          "issues_with_screenshots": 8,
+          "summary": {
+            "total_issues": 8,
+            "high": 1,
+            "medium": 6,
+            "low": 1
+          }
+        },
+        {
+          "duration_ms": 3413.598,
+          "phases_s": {
+            "nested:browser_start": 0.8216263,
+            "nested:context_create": 0.0106836,
+            "browser_setup": 0.8975834,
+            "goto": 0.0150142,
+            "nested:networkidle_wait": 0.6683365,
+            "nested:fixed_settle_wait": 0.3817702,
+            "render_wait": 1.0501152,
+            "page_content": 0.0072181,
+            "parse_html": 0.0004668,
+            "build_issues": 5.81e-05,
+            "nested:axe_script_fetch": 1.1e-06,
+            "axe_core": 0.1590693,
+            "merge_issues": 1.67e-05,
+            "nested:screenshot_capture": 0.5650684,
+            "nested:screenshot_store": 0.0011533,
+            "screenshots_total": 0.5662657,
+            "context_close": 0.0071124,
+            "browser_close": 0.7104825
+          },
+          "calls": {
+            "nested:browser_start": 1,
+            "nested:context_create": 1,
+            "browser_setup": 1,
+            "goto": 1,
+            "nested:networkidle_wait": 1,
+            "nested:fixed_settle_wait": 1,
+            "render_wait": 1,
+            "page_content": 1,
+            "parse_html": 1,
+            "build_issues": 1,
+            "nested:axe_script_fetch": 1,
+            "axe_core": 1,
+            "merge_issues": 1,
+            "nested:screenshot_capture": 8,
+            "nested:screenshot_store": 1,
+            "screenshots_total": 1,
+            "context_close": 1,
+            "browser_close": 1
+          },
+          "issues": 8,
+          "pages_scanned": 1,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/spa"
+          ],
+          "rule_counts": {
+            "button-name": 1,
+            "image-alt": 1,
+            "landmark-one-main": 1,
+            "link-name": 1,
+            "region": 4
+          },
+          "severity_counts": {
+            "high": 1,
+            "low": 1,
+            "medium": 6
+          },
+          "source_counts": {
+            "axe-core": 6,
+            "both": 1,
+            "custom": 1
+          },
+          "issues_with_screenshots": 8,
+          "summary": {
+            "total_issues": 8,
+            "high": 1,
+            "medium": 6,
+            "low": 1
+          }
+        },
+        {
+          "duration_ms": 3399.46,
+          "phases_s": {
+            "nested:browser_start": 0.8199471,
+            "nested:context_create": 0.0100793,
+            "browser_setup": 0.8906977,
+            "goto": 0.0148331,
+            "nested:networkidle_wait": 0.6760633,
+            "nested:fixed_settle_wait": 0.3781605,
+            "render_wait": 1.0542339,
+            "page_content": 0.0060587,
+            "parse_html": 0.000242,
+            "build_issues": 3.46e-05,
+            "nested:axe_script_fetch": 1e-06,
+            "axe_core": 0.1469849,
+            "merge_issues": 1.09e-05,
+            "nested:screenshot_capture": 0.5840672,
+            "nested:screenshot_store": 0.0011735,
+            "screenshots_total": 0.585283,
+            "context_close": 0.0071537,
+            "browser_close": 0.6938114
+          },
+          "calls": {
+            "nested:browser_start": 1,
+            "nested:context_create": 1,
+            "browser_setup": 1,
+            "goto": 1,
+            "nested:networkidle_wait": 1,
+            "nested:fixed_settle_wait": 1,
+            "render_wait": 1,
+            "page_content": 1,
+            "parse_html": 1,
+            "build_issues": 1,
+            "nested:axe_script_fetch": 1,
+            "axe_core": 1,
+            "merge_issues": 1,
+            "nested:screenshot_capture": 8,
+            "nested:screenshot_store": 1,
+            "screenshots_total": 1,
+            "context_close": 1,
+            "browser_close": 1
+          },
+          "issues": 8,
+          "pages_scanned": 1,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/spa"
+          ],
+          "rule_counts": {
+            "button-name": 1,
+            "image-alt": 1,
+            "landmark-one-main": 1,
+            "link-name": 1,
+            "region": 4
+          },
+          "severity_counts": {
+            "high": 1,
+            "low": 1,
+            "medium": 6
+          },
+          "source_counts": {
+            "axe-core": 6,
+            "both": 1,
+            "custom": 1
+          },
+          "issues_with_screenshots": 8,
+          "summary": {
+            "total_issues": 8,
+            "high": 1,
+            "medium": 6,
+            "low": 1
+          }
+        },
+        {
+          "duration_ms": 3478.659,
+          "phases_s": {
+            "nested:browser_start": 0.8834701,
+            "nested:context_create": 0.0098604,
+            "browser_setup": 0.9549541,
+            "goto": 0.0147279,
+            "nested:networkidle_wait": 0.6659128,
+            "nested:fixed_settle_wait": 0.3787255,
+            "render_wait": 1.0446479,
+            "page_content": 0.0058883,
+            "parse_html": 0.0002416,
+            "build_issues": 3.43e-05,
+            "nested:axe_script_fetch": 7e-07,
+            "axe_core": 0.1452692,
+            "merge_issues": 1.29e-05,
+            "nested:screenshot_capture": 0.6149144,
+            "nested:screenshot_store": 0.0011062,
+            "screenshots_total": 0.6160655,
+            "context_close": 0.0073863,
+            "browser_close": 0.6892764
+          },
+          "calls": {
+            "nested:browser_start": 1,
+            "nested:context_create": 1,
+            "browser_setup": 1,
+            "goto": 1,
+            "nested:networkidle_wait": 1,
+            "nested:fixed_settle_wait": 1,
+            "render_wait": 1,
+            "page_content": 1,
+            "parse_html": 1,
+            "build_issues": 1,
+            "nested:axe_script_fetch": 1,
+            "axe_core": 1,
+            "merge_issues": 1,
+            "nested:screenshot_capture": 8,
+            "nested:screenshot_store": 1,
+            "screenshots_total": 1,
+            "context_close": 1,
+            "browser_close": 1
+          },
+          "issues": 8,
+          "pages_scanned": 1,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/spa"
+          ],
+          "rule_counts": {
+            "button-name": 1,
+            "image-alt": 1,
+            "landmark-one-main": 1,
+            "link-name": 1,
+            "region": 4
+          },
+          "severity_counts": {
+            "high": 1,
+            "low": 1,
+            "medium": 6
+          },
+          "source_counts": {
+            "axe-core": 6,
+            "both": 1,
+            "custom": 1
+          },
+          "issues_with_screenshots": 8,
+          "summary": {
+            "total_issues": 8,
+            "high": 1,
+            "medium": 6,
+            "low": 1
+          }
+        },
+        {
+          "duration_ms": 3581.582,
+          "phases_s": {
+            "nested:browser_start": 0.8939856,
+            "nested:context_create": 0.0101701,
+            "browser_setup": 0.9641685,
+            "goto": 0.0140723,
+            "nested:networkidle_wait": 0.6681706,
+            "nested:fixed_settle_wait": 0.3881586,
+            "render_wait": 1.0563396,
+            "page_content": 0.0070163,
+            "parse_html": 0.0004163,
+            "build_issues": 4.95e-05,
+            "nested:axe_script_fetch": 8e-07,
+            "axe_core": 0.1613468,
+            "merge_issues": 1.82e-05,
+            "nested:screenshot_capture": 0.6657003,
+            "nested:screenshot_store": 0.0012608,
+            "screenshots_total": 0.6670213,
+            "context_close": 0.0075927,
+            "browser_close": 0.7033694
+          },
+          "calls": {
+            "nested:browser_start": 1,
+            "nested:context_create": 1,
+            "browser_setup": 1,
+            "goto": 1,
+            "nested:networkidle_wait": 1,
+            "nested:fixed_settle_wait": 1,
+            "render_wait": 1,
+            "page_content": 1,
+            "parse_html": 1,
+            "build_issues": 1,
+            "nested:axe_script_fetch": 1,
+            "axe_core": 1,
+            "merge_issues": 1,
+            "nested:screenshot_capture": 8,
+            "nested:screenshot_store": 1,
+            "screenshots_total": 1,
+            "context_close": 1,
+            "browser_close": 1
+          },
+          "issues": 8,
+          "pages_scanned": 1,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/spa"
+          ],
+          "rule_counts": {
+            "button-name": 1,
+            "image-alt": 1,
+            "landmark-one-main": 1,
+            "link-name": 1,
+            "region": 4
+          },
+          "severity_counts": {
+            "high": 1,
+            "low": 1,
+            "medium": 6
+          },
+          "source_counts": {
+            "axe-core": 6,
+            "both": 1,
+            "custom": 1
+          },
+          "issues_with_screenshots": 8,
+          "summary": {
+            "total_issues": 8,
+            "high": 1,
+            "medium": 6,
+            "low": 1
+          }
+        },
+        {
+          "duration_ms": 3484.83,
+          "phases_s": {
+            "nested:browser_start": 0.8531398,
+            "nested:context_create": 0.0107664,
+            "browser_setup": 0.9221997,
+            "goto": 0.0149726,
+            "nested:networkidle_wait": 0.668126,
+            "nested:fixed_settle_wait": 0.3901506,
+            "render_wait": 1.0582858,
+            "page_content": 0.0061087,
+            "parse_html": 0.000249,
+            "build_issues": 3.36e-05,
+            "nested:axe_script_fetch": 6e-07,
+            "axe_core": 0.1464455,
+            "merge_issues": 1.19e-05,
+            "nested:screenshot_capture": 0.6215038,
+            "nested:screenshot_store": 0.0011473,
+            "screenshots_total": 0.6227088,
+            "context_close": 0.0071783,
+            "browser_close": 0.7064939
+          },
+          "calls": {
+            "nested:browser_start": 1,
+            "nested:context_create": 1,
+            "browser_setup": 1,
+            "goto": 1,
+            "nested:networkidle_wait": 1,
+            "nested:fixed_settle_wait": 1,
+            "render_wait": 1,
+            "page_content": 1,
+            "parse_html": 1,
+            "build_issues": 1,
+            "nested:axe_script_fetch": 1,
+            "axe_core": 1,
+            "merge_issues": 1,
+            "nested:screenshot_capture": 8,
+            "nested:screenshot_store": 1,
+            "screenshots_total": 1,
+            "context_close": 1,
+            "browser_close": 1
+          },
+          "issues": 8,
+          "pages_scanned": 1,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/spa"
+          ],
+          "rule_counts": {
+            "button-name": 1,
+            "image-alt": 1,
+            "landmark-one-main": 1,
+            "link-name": 1,
+            "region": 4
+          },
+          "severity_counts": {
+            "high": 1,
+            "low": 1,
+            "medium": 6
+          },
+          "source_counts": {
+            "axe-core": 6,
+            "both": 1,
+            "custom": 1
+          },
+          "issues_with_screenshots": 8,
+          "summary": {
+            "total_issues": 8,
+            "high": 1,
+            "medium": 6,
+            "low": 1
+          }
+        },
+        {
+          "duration_ms": 3398.923,
+          "phases_s": {
+            "nested:browser_start": 0.846719,
+            "nested:context_create": 0.0118889,
+            "browser_setup": 0.9256082,
+            "goto": 0.0156356,
+            "nested:networkidle_wait": 0.6716007,
+            "nested:fixed_settle_wait": 0.3910916,
+            "render_wait": 1.0627001,
+            "page_content": 0.0058674,
+            "parse_html": 0.0002433,
+            "build_issues": 3.6e-05,
+            "nested:axe_script_fetch": 6e-07,
+            "axe_core": 0.14378,
+            "merge_issues": 1.15e-05,
+            "nested:screenshot_capture": 0.5475341,
+            "nested:screenshot_store": 0.0011251,
+            "screenshots_total": 0.5487004,
+            "context_close": 0.0069887,
+            "browser_close": 0.6892476
+          },
+          "calls": {
+            "nested:browser_start": 1,
+            "nested:context_create": 1,
+            "browser_setup": 1,
+            "goto": 1,
+            "nested:networkidle_wait": 1,
+            "nested:fixed_settle_wait": 1,
+            "render_wait": 1,
+            "page_content": 1,
+            "parse_html": 1,
+            "build_issues": 1,
+            "nested:axe_script_fetch": 1,
+            "axe_core": 1,
+            "merge_issues": 1,
+            "nested:screenshot_capture": 8,
+            "nested:screenshot_store": 1,
+            "screenshots_total": 1,
+            "context_close": 1,
+            "browser_close": 1
+          },
+          "issues": 8,
+          "pages_scanned": 1,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/spa"
+          ],
+          "rule_counts": {
+            "button-name": 1,
+            "image-alt": 1,
+            "landmark-one-main": 1,
+            "link-name": 1,
+            "region": 4
+          },
+          "severity_counts": {
+            "high": 1,
+            "low": 1,
+            "medium": 6
+          },
+          "source_counts": {
+            "axe-core": 6,
+            "both": 1,
+            "custom": 1
+          },
+          "issues_with_screenshots": 8,
+          "summary": {
+            "total_issues": 8,
+            "high": 1,
+            "medium": 6,
+            "low": 1
+          }
+        }
+      ],
+      "aggregates": {
+        "duration_ms": {
+          "count": 7,
+          "median_ms": 3413.598,
+          "min_ms": 3379.877,
+          "max_ms": 3581.582,
+          "p90_ms": 3523.531,
+          "mean_ms": 3448.133,
+          "stdev_ms": 71.565,
+          "cv_pct": 2.08,
+          "samples_ms": [
+            3379.877,
+            3413.598,
+            3399.46,
+            3478.659,
+            3581.582,
+            3484.83,
+            3398.923
+          ]
+        },
+        "issue_counts": {
+          "median": 8,
+          "min": 8,
+          "max": 8,
+          "samples": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ]
+        },
+        "pages_scanned": {
+          "median": 1,
+          "samples": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ]
+        },
+        "ms_per_page": 3413.6,
+        "ms_per_issue": 426.7,
+        "screenshots_per_scan_median": 8,
+        "phase_share": {
+          "measured_total_s": 24.1369,
+          "sum_of_top_level_phases_s": 24.1359,
+          "unattributed_s": 0.001,
+          "unattributed_share_pct": 0.0,
+          "attribution_warning": false
+        },
+        "phases": {
+          "axe_core": {
+            "total_s": 1.054,
+            "per_scan_ms": 150.571,
+            "share_of_total_pct": 4.37,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "browser_close": {
+            "total_s": 4.8899,
+            "per_scan_ms": 698.554,
+            "share_of_total_pct": 20.26,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "browser_setup": {
+            "total_s": 6.4395,
+            "per_scan_ms": 919.931,
+            "share_of_total_pct": 26.68,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "build_issues": {
+            "total_s": 0.0003,
+            "per_scan_ms": 0.04,
+            "share_of_total_pct": 0.0,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "context_close": {
+            "total_s": 0.0505,
+            "per_scan_ms": 7.218,
+            "share_of_total_pct": 0.21,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "goto": {
+            "total_s": 0.1024,
+            "per_scan_ms": 14.632,
+            "share_of_total_pct": 0.42,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "merge_issues": {
+            "total_s": 0.0001,
+            "per_scan_ms": 0.013,
+            "share_of_total_pct": 0.0,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "nested:axe_script_fetch": {
+            "total_s": 0.0,
+            "per_scan_ms": 0.001,
+            "share_of_total_pct": 0.0,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "nested:browser_start": {
+            "total_s": 5.9352,
+            "per_scan_ms": 847.889,
+            "share_of_total_pct": 24.59,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "nested:context_create": {
+            "total_s": 0.0742,
+            "per_scan_ms": 10.597,
+            "share_of_total_pct": 0.31,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "nested:fixed_settle_wait": {
+            "total_s": 2.6857,
+            "per_scan_ms": 383.671,
+            "share_of_total_pct": 11.13,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "nested:networkidle_wait": {
+            "total_s": 4.6949,
+            "per_scan_ms": 670.705,
+            "share_of_total_pct": 19.45,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "nested:screenshot_capture": {
+            "total_s": 4.1636,
+            "per_scan_ms": 594.806,
+            "share_of_total_pct": 17.25,
+            "calls_total": 56,
+            "calls_per_scan": 8.0
+          },
+          "nested:screenshot_store": {
+            "total_s": 0.0081,
+            "per_scan_ms": 1.152,
+            "share_of_total_pct": 0.03,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "page_content": {
+            "total_s": 0.0444,
+            "per_scan_ms": 6.341,
+            "share_of_total_pct": 0.18,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "parse_html": {
+            "total_s": 0.0021,
+            "per_scan_ms": 0.3,
+            "share_of_total_pct": 0.01,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "render_wait": {
+            "total_s": 7.3807,
+            "per_scan_ms": 1054.385,
+            "share_of_total_pct": 30.58,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          },
+          "screenshots_total": {
+            "total_s": 4.172,
+            "per_scan_ms": 596.005,
+            "share_of_total_pct": 17.28,
+            "calls_total": 7,
+            "calls_per_scan": 1.0
+          }
+        }
+      },
+      "observed_rule_ids": [
+        "button-name",
+        "image-alt",
+        "landmark-one-main",
+        "link-name",
+        "region"
+      ],
+      "observed_severities": [
+        "high",
+        "low",
+        "medium"
+      ],
+      "median_issue_counts_by_rule": {
+        "button-name": 1,
+        "image-alt": 1,
+        "landmark-one-main": 1,
+        "link-name": 1,
+        "region": 4
+      }
+    },
+    {
+      "scenario_id": "multi_5_pages_delay_0",
+      "description": "Multi-page crawl, 5 pages, crawl_depth=2, request_delay_ms=0 (production worker path: browser analysis per page)",
+      "url": "http://127.0.0.1:64523/multi/",
+      "fixture_path": "/multi/",
+      "special": null,
+      "session_mode": "per_call",
+      "worker_session": null,
+      "scan_options": {
+        "mode": "multi",
+        "page_limit": 5,
+        "crawl_depth": 2,
+        "request_delay_ms": 0,
+        "page_timeout_ms": 15000,
+        "wcag_standard": "wcag21aa",
+        "include_best_practices": true,
+        "run_browser_analysis_for_multi": true,
+        "respect_robots_txt": true,
+        "skip_previously_scanned_pages": false
+      },
+      "iterations_measured": 5,
+      "warmups": 1,
+      "warmup": {
+        "duration_ms": 7209.624,
+        "phases_s": {
+          "nested:browser_start": 0.8937606,
+          "nested:context_create": 0.0312472,
+          "browser_setup": 1.1800704,
+          "goto": 0.0619009,
+          "nested:networkidle_wait": 2.5445069,
+          "nested:fixed_settle_wait": 1.937922,
+          "render_wait": 4.4824693,
+          "page_content": 0.0297675,
+          "parse_html": 0.0010884,
+          "build_issues": 0.0001701,
+          "nested:axe_script_fetch": 3.5e-06,
+          "axe_core": 0.6939282,
+          "merge_issues": 4.38e-05,
+          "context_close": 0.0377979,
+          "browser_close": 0.720272
+        },
+        "calls": {
+          "nested:browser_start": 5,
+          "nested:context_create": 5,
+          "browser_setup": 5,
+          "goto": 5,
+          "nested:networkidle_wait": 5,
+          "nested:fixed_settle_wait": 5,
+          "render_wait": 5,
+          "page_content": 5,
+          "parse_html": 5,
+          "build_issues": 5,
+          "nested:axe_script_fetch": 5,
+          "axe_core": 5,
+          "merge_issues": 5,
+          "context_close": 5,
+          "browser_close": 1
+        },
+        "issues": 9,
+        "pages_scanned": 5,
+        "pages_skipped": 0,
+        "scanned_page_urls": [
+          "http://127.0.0.1:64523/multi/",
+          "http://127.0.0.1:64523/multi/page-2",
+          "http://127.0.0.1:64523/multi/page-3",
+          "http://127.0.0.1:64523/multi/page-4",
+          "http://127.0.0.1:64523/multi/page-5"
+        ],
+        "rule_counts": {
+          "button-name": 1,
+          "duplicate-id": 1,
+          "heading-order": 1,
+          "image-alt": 5,
+          "link-name": 1
+        },
+        "severity_counts": {
+          "high": 1,
+          "low": 1,
+          "medium": 7
+        },
+        "source_counts": {
+          "axe-core": 1,
+          "both": 6,
+          "custom": 2
+        },
+        "issues_with_screenshots": 0,
+        "summary": {
+          "total_issues": 9,
+          "high": 1,
+          "medium": 7,
+          "low": 1
+        }
+      },
+      "iterations": [
+        {
+          "duration_ms": 7202.827,
+          "phases_s": {
+            "nested:browser_start": 0.8812158,
+            "nested:context_create": 0.0301705,
+            "browser_setup": 1.1714445,
+            "goto": 0.0569025,
+            "nested:networkidle_wait": 2.5667956,
+            "nested:fixed_settle_wait": 1.9379626,
+            "render_wait": 4.5048107,
+            "page_content": 0.0283821,
+            "parse_html": 0.0010395,
+            "build_issues": 0.0001609,
+            "nested:axe_script_fetch": 3.7e-06,
+            "axe_core": 0.7040318,
+            "merge_issues": 4.4e-05,
+            "context_close": 0.0387171,
+            "browser_close": 0.6950201
+          },
+          "calls": {
+            "nested:browser_start": 5,
+            "nested:context_create": 5,
+            "browser_setup": 5,
+            "goto": 5,
+            "nested:networkidle_wait": 5,
+            "nested:fixed_settle_wait": 5,
+            "render_wait": 5,
+            "page_content": 5,
+            "parse_html": 5,
+            "build_issues": 5,
+            "nested:axe_script_fetch": 5,
+            "axe_core": 5,
+            "merge_issues": 5,
+            "context_close": 5,
+            "browser_close": 1
+          },
+          "issues": 9,
+          "pages_scanned": 5,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/multi/",
+            "http://127.0.0.1:64523/multi/page-2",
+            "http://127.0.0.1:64523/multi/page-3",
+            "http://127.0.0.1:64523/multi/page-4",
+            "http://127.0.0.1:64523/multi/page-5"
+          ],
+          "rule_counts": {
+            "button-name": 1,
+            "duplicate-id": 1,
+            "heading-order": 1,
+            "image-alt": 5,
+            "link-name": 1
+          },
+          "severity_counts": {
+            "high": 1,
+            "low": 1,
+            "medium": 7
+          },
+          "source_counts": {
+            "axe-core": 1,
+            "both": 6,
+            "custom": 2
+          },
+          "issues_with_screenshots": 0,
+          "summary": {
+            "total_issues": 9,
+            "high": 1,
+            "medium": 7,
+            "low": 1
+          }
+        },
+        {
+          "duration_ms": 7224.605,
+          "phases_s": {
+            "nested:browser_start": 0.8141025,
+            "nested:context_create": 0.0319398,
+            "browser_setup": 1.1008456,
+            "goto": 0.0604448,
+            "nested:networkidle_wait": 2.5568496,
+            "nested:fixed_settle_wait": 1.9342677,
+            "render_wait": 4.4911602,
+            "page_content": 0.0295871,
+            "parse_html": 0.0011321,
+            "build_issues": 0.0001707,
+            "nested:axe_script_fetch": 4.4e-06,
+            "axe_core": 0.7679094,
+            "merge_issues": 4.91e-05,
+            "context_close": 0.0410526,
+            "browser_close": 0.7300313
+          },
+          "calls": {
+            "nested:browser_start": 5,
+            "nested:context_create": 5,
+            "browser_setup": 5,
+            "goto": 5,
+            "nested:networkidle_wait": 5,
+            "nested:fixed_settle_wait": 5,
+            "render_wait": 5,
+            "page_content": 5,
+            "parse_html": 5,
+            "build_issues": 5,
+            "nested:axe_script_fetch": 5,
+            "axe_core": 5,
+            "merge_issues": 5,
+            "context_close": 5,
+            "browser_close": 1
+          },
+          "issues": 9,
+          "pages_scanned": 5,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/multi/",
+            "http://127.0.0.1:64523/multi/page-2",
+            "http://127.0.0.1:64523/multi/page-3",
+            "http://127.0.0.1:64523/multi/page-4",
+            "http://127.0.0.1:64523/multi/page-5"
+          ],
+          "rule_counts": {
+            "button-name": 1,
+            "duplicate-id": 1,
+            "heading-order": 1,
+            "image-alt": 5,
+            "link-name": 1
+          },
+          "severity_counts": {
+            "high": 1,
+            "low": 1,
+            "medium": 7
+          },
+          "source_counts": {
+            "axe-core": 1,
+            "both": 6,
+            "custom": 2
+          },
+          "issues_with_screenshots": 0,
+          "summary": {
+            "total_issues": 9,
+            "high": 1,
+            "medium": 7,
+            "low": 1
+          }
+        },
+        {
+          "duration_ms": 7244.299,
+          "phases_s": {
+            "nested:browser_start": 0.8364801,
+            "nested:context_create": 0.0368225,
+            "browser_setup": 1.1413261,
+            "goto": 0.0708048,
+            "nested:networkidle_wait": 2.5367351,
+            "nested:fixed_settle_wait": 1.9551078,
+            "render_wait": 4.4918825,
+            "page_content": 0.0332028,
+            "parse_html": 0.0011018,
+            "build_issues": 0.0001754,
+            "nested:axe_script_fetch": 3.6e-06,
+            "axe_core": 0.7730917,
+            "merge_issues": 5.27e-05,
+            "context_close": 0.0410917,
+            "browser_close": 0.6895945
+          },
+          "calls": {
+            "nested:browser_start": 5,
+            "nested:context_create": 5,
+            "browser_setup": 5,
+            "goto": 5,
+            "nested:networkidle_wait": 5,
+            "nested:fixed_settle_wait": 5,
+            "render_wait": 5,
+            "page_content": 5,
+            "parse_html": 5,
+            "build_issues": 5,
+            "nested:axe_script_fetch": 5,
+            "axe_core": 5,
+            "merge_issues": 5,
+            "context_close": 5,
+            "browser_close": 1
+          },
+          "issues": 9,
+          "pages_scanned": 5,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/multi/",
+            "http://127.0.0.1:64523/multi/page-2",
+            "http://127.0.0.1:64523/multi/page-3",
+            "http://127.0.0.1:64523/multi/page-4",
+            "http://127.0.0.1:64523/multi/page-5"
+          ],
+          "rule_counts": {
+            "button-name": 1,
+            "duplicate-id": 1,
+            "heading-order": 1,
+            "image-alt": 5,
+            "link-name": 1
+          },
+          "severity_counts": {
+            "high": 1,
+            "low": 1,
+            "medium": 7
+          },
+          "source_counts": {
+            "axe-core": 1,
+            "both": 6,
+            "custom": 2
+          },
+          "issues_with_screenshots": 0,
+          "summary": {
+            "total_issues": 9,
+            "high": 1,
+            "medium": 7,
+            "low": 1
+          }
+        },
+        {
+          "duration_ms": 7236.61,
+          "phases_s": {
+            "nested:browser_start": 0.8590447,
+            "nested:context_create": 0.0314227,
+            "browser_setup": 1.14809,
+            "goto": 0.0703586,
+            "nested:networkidle_wait": 2.5451965,
+            "nested:fixed_settle_wait": 1.9447844,
+            "render_wait": 4.4900263,
+            "page_content": 0.028032,
+            "parse_html": 0.0010326,
+            "build_issues": 0.0001648,
+            "nested:axe_script_fetch": 3.7e-06,
+            "axe_core": 0.7579819,
+            "merge_issues": 4.92e-05,
+            "context_close": 0.0364285,
+            "browser_close": 0.7019869
+          },
+          "calls": {
+            "nested:browser_start": 5,
+            "nested:context_create": 5,
+            "browser_setup": 5,
+            "goto": 5,
+            "nested:networkidle_wait": 5,
+            "nested:fixed_settle_wait": 5,
+            "render_wait": 5,
+            "page_content": 5,
+            "parse_html": 5,
+            "build_issues": 5,
+            "nested:axe_script_fetch": 5,
+            "axe_core": 5,
+            "merge_issues": 5,
+            "context_close": 5,
+            "browser_close": 1
+          },
+          "issues": 9,
+          "pages_scanned": 5,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/multi/",
+            "http://127.0.0.1:64523/multi/page-2",
+            "http://127.0.0.1:64523/multi/page-3",
+            "http://127.0.0.1:64523/multi/page-4",
+            "http://127.0.0.1:64523/multi/page-5"
+          ],
+          "rule_counts": {
+            "button-name": 1,
+            "duplicate-id": 1,
+            "heading-order": 1,
+            "image-alt": 5,
+            "link-name": 1
+          },
+          "severity_counts": {
+            "high": 1,
+            "low": 1,
+            "medium": 7
+          },
+          "source_counts": {
+            "axe-core": 1,
+            "both": 6,
+            "custom": 2
+          },
+          "issues_with_screenshots": 0,
+          "summary": {
+            "total_issues": 9,
+            "high": 1,
+            "medium": 7,
+            "low": 1
+          }
+        },
+        {
+          "duration_ms": 7220.121,
+          "phases_s": {
+            "nested:browser_start": 0.8628729,
+            "nested:context_create": 0.0307947,
+            "browser_setup": 1.1552478,
+            "goto": 0.0834938,
+            "nested:networkidle_wait": 2.5237931,
+            "nested:fixed_settle_wait": 1.9262443,
+            "render_wait": 4.4500799,
+            "page_content": 0.0290486,
+            "parse_html": 0.0013426,
+            "build_issues": 0.0001843,
+            "nested:axe_script_fetch": 4.3e-06,
+            "axe_core": 0.7432864,
+            "merge_issues": 4.71e-05,
+            "context_close": 0.0380673,
+            "browser_close": 0.7168948
+          },
+          "calls": {
+            "nested:browser_start": 5,
+            "nested:context_create": 5,
+            "browser_setup": 5,
+            "goto": 5,
+            "nested:networkidle_wait": 5,
+            "nested:fixed_settle_wait": 5,
+            "render_wait": 5,
+            "page_content": 5,
+            "parse_html": 5,
+            "build_issues": 5,
+            "nested:axe_script_fetch": 5,
+            "axe_core": 5,
+            "merge_issues": 5,
+            "context_close": 5,
+            "browser_close": 1
+          },
+          "issues": 9,
+          "pages_scanned": 5,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/multi/",
+            "http://127.0.0.1:64523/multi/page-2",
+            "http://127.0.0.1:64523/multi/page-3",
+            "http://127.0.0.1:64523/multi/page-4",
+            "http://127.0.0.1:64523/multi/page-5"
+          ],
+          "rule_counts": {
+            "button-name": 1,
+            "duplicate-id": 1,
+            "heading-order": 1,
+            "image-alt": 5,
+            "link-name": 1
+          },
+          "severity_counts": {
+            "high": 1,
+            "low": 1,
+            "medium": 7
+          },
+          "source_counts": {
+            "axe-core": 1,
+            "both": 6,
+            "custom": 2
+          },
+          "issues_with_screenshots": 0,
+          "summary": {
+            "total_issues": 9,
+            "high": 1,
+            "medium": 7,
+            "low": 1
+          }
+        }
+      ],
+      "aggregates": {
+        "duration_ms": {
+          "count": 5,
+          "median_ms": 7224.605,
+          "min_ms": 7202.827,
+          "max_ms": 7244.299,
+          "p90_ms": 7241.223,
+          "mean_ms": 7225.692,
+          "stdev_ms": 15.972,
+          "cv_pct": 0.22,
+          "samples_ms": [
+            7202.827,
+            7224.605,
+            7244.299,
+            7236.61,
+            7220.121
+          ]
+        },
+        "issue_counts": {
+          "median": 9,
+          "min": 9,
+          "max": 9,
+          "samples": [
+            9,
+            9,
+            9,
+            9,
+            9
+          ]
+        },
+        "pages_scanned": {
+          "median": 5,
+          "samples": [
+            5,
+            5,
+            5,
+            5,
+            5
+          ]
+        },
+        "ms_per_page": 1444.92,
+        "ms_per_issue": 802.73,
+        "screenshots_per_scan_median": 0,
+        "phase_share": {
+          "measured_total_s": 36.1285,
+          "sum_of_top_level_phases_s": 36.1171,
+          "unattributed_s": 0.0114,
+          "unattributed_share_pct": 0.03,
+          "attribution_warning": false
+        },
+        "phases": {
+          "axe_core": {
+            "total_s": 3.7463,
+            "per_scan_ms": 749.26,
+            "share_of_total_pct": 10.37,
+            "calls_total": 25,
+            "calls_per_scan": 5.0
+          },
+          "browser_close": {
+            "total_s": 3.5335,
+            "per_scan_ms": 706.706,
+            "share_of_total_pct": 9.78,
+            "calls_total": 5,
+            "calls_per_scan": 1.0
+          },
+          "browser_setup": {
+            "total_s": 5.717,
+            "per_scan_ms": 1143.391,
+            "share_of_total_pct": 15.82,
+            "calls_total": 25,
+            "calls_per_scan": 5.0
+          },
+          "build_issues": {
+            "total_s": 0.0009,
+            "per_scan_ms": 0.171,
+            "share_of_total_pct": 0.0,
+            "calls_total": 25,
+            "calls_per_scan": 5.0
+          },
+          "context_close": {
+            "total_s": 0.1954,
+            "per_scan_ms": 39.071,
+            "share_of_total_pct": 0.54,
+            "calls_total": 25,
+            "calls_per_scan": 5.0
+          },
+          "goto": {
+            "total_s": 0.342,
+            "per_scan_ms": 68.401,
+            "share_of_total_pct": 0.95,
+            "calls_total": 25,
+            "calls_per_scan": 5.0
+          },
+          "merge_issues": {
+            "total_s": 0.0002,
+            "per_scan_ms": 0.048,
+            "share_of_total_pct": 0.0,
+            "calls_total": 25,
+            "calls_per_scan": 5.0
+          },
+          "nested:axe_script_fetch": {
+            "total_s": 0.0,
+            "per_scan_ms": 0.004,
+            "share_of_total_pct": 0.0,
+            "calls_total": 25,
+            "calls_per_scan": 5.0
+          },
+          "nested:browser_start": {
+            "total_s": 4.2537,
+            "per_scan_ms": 850.743,
+            "share_of_total_pct": 11.77,
+            "calls_total": 25,
+            "calls_per_scan": 5.0
+          },
+          "nested:context_create": {
+            "total_s": 0.1612,
+            "per_scan_ms": 32.23,
+            "share_of_total_pct": 0.45,
+            "calls_total": 25,
+            "calls_per_scan": 5.0
+          },
+          "nested:fixed_settle_wait": {
+            "total_s": 9.6984,
+            "per_scan_ms": 1939.673,
+            "share_of_total_pct": 26.84,
+            "calls_total": 25,
+            "calls_per_scan": 5.0
+          },
+          "nested:networkidle_wait": {
+            "total_s": 12.7294,
+            "per_scan_ms": 2545.874,
+            "share_of_total_pct": 35.23,
+            "calls_total": 25,
+            "calls_per_scan": 5.0
+          },
+          "page_content": {
+            "total_s": 0.1483,
+            "per_scan_ms": 29.651,
+            "share_of_total_pct": 0.41,
+            "calls_total": 25,
+            "calls_per_scan": 5.0
+          },
+          "parse_html": {
+            "total_s": 0.0056,
+            "per_scan_ms": 1.13,
+            "share_of_total_pct": 0.02,
+            "calls_total": 25,
+            "calls_per_scan": 5.0
+          },
+          "render_wait": {
+            "total_s": 22.428,
+            "per_scan_ms": 4485.592,
+            "share_of_total_pct": 62.08,
+            "calls_total": 25,
+            "calls_per_scan": 5.0
+          }
+        }
+      },
+      "observed_rule_ids": [
+        "button-name",
+        "duplicate-id",
+        "heading-order",
+        "image-alt",
+        "link-name"
+      ],
+      "observed_severities": [
+        "high",
+        "low",
+        "medium"
+      ],
+      "median_issue_counts_by_rule": {
+        "button-name": 1,
+        "duplicate-id": 1,
+        "heading-order": 1,
+        "image-alt": 5,
+        "link-name": 1
+      }
+    },
+    {
+      "scenario_id": "multi_5_pages_delay_250",
+      "description": "Multi-page crawl, 5 pages, crawl_depth=2, request_delay_ms=250 (production default delay)",
+      "url": "http://127.0.0.1:64523/multi/",
+      "fixture_path": "/multi/",
+      "special": null,
+      "session_mode": "per_call",
+      "worker_session": null,
+      "scan_options": {
+        "mode": "multi",
+        "page_limit": 5,
+        "crawl_depth": 2,
+        "request_delay_ms": 250,
+        "page_timeout_ms": 15000,
+        "wcag_standard": "wcag21aa",
+        "include_best_practices": true,
+        "run_browser_analysis_for_multi": true,
+        "respect_robots_txt": true,
+        "skip_previously_scanned_pages": false
+      },
+      "iterations_measured": 5,
+      "warmups": 1,
+      "warmup": {
+        "duration_ms": 8604.173,
+        "phases_s": {
+          "nested:browser_start": 0.8523658,
+          "nested:context_create": 0.0305077,
+          "browser_setup": 1.1331331,
+          "goto": 0.0876228,
+          "nested:networkidle_wait": 2.5457607,
+          "nested:fixed_settle_wait": 1.9371139,
+          "render_wait": 4.4829094,
+          "page_content": 0.0273403,
+          "parse_html": 0.0013041,
+          "build_issues": 0.0001777,
+          "nested:axe_script_fetch": 3.2e-06,
+          "axe_core": 0.7817598,
+          "merge_issues": 5.26e-05,
+          "context_close": 0.0383931,
+          "request_delay": 1.0016032,
+          "browser_close": 1.0472562
+        },
+        "calls": {
+          "nested:browser_start": 5,
+          "nested:context_create": 5,
+          "browser_setup": 5,
+          "goto": 5,
+          "nested:networkidle_wait": 5,
+          "nested:fixed_settle_wait": 5,
+          "render_wait": 5,
+          "page_content": 5,
+          "parse_html": 5,
+          "build_issues": 5,
+          "nested:axe_script_fetch": 5,
+          "axe_core": 5,
+          "merge_issues": 5,
+          "context_close": 5,
+          "request_delay": 4,
+          "browser_close": 1
+        },
+        "issues": 9,
+        "pages_scanned": 5,
+        "pages_skipped": 0,
+        "scanned_page_urls": [
+          "http://127.0.0.1:64523/multi/",
+          "http://127.0.0.1:64523/multi/page-2",
+          "http://127.0.0.1:64523/multi/page-3",
+          "http://127.0.0.1:64523/multi/page-4",
+          "http://127.0.0.1:64523/multi/page-5"
+        ],
+        "rule_counts": {
+          "button-name": 1,
+          "duplicate-id": 1,
+          "heading-order": 1,
+          "image-alt": 5,
+          "link-name": 1
+        },
+        "severity_counts": {
+          "high": 1,
+          "low": 1,
+          "medium": 7
+        },
+        "source_counts": {
+          "axe-core": 1,
+          "both": 6,
+          "custom": 2
+        },
+        "issues_with_screenshots": 0,
+        "summary": {
+          "total_issues": 9,
+          "high": 1,
+          "medium": 7,
+          "low": 1
+        }
+      },
+      "iterations": [
+        {
+          "duration_ms": 8603.114,
+          "phases_s": {
+            "nested:browser_start": 0.8884312,
+            "nested:context_create": 0.0321405,
+            "browser_setup": 1.1764715,
+            "goto": 0.0709131,
+            "nested:networkidle_wait": 2.548954,
+            "nested:fixed_settle_wait": 1.9244484,
+            "render_wait": 4.4734394,
+            "page_content": 0.0325022,
+            "parse_html": 0.0011288,
+            "build_issues": 0.0001824,
+            "nested:axe_script_fetch": 3.2e-06,
+            "axe_core": 0.7705765,
+            "merge_issues": 4.5e-05,
+            "context_close": 0.0429643,
+            "request_delay": 1.0008936,
+            "browser_close": 1.0215123
+          },
+          "calls": {
+            "nested:browser_start": 5,
+            "nested:context_create": 5,
+            "browser_setup": 5,
+            "goto": 5,
+            "nested:networkidle_wait": 5,
+            "nested:fixed_settle_wait": 5,
+            "render_wait": 5,
+            "page_content": 5,
+            "parse_html": 5,
+            "build_issues": 5,
+            "nested:axe_script_fetch": 5,
+            "axe_core": 5,
+            "merge_issues": 5,
+            "context_close": 5,
+            "request_delay": 4,
+            "browser_close": 1
+          },
+          "issues": 9,
+          "pages_scanned": 5,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/multi/",
+            "http://127.0.0.1:64523/multi/page-2",
+            "http://127.0.0.1:64523/multi/page-3",
+            "http://127.0.0.1:64523/multi/page-4",
+            "http://127.0.0.1:64523/multi/page-5"
+          ],
+          "rule_counts": {
+            "button-name": 1,
+            "duplicate-id": 1,
+            "heading-order": 1,
+            "image-alt": 5,
+            "link-name": 1
+          },
+          "severity_counts": {
+            "high": 1,
+            "low": 1,
+            "medium": 7
+          },
+          "source_counts": {
+            "axe-core": 1,
+            "both": 6,
+            "custom": 2
+          },
+          "issues_with_screenshots": 0,
+          "summary": {
+            "total_issues": 9,
+            "high": 1,
+            "medium": 7,
+            "low": 1
+          }
+        },
+        {
+          "duration_ms": 8566.382,
+          "phases_s": {
+            "nested:browser_start": 0.926262,
+            "nested:context_create": 0.0289049,
+            "browser_setup": 1.2069791,
+            "goto": 0.0720291,
+            "nested:networkidle_wait": 2.5136505,
+            "nested:fixed_settle_wait": 1.9412502,
+            "render_wait": 4.4549392,
+            "page_content": 0.0267027,
+            "parse_html": 0.0010865,
+            "build_issues": 0.0001644,
+            "nested:axe_script_fetch": 4e-06,
+            "axe_core": 0.7319201,
+            "merge_issues": 6.51e-05,
+            "context_close": 0.0364751,
+            "request_delay": 1.0013296,
+            "browser_close": 1.0203323
+          },
+          "calls": {
+            "nested:browser_start": 5,
+            "nested:context_create": 5,
+            "browser_setup": 5,
+            "goto": 5,
+            "nested:networkidle_wait": 5,
+            "nested:fixed_settle_wait": 5,
+            "render_wait": 5,
+            "page_content": 5,
+            "parse_html": 5,
+            "build_issues": 5,
+            "nested:axe_script_fetch": 5,
+            "axe_core": 5,
+            "merge_issues": 5,
+            "context_close": 5,
+            "request_delay": 4,
+            "browser_close": 1
+          },
+          "issues": 9,
+          "pages_scanned": 5,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/multi/",
+            "http://127.0.0.1:64523/multi/page-2",
+            "http://127.0.0.1:64523/multi/page-3",
+            "http://127.0.0.1:64523/multi/page-4",
+            "http://127.0.0.1:64523/multi/page-5"
+          ],
+          "rule_counts": {
+            "button-name": 1,
+            "duplicate-id": 1,
+            "heading-order": 1,
+            "image-alt": 5,
+            "link-name": 1
+          },
+          "severity_counts": {
+            "high": 1,
+            "low": 1,
+            "medium": 7
+          },
+          "source_counts": {
+            "axe-core": 1,
+            "both": 6,
+            "custom": 2
+          },
+          "issues_with_screenshots": 0,
+          "summary": {
+            "total_issues": 9,
+            "high": 1,
+            "medium": 7,
+            "low": 1
+          }
+        },
+        {
+          "duration_ms": 8677.018,
+          "phases_s": {
+            "nested:browser_start": 0.9043508,
+            "nested:context_create": 0.0352494,
+            "browser_setup": 1.2169714,
+            "goto": 0.065637,
+            "nested:networkidle_wait": 2.5565058,
+            "nested:fixed_settle_wait": 1.9521485,
+            "render_wait": 4.5086902,
+            "page_content": 0.0303423,
+            "parse_html": 0.0011317,
+            "build_issues": 0.0001782,
+            "nested:axe_script_fetch": 4.1e-06,
+            "axe_core": 0.765085,
+            "merge_issues": 5.23e-05,
+            "context_close": 0.0383714,
+            "request_delay": 1.0011832,
+            "browser_close": 1.0258784
+          },
+          "calls": {
+            "nested:browser_start": 5,
+            "nested:context_create": 5,
+            "browser_setup": 5,
+            "goto": 5,
+            "nested:networkidle_wait": 5,
+            "nested:fixed_settle_wait": 5,
+            "render_wait": 5,
+            "page_content": 5,
+            "parse_html": 5,
+            "build_issues": 5,
+            "nested:axe_script_fetch": 5,
+            "axe_core": 5,
+            "merge_issues": 5,
+            "context_close": 5,
+            "request_delay": 4,
+            "browser_close": 1
+          },
+          "issues": 9,
+          "pages_scanned": 5,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/multi/",
+            "http://127.0.0.1:64523/multi/page-2",
+            "http://127.0.0.1:64523/multi/page-3",
+            "http://127.0.0.1:64523/multi/page-4",
+            "http://127.0.0.1:64523/multi/page-5"
+          ],
+          "rule_counts": {
+            "button-name": 1,
+            "duplicate-id": 1,
+            "heading-order": 1,
+            "image-alt": 5,
+            "link-name": 1
+          },
+          "severity_counts": {
+            "high": 1,
+            "low": 1,
+            "medium": 7
+          },
+          "source_counts": {
+            "axe-core": 1,
+            "both": 6,
+            "custom": 2
+          },
+          "issues_with_screenshots": 0,
+          "summary": {
+            "total_issues": 9,
+            "high": 1,
+            "medium": 7,
+            "low": 1
+          }
+        },
+        {
+          "duration_ms": 8538.564,
+          "phases_s": {
+            "nested:browser_start": 0.8656848,
+            "nested:context_create": 0.0293267,
+            "browser_setup": 1.1439868,
+            "goto": 0.0821932,
+            "nested:networkidle_wait": 2.5093705,
+            "nested:fixed_settle_wait": 1.9365909,
+            "render_wait": 4.4459986,
+            "page_content": 0.0269677,
+            "parse_html": 0.0010897,
+            "build_issues": 0.0001661,
+            "nested:axe_script_fetch": 4.1e-06,
+            "axe_core": 0.7475842,
+            "merge_issues": 4.56e-05,
+            "context_close": 0.040986,
+            "request_delay": 1.0008648,
+            "browser_close": 1.023194
+          },
+          "calls": {
+            "nested:browser_start": 5,
+            "nested:context_create": 5,
+            "browser_setup": 5,
+            "goto": 5,
+            "nested:networkidle_wait": 5,
+            "nested:fixed_settle_wait": 5,
+            "render_wait": 5,
+            "page_content": 5,
+            "parse_html": 5,
+            "build_issues": 5,
+            "nested:axe_script_fetch": 5,
+            "axe_core": 5,
+            "merge_issues": 5,
+            "context_close": 5,
+            "request_delay": 4,
+            "browser_close": 1
+          },
+          "issues": 9,
+          "pages_scanned": 5,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/multi/",
+            "http://127.0.0.1:64523/multi/page-2",
+            "http://127.0.0.1:64523/multi/page-3",
+            "http://127.0.0.1:64523/multi/page-4",
+            "http://127.0.0.1:64523/multi/page-5"
+          ],
+          "rule_counts": {
+            "button-name": 1,
+            "duplicate-id": 1,
+            "heading-order": 1,
+            "image-alt": 5,
+            "link-name": 1
+          },
+          "severity_counts": {
+            "high": 1,
+            "low": 1,
+            "medium": 7
+          },
+          "source_counts": {
+            "axe-core": 1,
+            "both": 6,
+            "custom": 2
+          },
+          "issues_with_screenshots": 0,
+          "summary": {
+            "total_issues": 9,
+            "high": 1,
+            "medium": 7,
+            "low": 1
+          }
+        },
+        {
+          "duration_ms": 8811.155,
+          "phases_s": {
+            "nested:browser_start": 0.8970096,
+            "nested:context_create": 0.0333787,
+            "browser_setup": 1.212611,
+            "goto": 0.0800617,
+            "nested:networkidle_wait": 2.5350047,
+            "nested:fixed_settle_wait": 1.8983114,
+            "render_wait": 4.433358,
+            "page_content": 0.0401086,
+            "parse_html": 0.0017576,
+            "build_issues": 0.0002825,
+            "nested:axe_script_fetch": 4.4e-06,
+            "axe_core": 0.9225218,
+            "merge_issues": 7.69e-05,
+            "context_close": 0.0427214,
+            "request_delay": 1.0009742,
+            "browser_close": 1.0493744
+          },
+          "calls": {
+            "nested:browser_start": 5,
+            "nested:context_create": 5,
+            "browser_setup": 5,
+            "goto": 5,
+            "nested:networkidle_wait": 5,
+            "nested:fixed_settle_wait": 5,
+            "render_wait": 5,
+            "page_content": 5,
+            "parse_html": 5,
+            "build_issues": 5,
+            "nested:axe_script_fetch": 5,
+            "axe_core": 5,
+            "merge_issues": 5,
+            "context_close": 5,
+            "request_delay": 4,
+            "browser_close": 1
+          },
+          "issues": 9,
+          "pages_scanned": 5,
+          "pages_skipped": 0,
+          "scanned_page_urls": [
+            "http://127.0.0.1:64523/multi/",
+            "http://127.0.0.1:64523/multi/page-2",
+            "http://127.0.0.1:64523/multi/page-3",
+            "http://127.0.0.1:64523/multi/page-4",
+            "http://127.0.0.1:64523/multi/page-5"
+          ],
+          "rule_counts": {
+            "button-name": 1,
+            "duplicate-id": 1,
+            "heading-order": 1,
+            "image-alt": 5,
+            "link-name": 1
+          },
+          "severity_counts": {
+            "high": 1,
+            "low": 1,
+            "medium": 7
+          },
+          "source_counts": {
+            "axe-core": 1,
+            "both": 6,
+            "custom": 2
+          },
+          "issues_with_screenshots": 0,
+          "summary": {
+            "total_issues": 9,
+            "high": 1,
+            "medium": 7,
+            "low": 1
+          }
+        }
+      ],
+      "aggregates": {
+        "duration_ms": {
+          "count": 5,
+          "median_ms": 8603.114,
+          "min_ms": 8538.564,
+          "max_ms": 8811.155,
+          "p90_ms": 8757.5,
+          "mean_ms": 8639.247,
+          "stdev_ms": 109.237,
+          "cv_pct": 1.26,
+          "samples_ms": [
+            8603.114,
+            8566.382,
+            8677.018,
+            8538.564,
+            8811.155
+          ]
+        },
+        "issue_counts": {
+          "median": 9,
+          "min": 9,
+          "max": 9,
+          "samples": [
+            9,
+            9,
+            9,
+            9,
+            9
+          ]
+        },
+        "pages_scanned": {
+          "median": 5,
+          "samples": [
+            5,
+            5,
+            5,
+            5,
+            5
+          ]
+        },
+        "ms_per_page": 1720.62,
+        "ms_per_issue": 955.9,
+        "screenshots_per_scan_median": 0,
+        "phase_share": {
+          "measured_total_s": 43.1962,
+          "sum_of_top_level_phases_s": 43.0931,
+          "unattributed_s": 0.1031,
+          "unattributed_share_pct": 0.24,
+          "attribution_warning": false
+        },
+        "phases": {
+          "axe_core": {
+            "total_s": 3.9377,
+            "per_scan_ms": 787.538,
+            "share_of_total_pct": 9.12,
+            "calls_total": 25,
+            "calls_per_scan": 5.0
+          },
+          "browser_close": {
+            "total_s": 5.1403,
+            "per_scan_ms": 1028.058,
+            "share_of_total_pct": 11.9,
+            "calls_total": 5,
+            "calls_per_scan": 1.0
+          },
+          "browser_setup": {
+            "total_s": 5.957,
+            "per_scan_ms": 1191.404,
+            "share_of_total_pct": 13.79,
+            "calls_total": 25,
+            "calls_per_scan": 5.0
+          },
+          "build_issues": {
+            "total_s": 0.001,
+            "per_scan_ms": 0.195,
+            "share_of_total_pct": 0.0,
+            "calls_total": 25,
+            "calls_per_scan": 5.0
+          },
+          "context_close": {
+            "total_s": 0.2015,
+            "per_scan_ms": 40.304,
+            "share_of_total_pct": 0.47,
+            "calls_total": 25,
+            "calls_per_scan": 5.0
+          },
+          "goto": {
+            "total_s": 0.3708,
+            "per_scan_ms": 74.167,
+            "share_of_total_pct": 0.86,
+            "calls_total": 25,
+            "calls_per_scan": 5.0
+          },
+          "merge_issues": {
+            "total_s": 0.0003,
+            "per_scan_ms": 0.057,
+            "share_of_total_pct": 0.0,
+            "calls_total": 25,
+            "calls_per_scan": 5.0
+          },
+          "nested:axe_script_fetch": {
+            "total_s": 0.0,
+            "per_scan_ms": 0.004,
+            "share_of_total_pct": 0.0,
+            "calls_total": 25,
+            "calls_per_scan": 5.0
+          },
+          "nested:browser_start": {
+            "total_s": 4.4817,
+            "per_scan_ms": 896.348,
+            "share_of_total_pct": 10.38,
+            "calls_total": 25,
+            "calls_per_scan": 5.0
+          },
+          "nested:context_create": {
+            "total_s": 0.159,
+            "per_scan_ms": 31.8,
+            "share_of_total_pct": 0.37,
+            "calls_total": 25,
+            "calls_per_scan": 5.0
+          },
+          "nested:fixed_settle_wait": {
+            "total_s": 9.6527,
+            "per_scan_ms": 1930.55,
+            "share_of_total_pct": 22.35,
+            "calls_total": 25,
+            "calls_per_scan": 5.0
+          },
+          "nested:networkidle_wait": {
+            "total_s": 12.6635,
+            "per_scan_ms": 2532.697,
+            "share_of_total_pct": 29.32,
+            "calls_total": 25,
+            "calls_per_scan": 5.0
+          },
+          "page_content": {
+            "total_s": 0.1566,
+            "per_scan_ms": 31.325,
+            "share_of_total_pct": 0.36,
+            "calls_total": 25,
+            "calls_per_scan": 5.0
+          },
+          "parse_html": {
+            "total_s": 0.0062,
+            "per_scan_ms": 1.239,
+            "share_of_total_pct": 0.01,
+            "calls_total": 25,
+            "calls_per_scan": 5.0
+          },
+          "render_wait": {
+            "total_s": 22.3164,
+            "per_scan_ms": 4463.285,
+            "share_of_total_pct": 51.66,
+            "calls_total": 25,
+            "calls_per_scan": 5.0
+          },
+          "request_delay": {
+            "total_s": 5.0052,
+            "per_scan_ms": 1001.049,
+            "share_of_total_pct": 11.59,
+            "calls_total": 20,
+            "calls_per_scan": 4.0
+          }
+        }
+      },
+      "observed_rule_ids": [
+        "button-name",
+        "duplicate-id",
+        "heading-order",
+        "image-alt",
+        "link-name"
+      ],
+      "observed_severities": [
+        "high",
+        "low",
+        "medium"
+      ],
+      "median_issue_counts_by_rule": {
+        "button-name": 1,
+        "duplicate-id": 1,
+        "heading-order": 1,
+        "image-alt": 5,
+        "link-name": 1
+      }
+    }
+  ],
+  "methodology": {
+    "scenario_definition": "one iteration = one full scan_page() job; per-call scenarios create and close a BrowserSession per job, worker-mode scenarios reuse one BrowserSession across all measured jobs (the optimized worker shape)",
+    "scenario_modes": {
+      "per_call": [
+        "single_clean",
+        "single_issue_dense_screenshots",
+        "single_issue_dense_no_screenshots",
+        "single_js_rendered_spa",
+        "multi_5_pages_delay_0",
+        "multi_5_pages_delay_250",
+        "single_raw_html_fallback",
+        "single_render_failure_fallback"
+      ],
+      "worker": [
+        "worker_single_clean",
+        "worker_single_issue_dense_screenshots",
+        "worker_multi_5_pages_delay_0",
+        "worker_multi_5_pages_delay_250"
+      ]
+    },
+    "warmups_per_scenario": 1,
+    "iterations_note": "measured iterations exclude the warm-up; single-page scenarios use 7, multi-page scenarios use 5 (each multi iteration scans 5 pages)",
+    "percentile_method": "linear interpolation between closest ranks (numpy/Excel PERCENTILE.INC)",
+    "phases": {
+      "top_level": [
+        "browser_setup",
+        "goto",
+        "render_wait",
+        "request_delay",
+        "page_content",
+        "parse_html",
+        "build_issues",
+        "axe_core",
+        "merge_issues",
+        "screenshots_total",
+        "fetch_html",
+        "prepare_html",
+        "static_wait",
+        "context_close",
+        "browser_close"
+      ],
+      "nested_not_in_top_level": [
+        "browser_start",
+        "context_create",
+        "networkidle_wait",
+        "fixed_settle_wait",
+        "axe_script_fetch",
+        "screenshot_capture",
+        "screenshot_store"
+      ]
+    },
+    "phase_notes": {
+      "browser_setup": "BrowserSession.new_page(): lazy Playwright/Chromium start on first page + new browser context + new page",
+      "goto": "page.goto(url, wait_until='domcontentloaded')",
+      "render_wait": "_wait_for_rendered_content(): networkidle wait (<=3s) + fixed 250-600ms settle",
+      "request_delay": "sleep(request_delay_ms/1000) between crawled pages",
+      "page_content": "page.content() DOM serialization",
+      "parse_html": "_parse_page_html(): custom HTML parser pass",
+      "build_issues": "_build_issues(): custom rule checks",
+      "axe_core": "axe_scanner.run_axe_core(): inject axe-core script + axe.run() in the page",
+      "merge_issues": "axe_scanner.merge_issues(): custom/axe deduplication",
+      "screenshots_total": "_attach_issue_screenshots(): capture and store one screenshot per unique selector",
+      "fetch_html": "_fetch_page_html(): urllib raw-HTML fetch (fallback / multi when browser analysis is off)",
+      "prepare_html": "_prepare_html_for_screenshot(): script stripping / base-tag injection (fallback browser path)",
+      "static_wait": "_wait_for_static_content() (fallback browser path)",
+      "context_close": "browser context.close()",
+      "browser_close": "BrowserSession.close(): browser.close() + playwright.stop()",
+      "nested:browser_start": "nested in browser_setup: sync_playwright().start() + chromium.launch()",
+      "nested:context_create": "nested in browser_setup: browser.new_context(viewport, locale, UA)",
+      "nested:networkidle_wait": "nested in render_wait: page.wait_for_load_state('networkidle', <=3000ms)",
+      "nested:fixed_settle_wait": "nested in render_wait: page.wait_for_timeout(page_timeout_ms//40 clamped to 250-600ms)",
+      "nested:axe_script_fetch": "nested in axe_core: axe-core 4.10.2 CDN download (first call per process only)",
+      "nested:screenshot_capture": "nested in screenshots_total: locator scroll/bounding-box + page.screenshot",
+      "nested:screenshot_store": "nested in screenshots_total: Cloudinary upload or base64 data-URL conversion"
+    },
+    "fixtures": {
+      "/clean": "clean small page (production single-page path, 0 expected violations)",
+      "/issue-dense": "issue-dense page equivalent to GET /test/page-bad (~10-15 violations)",
+      "/spa": "JS-rendered SPA equivalent to GET /test/page-js-rendered (violations injected after 150ms)",
+      "/multi/": "multi-page fixture root linking 5 pages with fixed known violations"
+    },
+    "important_notes": [
+      "Per-call scenarios launch and close their own Playwright driver + Chromium browser per job (the baseline production lifecycle).",
+      "Worker-mode scenarios use one BrowserSession across all measured scans; the strategy is recorded per scenario (native session injection when scan_page supports browser_session, otherwise an emulated shared-session factory for the baseline code).",
+      "The browser_start cost of worker mode appears once in the warm-up sample (and in worker_session metadata), not in the measured samples.",
+      "single_render_failure_fallback forces the rendered attempt to fail while the browser is available: this is the raw-HTML + browser-analysis fallback path affected by the fixed _run_playwright_analysis defect; before the fix it returned custom-check-only issues.",
+      "Fixtures are served from 127.0.0.1 over plain HTTP so target-network latency is effectively zero; real-world URLs will be slower.",
+      "axe-core script is cached in a module global after the first fetch; warm scenarios do not include the CDN download.",
+      "CLOUDINARY_URL is unset for this run, so screenshots are stored as inline base64 data URLs (portable CPU cost); production with Cloudinary configured pays network upload cost instead.",
+      "issue counts are recorded per scenario so timings can be interpreted as work done (ms/page, ms/issue)."
+    ]
+  }
+}

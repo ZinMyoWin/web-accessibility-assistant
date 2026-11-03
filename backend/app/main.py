@@ -1,16 +1,20 @@
+import logging
+import math
 import os
 import secrets
 from dataclasses import replace
 from datetime import UTC, datetime
 from uuid import UUID
 
-from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query
+from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db_session, get_session_factory
 from app.models.auth import User
+from app.models.scan import ScanRun
 from app.repositories.scan_repository import (
     ACTIVE_SCAN_STATUSES,
     clear_saved_scans,
@@ -96,12 +100,15 @@ from app.services.repair_suggestion_service import (
     normalize_repair_suggestion_provider,
     resolve_repair_suggestion_model,
 )
+from app.services import metrics, rate_limit
 from app.repositories.preferences_repository import (
     get_preferences,
     reset_preferences,
     update_preferences,
 )
 from app.utils.encryption import decrypt_api_key
+
+logger = logging.getLogger("app.main")
 
 LOCAL_CORS_ORIGINS = [
     "http://localhost:3000",
@@ -142,6 +149,50 @@ def get_allowed_origin_regex() -> str | None:
     return allowed_origin_regex or None
 
 
+_RATE_LIMIT_DETAILS = {
+    rate_limit.AUTH_SCOPE: (
+        "Too many authentication attempts. Please retry in {seconds} seconds."
+    ),
+    rate_limit.SCAN_SCOPE: "Too many scan requests. Please retry in {seconds} seconds.",
+}
+
+
+def _client_ip(request: Request) -> str:
+    """Rate-limit identity for unauthenticated endpoints.
+
+    Uses the socket peer address. Deployments behind a reverse proxy should
+    terminate rate limiting at the proxy (or forward a trusted client address)
+    because every proxied request otherwise shares the proxy's address.
+    """
+    client = request.client
+    return client.host if client and client.host else "unknown"
+
+
+def _enforce_rate_limit(request: Request, *, scope: str, identity: str) -> None:
+    """Consume one rate-limit token or raise HTTP 429 with ``Retry-After``.
+
+    NOTE: the limiter is per-process. See ``app.services.rate_limit`` for the
+    horizontal-scaling caveat.
+    """
+    allowed, retry_after_seconds = rate_limit.check_rate_limit(
+        scope=scope,
+        identity=identity,
+    )
+    if allowed:
+        return
+
+    metrics.record_rate_limited(scope)
+    retry_after = max(1, math.ceil(retry_after_seconds))
+    detail_template = _RATE_LIMIT_DETAILS.get(
+        scope, "Too many requests. Please retry in {seconds} seconds."
+    )
+    raise HTTPException(
+        status_code=429,
+        detail=detail_template.format(seconds=retry_after),
+        headers={"Retry-After": str(retry_after)},
+    )
+
+
 app = FastAPI(title="Web Accessibility Assistant API")
 
 app.add_middleware(
@@ -165,6 +216,35 @@ def health_check():
         "status": "ok",
         "service": "web-accessibility-assistant-backend",
     }
+
+
+@app.get("/metrics", include_in_schema=False)
+def metrics_endpoint(db: Session = Depends(get_db_session)):
+    """Expose process metrics in the Prometheus text exposition format.
+
+    Queue depth and total worker attempts are refreshed from the database at
+    scrape time (the queue-depth count is backed by
+    ``ix_scan_runs_status_started_at`` from migration 9848b576f075) so the
+    numbers also cover a separately running scan worker. All other values are
+    per-process counters. Returns 404 when ``METRICS_ENABLED`` is false.
+    """
+    if not metrics.metrics_enabled():
+        raise HTTPException(status_code=404, detail="Metrics are disabled.")
+    try:
+        queued_count = db.scalar(
+            select(func.count()).select_from(ScanRun).where(ScanRun.status == "queued")
+        )
+        worker_attempts = db.scalar(
+            select(func.coalesce(func.sum(ScanRun.worker_attempts), 0))
+        )
+        metrics.set_scan_queue_depth(int(queued_count or 0))
+        metrics.set_scan_worker_attempts_total(int(worker_attempts or 0))
+    except Exception:  # pragma: no cover - metrics must render even if the DB hiccups
+        logger.warning("failed to refresh database-backed scan metrics", exc_info=True)
+    return Response(
+        content=metrics.render_prometheus(),
+        media_type=metrics.PROMETHEUS_CONTENT_TYPE,
+    )
 
 
 @app.get("/test/page-bad", response_class=HTMLResponse)
@@ -227,10 +307,16 @@ def test_js_rendered_page():
 def scan_single_page(
     request: ScanPageRequest,
     background_tasks: BackgroundTasks,
+    http_request: Request,
     authorization: str | None = Header(default=None),
     db: Session = Depends(get_db_session),
 ):
     current_user = _get_user_from_authorization_header(db, authorization)
+    _enforce_rate_limit(
+        http_request,
+        scope=rate_limit.SCAN_SCOPE,
+        identity=f"user:{current_user.id}",
+    )
     requested_url = str(request.url)
     started_at = datetime.now(UTC)
     preferences = get_preferences(db, current_user.id)
@@ -449,7 +535,16 @@ def serialize_scan_options(options: ScanOptions) -> dict[str, object]:
 
 
 @app.post("/auth/signup", response_model=AuthResponse)
-def signup(request: SignupRequest, db: Session = Depends(get_db_session)):
+def signup(
+    request: SignupRequest,
+    http_request: Request,
+    db: Session = Depends(get_db_session),
+):
+    _enforce_rate_limit(
+        http_request,
+        scope=rate_limit.AUTH_SCOPE,
+        identity=_client_ip(http_request),
+    )
     if get_user_by_email(db, request.email):
         raise HTTPException(status_code=409, detail="An account with this email already exists.")
 
@@ -465,7 +560,16 @@ def signup(request: SignupRequest, db: Session = Depends(get_db_session)):
 
 
 @app.post("/auth/login", response_model=AuthResponse)
-def login(request: LoginRequest, db: Session = Depends(get_db_session)):
+def login(
+    request: LoginRequest,
+    http_request: Request,
+    db: Session = Depends(get_db_session),
+):
+    _enforce_rate_limit(
+        http_request,
+        scope=rate_limit.AUTH_SCOPE,
+        identity=_client_ip(http_request),
+    )
     user = get_user_by_email(db, request.email)
     if user is None or not verify_password(request.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password.")
@@ -528,6 +632,7 @@ def google_auth(
 @app.post("/auth/forgot-password", response_model=MessageResponse)
 def forgot_password(
     request: ForgotPasswordRequest,
+    http_request: Request,
     db: Session = Depends(get_db_session),
 ):
     """Begin the password-reset flow.
@@ -539,6 +644,11 @@ def forgot_password(
     Set PASSWORD_RESET_LOG_LINKS=true in local development only to log the link
     and exercise the flow end to end.
     """
+    _enforce_rate_limit(
+        http_request,
+        scope=rate_limit.AUTH_SCOPE,
+        identity=_client_ip(http_request),
+    )
     generic_message = (
         "If an account exists for that email, a reset link has been sent."
     )
@@ -627,14 +737,26 @@ def get_scans(
 @app.get("/scans/{scan_id}", response_model=SavedScanResponse)
 def get_scan(
     scan_id: UUID,
+    include_issues: bool = Query(
+        default=True,
+        description=(
+            "Set false for lightweight status polling: the response keeps the "
+            "same shape with summary/queue metadata but an empty issues list."
+        ),
+    ),
     authorization: str | None = Header(default=None),
     db: Session = Depends(get_db_session),
 ):
     current_user = _get_user_from_authorization_header(db, authorization)
-    scan_run = get_saved_scan(db, scan_id, current_user.id)
+    scan_run = get_saved_scan(
+        db,
+        scan_id,
+        current_user.id,
+        include_issues=include_issues,
+    )
     if scan_run is None:
         raise HTTPException(status_code=404, detail="Scan not found")
-    return to_saved_scan_response(scan_run)
+    return to_saved_scan_response(scan_run, include_issues=include_issues)
 
 
 @app.get(

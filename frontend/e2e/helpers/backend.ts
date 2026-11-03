@@ -17,8 +17,10 @@ import {
 
 const PREFERENCES_URL = /\/preferences$/
 const SCAN_PAGE_URL = /\/scan\/page$/
-const SCAN_DETAIL_URL = /\/scans\/[^/]+$/
-const SCAN_CANCEL_URL = /\/scans\/[^/]+\/cancel$/
+// Scan detail may carry a query string (`?include_issues=false` for the
+// lightweight status poll), so anchor on the path segment, not the raw URL end.
+const SCAN_DETAIL_URL = /\/scans\/[^/?]+(\?.*)?$/
+const SCAN_CANCEL_URL = /\/scans\/[^/?]+\/cancel(\?.*)?$/
 
 async function fulfillJson(route: Route, body: unknown, status = 200): Promise<void> {
   await route.fulfill({
@@ -98,7 +100,14 @@ export async function mockQueuedScanWithCancel(page: Page): Promise<CapturedCanc
     }
 
     state.pollRequests += 1
-    await fulfillJson(route, runningSavedScanFixture)
+    // Mirror the backend contract: the lightweight status poll returns the same
+    // shape with an empty issue list; the full fetch returns the issue payload.
+    const isLightweightPoll =
+      new URL(route.request().url()).searchParams.get("include_issues") === "false"
+    await fulfillJson(
+      route,
+      isLightweightPoll ? { ...runningSavedScanFixture, issues: [] } : runningSavedScanFixture
+    )
   })
 
   await page.route(SCAN_CANCEL_URL, async (route) => {

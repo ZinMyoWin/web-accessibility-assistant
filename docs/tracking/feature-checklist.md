@@ -73,7 +73,7 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Incremental per-page issue persistence while multi-page scans run
 - [x] Worker replica scaling via Compose (`SCAN_WORKER_REPLICAS`, safe row-locked job claiming)
 - [x] Fast worker job pickup (0.5s default poll interval)
-- [x] Automated backend pytest suite for core API, scanner, repository, worker, auth, preference resolution, bundle export, and cancel paths (130 tests)
+- [x] Automated backend pytest suite for core API, scanner, repository, worker, auth, preference resolution, bundle export, cancel, performance-path, and observability paths (201 tests across 14 files)
 - [x] Minimal backend API smoke tests
 
 ## Frontend
@@ -138,7 +138,7 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] In-app terminal scan notifications (complete, failed, high severity, low score, cancelled)
 - [x] Preferences notification threshold/severity settings wired to backend fields
 - [x] Preferences expose current DeepSeek model choices for repair suggestions
-- [x] Automated frontend Vitest suite for scan-state, queue, saved-scan, report, AI-suggestion, notification, cancel, and export paths (41 tests)
+- [x] Automated frontend Vitest suite for scan-state, queue, saved-scan, report, AI-suggestion, notification, cancel, export, and lightweight-polling paths (42 tests)
 - [x] Minimal frontend smoke check via TypeScript gate
 
 ## AI / Intelligent Analysis
@@ -194,6 +194,29 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Browser end-to-end test suite (Playwright, 8 tests across 5 spec files)
 - [ ] Automated coverage reporting and thresholds
 
+## Performance & Observability
+
+- [x] Reproducible scanner and database benchmark harness (`scripts/perf/bench_scan.py`, `scripts/perf/bench_db.py`)
+- [x] Measured baseline and post-optimization evidence (`docs/architecture/performance-baseline.md`, `performance-results.md`, `scan-performance-analysis.md`)
+- [x] Worker-level Chromium reuse across queued scan jobs (`SCAN_BROWSER_REUSE_ENABLED`, recycle after `SCAN_BROWSER_MAX_JOBS`)
+- [x] Browser crash/disconnect recovery plus one-time per-worker session teardown
+- [x] Configurable render waits (`SCAN_RENDER_IDLE_TIMEOUT_MS`, `SCAN_RENDER_SETTLE_MS`)
+- [x] Screenshot capture cap per page (`SCAN_MAX_SCREENSHOTS`)
+- [x] Vendored, pinned axe-core asset with worker-startup warm cache (`AXE_SCRIPT_PATH`, CDN fallback only)
+- [x] Per-scan phase timings on scan responses and structured `scan_timing` worker log lines
+- [x] Multi-page scan time budget (`SCAN_MAX_SECONDS`)
+- [x] SSRF hardening: scheme/credential/length validation, optional private-target blocking, post-redirect final-URL revalidation (`SCAN_ALLOW_PRIVATE_TARGETS`)
+- [x] Raw-HTML fallback now runs axe-core correctly (latent swallowed-error defect fixed)
+- [x] Database performance indexes via migration `9848b576f075`
+- [x] Crawl-memory lookup rewritten to a single column-only query (no issue eager-loading)
+- [x] Incremental/append-only progress persistence for streamed issues, with retry-clean partial rows and an authoritative final replace
+- [x] Saved-scan history N+1 query removal (batched page-URL query; constant statement count)
+- [x] Lightweight status polling (`GET /scans/{scan_id}?include_issues=false`) with on-demand full-detail fetch
+- [x] Configurable PostgreSQL connection pool (`DB_POOL_SIZE`, `DB_MAX_OVERFLOW`, `DB_POOL_TIMEOUT`, `DB_POOL_RECYCLE`, `DB_POOL_PRE_PING`)
+- [x] In-process token-bucket rate limiting for scans and auth (`RATE_LIMIT_*`, HTTP 429 + `Retry-After`)
+- [x] Prometheus-style `GET /metrics` endpoint and slow-scan logging (`METRICS_ENABLED`, `SCAN_SLOW_LOG_SECONDS`)
+- [x] Functional-equivalence verification for the optimized scanner (only the documented screenshot-cap and fallback-fix output changes)
+
 ## Current Gaps Worth Addressing Next
 
 - [x] Connect the home dashboard scan result to the saved-scan issues view
@@ -212,3 +235,7 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] Persist notification preferences and deliver in-app terminal scan notifications
 - [x] Allow users to cancel a queued or running scan
 - [x] Add a browser end-to-end test suite and gate the frontend production build in CI
+- [x] Reduce scan latency without changing detection results (worker browser reuse, render waits, screenshot cap, vendored axe-core)
+- [x] Remove crawl-memory/history DB query amplification and progress write amplification
+- [x] Make dashboard scanning poll a lightweight status payload instead of full issue lists
+- [x] Add performance indexes, connection pooling, rate limiting, and metrics/slow-scan observability

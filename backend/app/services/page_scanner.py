@@ -3,6 +3,8 @@ from __future__ import annotations
 import base64
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from fnmatch import fnmatch
@@ -11,7 +13,8 @@ from html.parser import HTMLParser
 import logging
 import os
 import re
-from time import sleep
+from time import monotonic as _monotonic
+from time import perf_counter, sleep
 from typing import Callable
 from urllib.error import HTTPError, URLError
 from urllib.parse import urldefrag, urljoin, urlparse
@@ -23,6 +26,113 @@ from app.utils.url_utils import validate_public_http_url
 
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_WCAG_STANDARD = "wcag21aa"
+
+# Render-wait tuning. networkidle implies ~500ms of network quiet, so late
+# injected SPA content is still captured while the wait shrinks from ~3s.
+DEFAULT_RENDER_IDLE_TIMEOUT_MS = 1500
+DEFAULT_RENDER_SETTLE_MS = 100
+DEFAULT_MAX_SCREENSHOTS = 10
+DEFAULT_MAX_SCAN_SECONDS = 240.0
+
+_ENV_FALSE_VALUES = {"0", "false", "no", "off"}
+
+
+def _get_env_int(name: str, default: int, *, minimum: int = 0) -> int:
+    raw_value = os.getenv(name, "").strip()
+    if not raw_value:
+        return default
+    try:
+        return max(int(raw_value), minimum)
+    except ValueError:
+        return default
+
+
+def _get_env_float(name: str, default: float, *, minimum: float = 0.0) -> float:
+    raw_value = os.getenv(name, "").strip()
+    if not raw_value:
+        return default
+    try:
+        return max(float(raw_value), minimum)
+    except ValueError:
+        return default
+
+
+def render_idle_timeout_ms() -> int:
+    return _get_env_int(
+        "SCAN_RENDER_IDLE_TIMEOUT_MS", DEFAULT_RENDER_IDLE_TIMEOUT_MS, minimum=250
+    )
+
+
+def render_settle_ms() -> int:
+    return _get_env_int("SCAN_RENDER_SETTLE_MS", DEFAULT_RENDER_SETTLE_MS, minimum=0)
+
+
+def max_screenshots_per_page() -> int:
+    return _get_env_int("SCAN_MAX_SCREENSHOTS", DEFAULT_MAX_SCREENSHOTS, minimum=0)
+
+
+def max_scan_seconds() -> float:
+    return _get_env_float("SCAN_MAX_SECONDS", DEFAULT_MAX_SCAN_SECONDS, minimum=0.0)
+
+
+class PhaseTimer:
+    """Lightweight accumulator for scanner phase durations (milliseconds)."""
+
+    def __init__(self) -> None:
+        self.phases: dict[str, float] = {}
+        self.counts: dict[str, int] = {}
+
+    def add(self, name: str, duration_ms: float) -> None:
+        self.phases[name] = self.phases.get(name, 0.0) + max(duration_ms, 0.0)
+        self.counts[name] = self.counts.get(name, 0) + 1
+
+    def count(self, name: str, amount: int = 1) -> None:
+        self.counts[name] = self.counts.get(name, 0) + amount
+
+    @contextmanager
+    def measure(self, name: str):
+        start = perf_counter()
+        try:
+            yield
+        finally:
+            self.add(name, (perf_counter() - start) * 1000)
+
+    def snapshot(self) -> dict[str, float]:
+        snapshot = {name: round(value, 2) for name, value in sorted(self.phases.items())}
+        snapshot.update(
+            {f"{name}_count": float(value) for name, value in sorted(self.counts.items())}
+        )
+        return snapshot
+
+
+# The active timer travels with the scan through a ContextVar instead of extra
+# function parameters, so page-level seams (and test doubles) keep their shape.
+_active_timer: ContextVar[PhaseTimer | None] = ContextVar(
+    "scan_phase_timer", default=None
+)
+
+
+@contextmanager
+def _measure_phase(name: str):
+    """Measure a scanner phase into the active timer, when one is recording."""
+    timer = _active_timer.get()
+    if timer is None:
+        yield
+        return
+    start = perf_counter()
+    try:
+        yield
+    finally:
+        timer.add(name, (perf_counter() - start) * 1000)
+
+
+def _count_scanned_page() -> None:
+    timer = _active_timer.get()
+    if timer is not None:
+        timer.count("page")
+
 
 VAGUE_LINK_TEXT = {"click here", "read more", "here", "more", "link"}
 VOID_ELEMENTS = {
@@ -207,6 +317,27 @@ class BrowserSession:
         self._browser = None
         self._playwright = None
 
+    def is_connected(self) -> bool:
+        """Return Playwright's connection state (False when no browser is up)."""
+        if self._browser is None:
+            return False
+        try:
+            return bool(self._browser.is_connected())
+        except Exception:
+            return False
+
+    def is_usable(self) -> bool:
+        """Return True when this session can serve another page without relaunching.
+
+        A session that has not launched its browser yet is usable (it launches
+        lazily on first use); an unavailable or disconnected browser is not.
+        """
+        if self._unavailable:
+            return False
+        if self._browser is None:
+            return True
+        return self.is_connected()
+
 
 class AccessibilityHTMLParser(HTMLParser):
     def __init__(self) -> None:
@@ -323,21 +454,71 @@ def scan_page(
     url: str,
     options: ScanOptions | None = None,
     queue_control: CrawlQueueControl | None = None,
+    *,
+    browser_session: BrowserSession | None = None,
 ) -> ScanPageResponse:
+    """Scan a single page or crawl multiple pages.
+
+    Pass ``browser_session`` to reuse a caller-owned Playwright browser across
+    scan jobs; that session is left open so the caller controls its lifecycle.
+    When omitted, a session is created and closed for this scan only.
+    """
     validate_public_http_url(url)
     resolved_options = options or ScanOptions(mode="single", page_limit=1, crawl_depth=1)
 
-    browser_session = BrowserSession()
+    timer = PhaseTimer()
+    timer_token = _active_timer.set(timer)
+    session = browser_session if browser_session is not None else BrowserSession()
+    owns_session = browser_session is None
+    started_at = perf_counter()
     try:
         if resolved_options.mode == "multi":
-            return _scan_multiple_pages(
-                url, resolved_options, queue_control, browser_session=browser_session
+            response = _scan_multiple_pages(
+                url,
+                resolved_options,
+                queue_control,
+                browser_session=session,
             )
-        return _scan_single_page(
-            url, resolved_options, queue_control, browser_session=browser_session
-        )
+        else:
+            response = _scan_single_page(
+                url,
+                resolved_options,
+                queue_control,
+                browser_session=session,
+            )
     finally:
-        browser_session.close()
+        if owns_session:
+            with _measure_phase("session_teardown"):
+                session.close()
+        _active_timer.reset(timer_token)
+
+    timer.add("total", (perf_counter() - started_at) * 1000)
+    _attach_timings(response, timer)
+    return response
+
+
+def _attach_timings(response: ScanPageResponse, timer: PhaseTimer) -> bool:
+    """Attach phase timings when the response schema exposes the optional field.
+
+    The field is owned by another layer and may not exist in every checkout, so
+    this stays defensive instead of assuming the schema version.
+    """
+    model_fields = getattr(type(response), "model_fields", {})
+    if "timings" not in model_fields:
+        return False
+    try:
+        response.timings = timer.snapshot()
+    except (AttributeError, TypeError, ValueError):
+        return False
+    return True
+
+
+def _validate_final_url(final_url: str) -> None:
+    """Re-validate the URL a navigation or redirect actually landed on."""
+    try:
+        validate_public_http_url(final_url)
+    except ValueError as exc:
+        raise ScanError(f"Scan target is not allowed: {exc}") from exc
 
 
 def _cancel_requested(queue_control: CrawlQueueControl | None) -> bool:
@@ -388,6 +569,8 @@ def _scan_multiple_pages(
     *,
     browser_session: BrowserSession | None = None,
 ) -> ScanPageResponse:
+    budget_started_at = _monotonic()
+    time_budget_seconds = max_scan_seconds()
     _publish_queue_state(
         queue_control,
         current_page_url=url,
@@ -435,6 +618,11 @@ def _scan_multiple_pages(
 
     while queued_pages and len(scanned_pages) < options.page_limit:
         _raise_if_cancelled(queue_control)
+        if (
+            time_budget_seconds > 0
+            and (_monotonic() - budget_started_at) > time_budget_seconds
+        ):
+            raise ScanError("Scan exceeded time budget")
         queued_pages = _apply_queue_control(queued_pages, queue_control)
         if not queued_pages:
             break
@@ -584,10 +772,14 @@ def _scan_one_page(
             browser_session=browser_session,
         )
         if rendered_result is not None:
+            _count_scanned_page()
             return rendered_result
 
     try:
-        html, final_url = _fetch_page_html(url, timeout_seconds=_timeout_seconds(options.page_timeout_ms))
+        with _measure_phase("fetch_html"):
+            html, final_url = _fetch_page_html(
+                url, timeout_seconds=_timeout_seconds(options.page_timeout_ms)
+            )
     except HTTPError as exc:
         raise ScanError(
             message=f"Failed to fetch URL. HTTP {exc.code}",
@@ -601,8 +793,11 @@ def _scan_one_page(
     except TimeoutError as exc:
         raise ScanError("Request timed out while fetching URL", status_code=504) from exc
 
-    page_data = _parse_page_html(html)
-    custom_issues = _build_issues(page_data)
+    _validate_final_url(final_url)
+    with _measure_phase("parse"):
+        page_data = _parse_page_html(html)
+    with _measure_phase("custom_checks"):
+        custom_issues = _build_issues(page_data)
     if run_browser_analysis:
         issues = _run_playwright_analysis(
             final_url,
@@ -611,10 +806,13 @@ def _scan_one_page(
             page_timeout_ms=options.page_timeout_ms,
             capture_screenshots=capture_screenshots,
             browser_session=browser_session,
+            wcag_standard=options.wcag_standard,
+            include_best_practices=options.include_best_practices,
         )
     else:
         issues = custom_issues
     _assign_issue_page_url(issues, final_url)
+    _count_scanned_page()
     return PageScanResult(final_url=final_url, page_data=page_data, issues=issues)
 
 
@@ -637,44 +835,58 @@ def _scan_rendered_page(
         session = owned_session = BrowserSession()
 
     try:
-        page_handle = session.new_page()
+        with _measure_phase("browser_setup"):
+            page_handle = session.new_page()
         if page_handle is None:
             return None
         context, page = page_handle
         try:
             page.set_default_timeout(options.page_timeout_ms)
-            response = page.goto(
-                url,
-                wait_until="domcontentloaded",
-                timeout=options.page_timeout_ms,
-            )
+            with _measure_phase("goto"):
+                response = page.goto(
+                    url,
+                    wait_until="domcontentloaded",
+                    timeout=options.page_timeout_ms,
+                )
             if response and response.status >= 400:
                 raise ScanError(
                     message=f"Failed to fetch URL. HTTP {response.status}",
                     status_code=response.status,
                 )
 
-            _wait_for_rendered_content(page, options.page_timeout_ms)
-            html = page.content()
-            final_url = page.url
-            page_data = _parse_page_html(html)
-            custom_issues = _build_issues(page_data)
+            with _measure_phase("render_wait"):
+                _wait_for_rendered_content(page, options.page_timeout_ms)
+            with _measure_phase("page_content"):
+                html = page.content()
+                final_url = page.url
+            _validate_final_url(final_url)
+            with _measure_phase("parse"):
+                page_data = _parse_page_html(html)
+            with _measure_phase("custom_checks"):
+                custom_issues = _build_issues(page_data)
 
             if run_axe_core is not None and merge_issues is not None:
                 try:
-                    axe_issues = run_axe_core(
-                        page,
-                        wcag_standard=options.wcag_standard,
-                        include_best_practices=options.include_best_practices,
-                    )
-                    issues = merge_issues(custom_issues, axe_issues)
+                    with _measure_phase("axe"):
+                        axe_issues = run_axe_core(
+                            page,
+                            wcag_standard=options.wcag_standard,
+                            include_best_practices=options.include_best_practices,
+                        )
+                    with _measure_phase("merge"):
+                        issues = merge_issues(custom_issues, axe_issues)
                 except Exception:
+                    logger.warning(
+                        "axe-core analysis failed; continuing with custom issues only",
+                        exc_info=True,
+                    )
                     issues = _mark_custom_issues(custom_issues)
             else:
                 issues = _mark_custom_issues(custom_issues)
 
             if capture_screenshots:
-                _attach_issue_screenshots(page, issues)
+                with _measure_phase("screenshots"):
+                    _attach_issue_screenshots(page, issues)
 
             _assign_issue_page_url(issues, final_url)
             return PageScanResult(
@@ -690,6 +902,9 @@ def _scan_rendered_page(
     except ScanError:
         raise
     except Exception:
+        logger.warning(
+            "rendered page analysis failed; falling back to raw HTML", exc_info=True
+        )
         return None
     finally:
         if owned_session is not None:
@@ -842,8 +1057,15 @@ def _run_playwright_analysis(
     page_timeout_ms: int,
     capture_screenshots: bool,
     browser_session: BrowserSession | None = None,
+    wcag_standard: str = DEFAULT_WCAG_STANDARD,
+    include_best_practices: bool = True,
 ) -> list[ScanIssue]:
-    """Run axe-core analysis and capture screenshots in a single Playwright session."""
+    """Run axe-core analysis and capture screenshots in a single Playwright session.
+
+    This is the raw-HTML fallback path used when real browser navigation is
+    unavailable: the fetched HTML is loaded with ``set_content`` (scripts
+    stripped) and axe-core still runs against it.
+    """
     try:
         from app.services.axe_scanner import merge_issues, run_axe_core
     except ImportError:
@@ -855,33 +1077,43 @@ def _run_playwright_analysis(
         session = owned_session = BrowserSession()
 
     try:
-        page_handle = session.new_page()
+        with _measure_phase("browser_setup"):
+            page_handle = session.new_page()
         if page_handle is None:
             return _mark_custom_issues(custom_issues)
         context, page = page_handle
         try:
             page.set_default_timeout(page_timeout_ms)
-            page.set_content(
-                _prepare_html_for_screenshot(html, url),
-                wait_until="domcontentloaded",
-            )
-            _wait_for_static_content(page)
-
-            # Run axe-core analysis and merge with custom issues
-            try:
-                axe_issues = run_axe_core(
-                    page,
-                    wcag_standard=options.wcag_standard,
-                    include_best_practices=options.include_best_practices,
+            with _measure_phase("page_content"):
+                page.set_content(
+                    _prepare_html_for_screenshot(html, url),
+                    wait_until="domcontentloaded",
                 )
-                all_issues = merge_issues(custom_issues, axe_issues)
+                _wait_for_static_content(page)
+
+            # Run axe-core analysis and merge with custom issues. A failure here
+            # must leave the scan usable, but it is logged so real defects are
+            # not silently swallowed.
+            try:
+                with _measure_phase("axe"):
+                    axe_issues = run_axe_core(
+                        page,
+                        wcag_standard=wcag_standard,
+                        include_best_practices=include_best_practices,
+                    )
+                with _measure_phase("merge"):
+                    all_issues = merge_issues(custom_issues, axe_issues)
             except Exception:
-                all_issues = custom_issues
-                for issue in all_issues:
-                    issue.source = issue.source or "custom"
+                logger.warning(
+                    "axe-core analysis failed on the raw-HTML fallback path; "
+                    "continuing with custom issues only",
+                    exc_info=True,
+                )
+                all_issues = _mark_custom_issues(custom_issues)
 
             if capture_screenshots:
-                _attach_issue_screenshots(page, all_issues)
+                with _measure_phase("screenshots"):
+                    _attach_issue_screenshots(page, all_issues)
 
             return all_issues
         finally:
@@ -890,6 +1122,10 @@ def _run_playwright_analysis(
             except Exception:
                 pass
     except Exception:
+        logger.warning(
+            "raw-HTML Playwright fallback failed; continuing with custom issues only",
+            exc_info=True,
+        )
         return _mark_custom_issues(custom_issues)
     finally:
         if owned_session is not None:
@@ -910,14 +1146,28 @@ def _new_browser_context(browser):
 
 
 def _wait_for_rendered_content(page, page_timeout_ms: int) -> None:
+    """Wait for late-injected DOM content without paying a fixed ~1s settle.
+
+    A short ``load`` wait is followed by ``networkidle`` (which itself implies
+    ~500ms of network quiet, enough for the demo SPA's 150ms injection) and a
+    small configurable settle time. Both timeouts are env-tunable.
+    """
+    idle_timeout_ms = render_idle_timeout_ms()
+    if page_timeout_ms > 0:
+        idle_timeout_ms = min(idle_timeout_ms, page_timeout_ms)
+
     try:
-        page.wait_for_load_state(
-            "networkidle",
-            timeout=min(max(page_timeout_ms // 4, 1000), 3000),
-        )
+        page.wait_for_load_state("load", timeout=min(idle_timeout_ms, 1000))
     except Exception:
         pass
-    page.wait_for_timeout(min(max(page_timeout_ms // 40, 250), 600))
+    try:
+        page.wait_for_load_state("networkidle", timeout=idle_timeout_ms)
+    except Exception:
+        pass
+
+    settle_ms = render_settle_ms()
+    if settle_ms > 0:
+        page.wait_for_timeout(settle_ms)
 
 
 def _wait_for_static_content(page) -> None:
@@ -948,21 +1198,29 @@ def _attach_issue_screenshots(page, issues: list[ScanIssue]) -> None:
 
     Issues that point at the same selector (or that all fall back to the
     viewport shot) share a single capture, and Cloudinary uploads run
-    concurrently after capture instead of blocking the browser loop.
+    concurrently after capture instead of blocking the browser loop. At most
+    ``SCAN_MAX_SCREENSHOTS`` unique captures happen per page; issues beyond the
+    cap keep ``screenshot_data_url = None``.
     """
+    max_captures = max_screenshots_per_page()
     captures: dict[str, bytes | None] = {}
-    issue_capture_keys: list[str] = []
+    issue_capture_keys: list[str | None] = []
 
     for issue in issues:
         selector = _build_issue_selector(issue)
-        capture_key = selector or _VIEWPORT_CAPTURE_KEY
+        capture_key: str | None = selector or _VIEWPORT_CAPTURE_KEY
         if capture_key not in captures:
+            if len(captures) >= max_captures:
+                issue_capture_keys.append(None)
+                continue
             captures[capture_key] = _capture_screenshot_bytes(page, selector)
         issue_capture_keys.append(capture_key)
 
     stored_urls = _store_screenshots_concurrently(captures)
     for issue, capture_key in zip(issues, issue_capture_keys):
-        issue.screenshot_data_url = stored_urls.get(capture_key)
+        issue.screenshot_data_url = (
+            stored_urls.get(capture_key) if capture_key is not None else None
+        )
 
 
 def _capture_screenshot_bytes(page, selector: str | None) -> bytes | None:

@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test"
 
-import { BASE_URL } from "./e2e/helpers/env"
+import { BASE_URL, E2E_PORT } from "./e2e/helpers/env"
 
 /**
  * Browser end-to-end configuration for the AccessAudit frontend.
@@ -39,7 +39,7 @@ export default defineConfig({
     // Run the suite against a production build: it removes dev-server HMR
     // recompiles during the run (a source of cross-test flakiness) and matches
     // the artifact that CI ships in the `frontend-build` job.
-    command: "npm run build && npm run start -- --hostname 127.0.0.1 --port 3000",
+    command: `npm run build && npm run start -- --hostname 127.0.0.1 --port ${E2E_PORT}`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 300_000,

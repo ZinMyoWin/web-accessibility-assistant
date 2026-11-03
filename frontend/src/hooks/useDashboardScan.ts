@@ -219,7 +219,9 @@ export function useDashboardScan() {
               }
               latestScanRef.current = scan
               setActiveScan(scan)
-              if (scan.summary.total_issues > 0 || scan.issues.length > 0) {
+              // Lightweight polls carry `issues: []`; only replace the displayed
+              // results when the response actually includes issue rows.
+              if (scan.issues.length > 0) {
                 // Stream partial per-page results so issues appear while
                 // later pages are still being scanned.
                 setResult(mapSavedScanToScanResponse(scan))
@@ -443,6 +445,10 @@ async function pollScanUntilComplete(
   token: string,
   shouldStop: () => boolean
 ): Promise<ScanResponse> {
+  // Issue total from the last full detail fetch. Lightweight polls only
+  // refetch the full payload when this changes, so unchanged polls stay cheap.
+  let loadedIssueTotal = 0
+
   for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt += 1) {
     if (shouldStop()) {
       throw new ScanCancelledError()
@@ -454,25 +460,48 @@ async function pollScanUntilComplete(
       throw new ScanCancelledError()
     }
 
-    const scan = await fetchSavedScan(scanId, token)
+    const lightweightScan = await fetchSavedScan(scanId, token, {
+      includeIssues: false,
+    })
+
+    if (lightweightScan.status === "cancelled") {
+      // Terminal: grab the full detail once so the cancelled scan (and any
+      // partial issues it accumulated) lands in the dashboard state.
+      const cancelledScan = await fetchSavedScan(scanId, token)
+      throw new ScanCancelledError(cancelledScan)
+    }
+
+    // Full detail is only needed when the issue count changed since the last
+    // full fetch, or when the scan reached a terminal state. The loop is
+    // sequential, so at most one full fetch is ever in flight.
+    const needsFullDetail =
+      lightweightScan.status === "complete" ||
+      lightweightScan.status === "error" ||
+      lightweightScan.summary.total_issues !== loadedIssueTotal
+
+    const scan = needsFullDetail
+      ? await fetchSavedScan(scanId, token)
+      : lightweightScan
+
+    if (needsFullDetail) {
+      loadedIssueTotal = scan.summary.total_issues
+    }
 
     if (scan.status === "cancelled") {
       throw new ScanCancelledError(scan)
     }
 
-    onScanUpdate?.(scan)
-
-    if (scan.status === "queued" || scan.status === "running") {
-      continue
-    }
-
     if (scan.status === "complete") {
+      onScanUpdate?.(scan)
       return mapSavedScanToScanResponse(scan)
     }
 
     if (scan.status === "error") {
+      onScanUpdate?.(scan)
       throw new Error(scan.error_message || "Scan failed.")
     }
+
+    onScanUpdate?.(scan)
   }
 
   throw new Error("Scan is still running. Open Scan History to check progress.")

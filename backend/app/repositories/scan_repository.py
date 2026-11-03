@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime, timedelta
 from urllib.parse import urldefrag, urlparse
 from uuid import UUID
@@ -14,7 +15,10 @@ from app.schemas.history import (
     SavedScanResponse,
 )
 from app.schemas.scan import ScanIssue, ScanPageResponse, ScanSummary
+from app.services import metrics
 
+
+logger = logging.getLogger("app.scan_repository")
 
 CANCELLED_STATUS = "cancelled"
 CANCELLED_ERROR_MESSAGE = "Cancelled by user"
@@ -64,29 +68,13 @@ def save_completed_scan(
 
     session.add_all(
         [
-            ScanIssueRecord(
-                scan_run_id=scan_run.id,
-                position=index,
-                rule_id=issue.rule_id,
-                severity=issue.severity,
-                element=issue.element,
-                message=issue.message,
-                recommendation=issue.recommendation,
-                line=issue.line,
-                column=issue.column,
-                source_hint=issue.source_hint,
-                dom_path=issue.dom_path,
-                text_preview=issue.text_preview,
-                screenshot_data_url=issue.screenshot_data_url,
-                page_url=issue.page_url,
-                wcag_criteria=issue.wcag_criteria,
-                source=issue.source,
-            )
+            _build_issue_record(scan_run.id, index, issue)
             for index, issue in enumerate(result.issues, start=1)
         ]
     )
     session.commit()
     session.refresh(scan_run)
+    _record_scan_completion_metrics(scan_run, result)
     return scan_run
 
 
@@ -151,8 +139,16 @@ def claim_next_queued_scan(session: Session, *, worker_id: str | None = None) ->
         return None
 
     now = datetime.now(UTC)
+    previous_attempts = scan_run.worker_attempts or 0
+    if previous_attempts >= 1:
+        # A retried scan restarts the crawl from the beginning. Partial issue
+        # rows persisted by the previous attempt must be discarded so the new
+        # attempt can append its cumulative issue list from position 1 (and so
+        # retries never duplicate issue rows).
+        _discard_partial_issue_records(session, scan_run)
+
     scan_run.status = "running"
-    scan_run.worker_attempts = (scan_run.worker_attempts or 0) + 1
+    scan_run.worker_attempts = previous_attempts + 1
     scan_run.worker_id = worker_id
     scan_run.locked_at = now
     scan_run.heartbeat_at = now
@@ -179,6 +175,7 @@ def recover_stale_running_scans(
         if scan_run.cancel_requested_at is not None:
             # The user asked to stop; never requeue a cancelled scan.
             _apply_cancelled_state(scan_run, datetime.now(UTC))
+            _record_scan_terminal_status(CANCELLED_STATUS)
             recovered_count += 1
             continue
         attempts = scan_run.worker_attempts or 0
@@ -196,6 +193,7 @@ def recover_stale_running_scans(
             )
             scan_run.current_page_url = None
             scan_run.queued_page_urls = scan_run.queued_page_urls or []
+            _record_scan_terminal_status("error")
         else:
             scan_run.status = "queued"
             scan_run.current_page_url = None
@@ -246,6 +244,7 @@ def complete_running_scan(
     _replace_scan_issue_records(session, scan_run, result.issues)
     session.commit()
     session.refresh(scan_run)
+    _record_scan_completion_metrics(scan_run, result)
     return scan_run
 
 
@@ -263,6 +262,7 @@ def fail_running_scan(
         _apply_cancelled_state(scan_run, completed_at)
         session.commit()
         session.refresh(scan_run)
+        _record_scan_terminal_status(CANCELLED_STATUS)
         return scan_run
 
     duration_seconds = _duration_seconds(scan_run.started_at, completed_at)
@@ -279,6 +279,7 @@ def fail_running_scan(
     scan_run.heartbeat_at = None
     session.commit()
     session.refresh(scan_run)
+    _record_scan_terminal_status("error")
     return scan_run
 
 
@@ -296,6 +297,7 @@ def retry_or_fail_running_scan(
         _apply_cancelled_state(scan_run, failed_at)
         session.commit()
         session.refresh(scan_run)
+        _record_scan_terminal_status(CANCELLED_STATUS)
         return scan_run
 
     attempts = scan_run.worker_attempts or 0
@@ -319,6 +321,8 @@ def retry_or_fail_running_scan(
 
     session.commit()
     session.refresh(scan_run)
+    if scan_run.status == "error":
+        _record_scan_terminal_status("error")
     return scan_run
 
 
@@ -363,6 +367,7 @@ def save_failed_scan(
     session.add(scan_run)
     session.commit()
     session.refresh(scan_run)
+    _record_scan_terminal_status("error")
     return scan_run
 
 
@@ -397,20 +402,44 @@ def list_saved_scans(
         base_query.order_by(ScanRun.started_at.desc()).offset(offset).limit(limit)
     ).all()
 
+    # Queued/running rows (and legacy complete rows) can have an empty
+    # scanned_page_urls list. Resolve their fallback page URLs with one
+    # column-only query for the whole page instead of lazy-loading the full
+    # issue collections one row at a time (the historical N+1).
+    fallback_ids = [row.id for row in rows if not row.scanned_page_urls]
+    fallback_page_urls = _issue_page_urls_by_scan_run(session, fallback_ids)
+
     return SavedScanListResponse(
         total=total,
         limit=limit,
         offset=offset,
-        items=[to_saved_scan_list_item(row) for row in rows],
+        items=[
+            to_saved_scan_list_item(
+                row,
+                issue_page_urls=fallback_page_urls.get(row.id, []),
+            )
+            for row in rows
+        ],
     )
 
 
-def get_saved_scan(session: Session, scan_id: UUID, user_id: UUID) -> ScanRun | None:
-    statement: Select[tuple[ScanRun]] = (
-        select(ScanRun)
-        .options(selectinload(ScanRun.issues))
-        .where(ScanRun.id == scan_id, ScanRun.user_id == user_id)
+def get_saved_scan(
+    session: Session,
+    scan_id: UUID,
+    user_id: UUID,
+    *,
+    include_issues: bool = True,
+) -> ScanRun | None:
+    """Load one user-scoped scan run.
+
+    ``include_issues=False`` skips the ``selectinload(ScanRun.issues)`` query
+    entirely so queue polling is a single row read plus the summary columns.
+    """
+    statement: Select[tuple[ScanRun]] = select(ScanRun).where(
+        ScanRun.id == scan_id, ScanRun.user_id == user_id
     )
+    if include_issues:
+        statement = statement.options(selectinload(ScanRun.issues))
     return session.scalar(statement)
 
 
@@ -451,6 +480,8 @@ def request_scan_cancel(
 
     session.commit()
     session.refresh(scan_run)
+    if scan_run.status == CANCELLED_STATUS:
+        _record_scan_terminal_status(CANCELLED_STATUS)
     return scan_run
 
 
@@ -480,6 +511,7 @@ def mark_scan_cancelled(session: Session, scan_id: UUID) -> ScanRun | None:
     _apply_cancelled_state(scan_run, datetime.now(UTC))
     session.commit()
     session.refresh(scan_run)
+    _record_scan_terminal_status(CANCELLED_STATUS)
     return scan_run
 
 
@@ -503,7 +535,18 @@ def _is_cancel_pending(scan_run: ScanRun) -> bool:
     )
 
 
-def to_saved_scan_list_item(scan_run: ScanRun) -> SavedScanListItem:
+def to_saved_scan_list_item(
+    scan_run: ScanRun,
+    *,
+    issue_page_urls: list[str] | None = None,
+) -> SavedScanListItem:
+    """Map a scan run to the saved-scan list schema.
+
+    ``issue_page_urls`` lets batch callers (the history list) supply the
+    per-scan issue page URLs fetched in one column-only query instead of
+    lazy-loading ``scan_run.issues`` once per row (the historical N+1).
+    Pass ``[]`` to disable reading issue rows entirely (lightweight polling).
+    """
     return SavedScanListItem(
         id=str(scan_run.id),
         url=scan_run.final_url or scan_run.requested_url,
@@ -514,7 +557,8 @@ def to_saved_scan_list_item(scan_run: ScanRun) -> SavedScanListItem:
         page_limit=scan_run.page_limit,
         pages_scanned=scan_run.pages_scanned,
         pages_skipped=scan_run.pages_skipped or 0,
-        scanned_page_urls=scan_run.scanned_page_urls or _fallback_scanned_page_urls(scan_run),
+        scanned_page_urls=scan_run.scanned_page_urls
+        or _fallback_scanned_page_urls(scan_run, issue_page_urls),
         skipped_page_urls=scan_run.skipped_page_urls or [],
         queued_page_urls=scan_run.queued_page_urls or [],
         excluded_page_urls=scan_run.excluded_page_urls or [],
@@ -588,9 +632,46 @@ def update_scan_progress(
         scan_run.skipped_page_urls = _unique_urls(skipped_page_urls)
         scan_run.pages_skipped = len(scan_run.skipped_page_urls)
     if issues is not None:
-        _replace_scan_issue_records(session, scan_run, issues)
+        append_scan_issue_records(session, scan_run, issues)
     scan_run.heartbeat_at = datetime.now(UTC)
     session.commit()
+
+
+def append_scan_issue_records(
+    session: Session,
+    scan_run: ScanRun,
+    issues: list[ScanIssue],
+) -> int:
+    """Append only the issue rows that are not persisted yet.
+
+    Progress publishes send the ``issues`` list accumulated so far, so each
+    publish is a superset of the previous one. Only ``issues[persisted_count:]``
+    is inserted (with positions continuing from the current maximum), which
+    removes the historical delete-all + re-insert-all write amplification: a
+    5-page crawl with 100 issues per page now writes 500 rows instead of
+    1500 INSERTs + 1000 DELETEs.
+
+    Returns the number of rows appended by this call.
+    """
+    persisted_count, max_position = session.execute(
+        select(
+            func.count(ScanIssueRecord.id),
+            func.max(ScanIssueRecord.position),
+        ).where(ScanIssueRecord.scan_run_id == scan_run.id)
+    ).one()
+    persisted_count = int(persisted_count or 0)
+    next_position = int(max_position or 0) + 1
+
+    tail = issues[persisted_count:]
+    if tail:
+        session.add_all(
+            [
+                _build_issue_record(scan_run.id, position, issue)
+                for position, issue in enumerate(tail, start=next_position)
+            ]
+        )
+    _apply_issue_summary_counts(scan_run, issues)
+    return len(tail)
 
 
 def _replace_scan_issue_records(
@@ -600,40 +681,65 @@ def _replace_scan_issue_records(
 ) -> None:
     """Replace persisted issue records and summary counts for a scan run.
 
-    Used both for incremental partial results while a scan is running and
-    for the final authoritative write on completion, so retries and repeat
-    publishes never duplicate records.
+    Used for the final authoritative write on completion, so a completed scan
+    always ends up with exactly the issue rows the scanner reported.
     """
     session.query(ScanIssueRecord).filter(
         ScanIssueRecord.scan_run_id == scan_run.id
     ).delete(synchronize_session=False)
     session.add_all(
         [
-            ScanIssueRecord(
-                scan_run_id=scan_run.id,
-                position=index,
-                rule_id=issue.rule_id,
-                severity=issue.severity,
-                element=issue.element,
-                message=issue.message,
-                recommendation=issue.recommendation,
-                line=issue.line,
-                column=issue.column,
-                source_hint=issue.source_hint,
-                dom_path=issue.dom_path,
-                text_preview=issue.text_preview,
-                screenshot_data_url=issue.screenshot_data_url,
-                page_url=issue.page_url,
-                wcag_criteria=issue.wcag_criteria,
-                source=issue.source,
-            )
+            _build_issue_record(scan_run.id, index, issue)
             for index, issue in enumerate(issues, start=1)
         ]
     )
+    _apply_issue_summary_counts(scan_run, issues)
+
+
+def _build_issue_record(
+    scan_run_id: UUID,
+    position: int,
+    issue: ScanIssue,
+) -> ScanIssueRecord:
+    return ScanIssueRecord(
+        scan_run_id=scan_run_id,
+        position=position,
+        rule_id=issue.rule_id,
+        severity=issue.severity,
+        element=issue.element,
+        message=issue.message,
+        recommendation=issue.recommendation,
+        line=issue.line,
+        column=issue.column,
+        source_hint=issue.source_hint,
+        dom_path=issue.dom_path,
+        text_preview=issue.text_preview,
+        screenshot_data_url=issue.screenshot_data_url,
+        page_url=issue.page_url,
+        wcag_criteria=issue.wcag_criteria,
+        source=issue.source,
+    )
+
+
+def _apply_issue_summary_counts(scan_run: ScanRun, issues: list[ScanIssue]) -> None:
     scan_run.total_issues = len(issues)
     scan_run.high_count = sum(issue.severity == "high" for issue in issues)
     scan_run.medium_count = sum(issue.severity == "medium" for issue in issues)
     scan_run.low_count = sum(issue.severity == "low" for issue in issues)
+
+
+def _discard_partial_issue_records(session: Session, scan_run: ScanRun) -> int:
+    """Delete partial issue rows left behind by a previous worker attempt."""
+    deleted_count = (
+        session.query(ScanIssueRecord)
+        .filter(ScanIssueRecord.scan_run_id == scan_run.id)
+        .delete(synchronize_session=False)
+    )
+    scan_run.total_issues = 0
+    scan_run.high_count = 0
+    scan_run.medium_count = 0
+    scan_run.low_count = 0
+    return int(deleted_count or 0)
 
 
 def get_scan_queue_state(session: Session, scan_id: UUID) -> tuple[list[str], set[str]]:
@@ -714,28 +820,45 @@ def prioritize_queued_scan_page(
     return scan_run
 
 
-def to_saved_scan_response(scan_run: ScanRun) -> SavedScanResponse:
+def to_saved_scan_response(
+    scan_run: ScanRun,
+    *,
+    include_issues: bool = True,
+) -> SavedScanResponse:
+    """Map a scan run to the detail response.
+
+    ``include_issues=False`` keeps the exact same response shape but returns an
+    empty ``issues`` list without touching the issue rows at all; it backs the
+    lightweight ``GET /scans/{scan_id}?include_issues=false`` polling path.
+    """
     return SavedScanResponse(
-        **to_saved_scan_list_item(scan_run).model_dump(),
-        issues=[
-            ScanIssue(
-                rule_id=issue.rule_id,
-                severity=issue.severity,
-                element=issue.element,
-                message=issue.message,
-                recommendation=issue.recommendation,
-                line=issue.line,
-                column=issue.column,
-                source_hint=issue.source_hint,
-                dom_path=issue.dom_path,
-                text_preview=issue.text_preview,
-                screenshot_data_url=issue.screenshot_data_url,
-                page_url=issue.page_url,
-                wcag_criteria=issue.wcag_criteria,
-                source=issue.source,
-            )
-            for issue in scan_run.issues
-        ],
+        **to_saved_scan_list_item(
+            scan_run,
+            issue_page_urls=None if include_issues else [],
+        ).model_dump(),
+        issues=(
+            [
+                ScanIssue(
+                    rule_id=issue.rule_id,
+                    severity=issue.severity,
+                    element=issue.element,
+                    message=issue.message,
+                    recommendation=issue.recommendation,
+                    line=issue.line,
+                    column=issue.column,
+                    source_hint=issue.source_hint,
+                    dom_path=issue.dom_path,
+                    text_preview=issue.text_preview,
+                    screenshot_data_url=issue.screenshot_data_url,
+                    page_url=issue.page_url,
+                    wcag_criteria=issue.wcag_criteria,
+                    source=issue.source,
+                )
+                for issue in scan_run.issues
+            ]
+            if include_issues
+            else []
+        ),
     )
 
 
@@ -755,26 +878,29 @@ def get_previously_scanned_page_urls_for_domain(
     user_id: UUID,
     root_url: str,
 ) -> set[str]:
+    """Return normalized URLs the user has already scanned on this host.
+
+    Only the three URL-bearing columns are selected for the user's complete
+    scans. The historical implementation eager-loaded every issue of every
+    complete scan (20,200 ORM rows per call in the baseline for 200 scans x 100
+    issues); this version materializes one plain row per scan and no ORM issue
+    instances. Issue-derived page URLs are not needed because completed scans
+    always persist their ``scanned_page_urls``; legacy rows with an empty list
+    still contribute their requested/final URL.
+    """
     root_host = _normalized_host(root_url)
     if not root_host:
         return set()
 
-    statement: Select[tuple[ScanRun]] = (
-        select(ScanRun)
-        .options(selectinload(ScanRun.issues))
-        .where(ScanRun.status == "complete", ScanRun.user_id == user_id)
-    )
+    statement = select(
+        ScanRun.requested_url,
+        ScanRun.final_url,
+        ScanRun.scanned_page_urls,
+    ).where(ScanRun.status == "complete", ScanRun.user_id == user_id)
 
     scanned_urls: set[str] = set()
-    for scan_run in session.scalars(statement).all():
-        candidate_urls = [
-            scan_run.requested_url,
-            scan_run.final_url,
-            *(scan_run.scanned_page_urls or []),
-        ]
-        candidate_urls.extend(issue.page_url for issue in scan_run.issues)
-
-        for candidate_url in candidate_urls:
+    for requested_url, final_url, scanned_page_urls in session.execute(statement):
+        for candidate_url in (requested_url, final_url, *(scanned_page_urls or [])):
             if not candidate_url:
                 continue
             if _normalized_host(candidate_url) != root_host:
@@ -803,15 +929,59 @@ def _normalize_crawl_memory_url(url: str) -> str:
     return rebuilt.geturl().rstrip("/") or rebuilt.geturl()
 
 
-def _fallback_scanned_page_urls(scan_run: ScanRun) -> list[str]:
+def _fallback_scanned_page_urls(
+    scan_run: ScanRun,
+    issue_page_urls: list[str] | None = None,
+) -> list[str]:
+    """Build a scanned-page list for rows with no persisted ``scanned_page_urls``.
+
+    ``issue_page_urls`` may be supplied by batch callers so this never triggers
+    a lazy load of ``scan_run.issues``. ``None`` keeps the legacy lazy fallback
+    for single-scan callers that already loaded the issues.
+    """
     urls = []
     for candidate in [scan_run.final_url, scan_run.requested_url]:
         if candidate and candidate not in urls:
             urls.append(candidate)
-    for issue in scan_run.issues:
-        if issue.page_url and issue.page_url not in urls:
-            urls.append(issue.page_url)
+    if issue_page_urls is None:
+        issue_page_urls = [issue.page_url for issue in scan_run.issues]
+    for page_url in issue_page_urls:
+        if page_url and page_url not in urls:
+            urls.append(page_url)
     return urls
+
+
+def _issue_page_urls_by_scan_run(
+    session: Session,
+    scan_run_ids: list[UUID],
+) -> dict[UUID, list[str]]:
+    """Fetch distinct issue page URLs for many scan runs in one column-only query.
+
+    Returns an ordered (by ``position``) de-duplicated list per scan. Used by
+    the saved-scan history list to avoid one lazy issue load per row.
+    """
+    if not scan_run_ids:
+        return {}
+    rows = session.execute(
+        select(ScanIssueRecord.scan_run_id, ScanIssueRecord.page_url)
+        .where(
+            ScanIssueRecord.scan_run_id.in_(scan_run_ids),
+            ScanIssueRecord.page_url.is_not(None),
+        )
+        .order_by(ScanIssueRecord.scan_run_id, ScanIssueRecord.position)
+    ).all()
+
+    urls_by_scan: dict[UUID, list[str]] = {}
+    seen_by_scan: dict[UUID, set[str]] = {}
+    for scan_run_id, page_url in rows:
+        if not page_url:
+            continue
+        seen = seen_by_scan.setdefault(scan_run_id, set())
+        if page_url in seen:
+            continue
+        seen.add(page_url)
+        urls_by_scan.setdefault(scan_run_id, []).append(page_url)
+    return urls_by_scan
 
 
 def _unique_urls(urls: list[str]) -> list[str]:
@@ -831,3 +1001,32 @@ def _duration_seconds(started_at: datetime, completed_at: datetime) -> int:
     elif started_at.tzinfo is not None and completed_at.tzinfo is None:
         started_at = started_at.replace(tzinfo=None)
     return max(int((completed_at - started_at).total_seconds()), 0)
+
+
+def _record_scan_terminal_status(status: str) -> None:
+    """Record a terminal job status without ever breaking persistence."""
+    try:
+        metrics.record_scan_request(status)
+    except Exception:  # pragma: no cover - observability must not fail requests
+        logger.exception("failed to record scan status metric")
+
+
+def _record_scan_completion_metrics(
+    scan_run: ScanRun,
+    result: ScanPageResponse,
+) -> None:
+    """Record duration/issues metrics and emit the slow-scan log line."""
+    try:
+        metrics.record_scan_completion(
+            scan_id=scan_run.id,
+            mode=scan_run.mode,
+            pages_scanned=scan_run.pages_scanned,
+            duration_seconds=float(scan_run.duration_seconds or 0),
+            summary=result.summary,
+            # The scanner engine may add phase timings; read defensively so the
+            # repository works whether or not that contract has landed.
+            timings=getattr(result, "timings", None),
+        )
+        metrics.record_scan_request("complete")
+    except Exception:  # pragma: no cover - observability must not fail requests
+        logger.exception("failed to record scan completion metrics")

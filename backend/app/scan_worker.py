@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import json
 import logging
 import os
 import socket
 from datetime import UTC, datetime
-from time import sleep
+from time import perf_counter, sleep
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -22,7 +23,9 @@ from app.repositories.scan_repository import (
     retry_or_fail_running_scan,
     update_scan_progress,
 )
+from app.services.axe_scanner import warm_axe_cache
 from app.services.page_scanner import (
+    BrowserSession,
     CrawlQueueControl,
     CrawlQueueState,
     ScanCancelled,
@@ -38,6 +41,94 @@ logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 
 DEFAULT_POLL_INTERVAL_SECONDS = 0.5
 DEFAULT_STALE_AFTER_SECONDS = 300
+DEFAULT_BROWSER_MAX_JOBS = 250
+
+
+def browser_reuse_enabled() -> bool:
+    """Return whether the worker should keep one browser across scan jobs."""
+    raw_value = os.getenv("SCAN_BROWSER_REUSE_ENABLED", "").strip().lower()
+    return raw_value not in {"0", "false", "no", "off"}
+
+
+def get_browser_max_jobs() -> int:
+    """Return how many completed jobs a persistent browser serves before recycling."""
+    raw_value = os.getenv("SCAN_BROWSER_MAX_JOBS", "").strip()
+    if not raw_value:
+        return DEFAULT_BROWSER_MAX_JOBS
+    try:
+        return max(int(raw_value), 1)
+    except ValueError:
+        return DEFAULT_BROWSER_MAX_JOBS
+
+
+def _session_is_healthy(session) -> bool:
+    checker = getattr(session, "is_usable", None) or getattr(session, "is_connected", None)
+    if checker is None:
+        return True
+    try:
+        return bool(checker())
+    except Exception:
+        return False
+
+
+class WorkerBrowserManager:
+    """Owns the process-level Playwright browser reused across scan jobs.
+
+    The browser is created lazily, replaced when it disconnects or a job raises
+    a browser-level error, proactively recycled after ``SCAN_BROWSER_MAX_JOBS``
+    completed jobs (controls memory growth), and closed on worker shutdown.
+    When ``SCAN_BROWSER_REUSE_ENABLED`` is false every job falls back to the old
+    per-scan create/close behaviour.
+    """
+
+    def __init__(self, *, session_factory=None, enabled: bool | None = None, max_jobs: int | None = None) -> None:
+        self._session_factory = session_factory or BrowserSession
+        self._enabled = browser_reuse_enabled() if enabled is None else bool(enabled)
+        self._max_jobs = get_browser_max_jobs() if max_jobs is None else max(int(max_jobs), 1)
+        self._session = None
+        self._jobs_completed = 0
+
+    @property
+    def enabled(self) -> bool:
+        return self._enabled
+
+    @property
+    def jobs_completed(self) -> int:
+        return self._jobs_completed
+
+    def acquire(self):
+        """Return a healthy session for the next job, or None when reuse is off."""
+        if not self._enabled:
+            return None
+        if self._session is not None and (
+            self._jobs_completed >= self._max_jobs
+            or not _session_is_healthy(self._session)
+        ):
+            self.reset()
+        if self._session is None:
+            self._session = self._session_factory()
+        return self._session
+
+    def job_finished(self, *, browser_error: bool = False) -> None:
+        """Record a finished job; recycle the browser when due or after a crash."""
+        if not self._enabled:
+            return
+        self._jobs_completed += 1
+        if browser_error or self._jobs_completed >= self._max_jobs:
+            self.reset()
+
+    def reset(self) -> None:
+        session = self._session
+        self._session = None
+        self._jobs_completed = 0
+        if session is not None:
+            try:
+                session.close()
+            except Exception:
+                logger.warning("failed to close reused browser session", exc_info=True)
+
+    def close(self) -> None:
+        self.reset()
 
 
 def run_worker_loop(*, run_once: bool = False) -> None:
@@ -45,35 +136,49 @@ def run_worker_loop(*, run_once: bool = False) -> None:
     stale_after_seconds = _get_stale_after_seconds()
     worker_id = _get_worker_id()
     session_factory = get_session_factory()
+    browser_manager = WorkerBrowserManager()
 
+    if not warm_axe_cache():
+        logger.warning("axe-core cache warm-up failed; the first scan may be slower")
     logger.info("scan worker started as %s", worker_id)
-    while True:
-        db = session_factory()
-        try:
-            recovered = recover_stale_running_scans(
-                db,
-                stale_after_seconds=stale_after_seconds,
-            )
-            if recovered:
-                logger.info("recovered %s stale scan job(s)", recovered)
+    try:
+        while True:
+            db = session_factory()
+            try:
+                recovered = recover_stale_running_scans(
+                    db,
+                    stale_after_seconds=stale_after_seconds,
+                )
+                if recovered:
+                    logger.info("recovered %s stale scan job(s)", recovered)
 
-            scan_run = claim_next_queued_scan(db, worker_id=worker_id)
-            if scan_run is None:
-                if run_once:
-                    return
-                sleep(poll_interval)
-                continue
+                scan_run = claim_next_queued_scan(db, worker_id=worker_id)
+                if scan_run is None:
+                    if run_once:
+                        return
+                    sleep(poll_interval)
+                    continue
 
-            logger.info("claimed scan job %s", scan_run.id)
-            _run_claimed_scan(db, scan_run)
-        finally:
-            db.close()
+                logger.info("claimed scan job %s", scan_run.id)
+                _run_claimed_scan(db, scan_run, browser_manager=browser_manager)
+            finally:
+                db.close()
 
-        if run_once:
-            return
+            if run_once:
+                return
+    finally:
+        browser_manager.close()
 
 
-def _run_claimed_scan(db: Session, scan_run: ScanRun) -> None:
+def _run_claimed_scan(
+    db: Session,
+    scan_run: ScanRun,
+    *,
+    browser_manager: WorkerBrowserManager | None = None,
+) -> None:
+    browser_session = browser_manager.acquire() if browser_manager is not None else None
+    browser_error = False
+    started_at = perf_counter()
     try:
         if is_scan_cancel_requested(db, scan_run.id):
             mark_scan_cancelled(db, scan_run.id)
@@ -84,8 +189,10 @@ def _run_claimed_scan(db: Session, scan_run: ScanRun) -> None:
             scan_run.requested_url,
             options,
             _build_queue_control(db, scan_run.id),
+            browser_session=browser_session,
         )
         result.scan_id = str(scan_run.id)
+        _log_scan_timings(scan_run, result, (perf_counter() - started_at) * 1000)
         if is_scan_cancel_requested(db, scan_run.id):
             # Honour a cancel requested during the final page instead of
             # persisting a partial "complete" result.
@@ -107,9 +214,26 @@ def _run_claimed_scan(db: Session, scan_run: ScanRun) -> None:
     except ScanError as exc:
         _fail_scan(db, scan_run.id, exc.message)
     except Exception:
+        browser_error = True
         db.rollback()
         logger.exception("unexpected scan worker failure for job %s", scan_run.id)
         _fail_scan(db, scan_run.id, "Unexpected error while running queued scan.")
+    finally:
+        if browser_manager is not None:
+            browser_manager.job_finished(browser_error=browser_error)
+
+
+def _log_scan_timings(scan_run: ScanRun, result, elapsed_ms: float) -> None:
+    """Emit one structured JSON line with the scan's phase timings."""
+    payload = {
+        "scan_id": str(scan_run.id),
+        "url": getattr(scan_run, "requested_url", None),
+        "mode": getattr(result, "mode", None),
+        "pages": getattr(result, "pages_scanned", 0),
+        "total_ms": round(float(elapsed_ms), 1),
+        "phases": getattr(result, "timings", None) or {},
+    }
+    logger.info("scan_timing %s", json.dumps(payload, default=str, sort_keys=True))
 
 
 def _fail_scan(db: Session, scan_id: UUID, message: str) -> None:

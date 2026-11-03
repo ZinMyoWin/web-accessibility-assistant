@@ -279,11 +279,25 @@ export async function fetchSavedScans(
   return (await response.json()) as SavedScanListResponse
 }
 
+export type FetchSavedScanOptions = {
+  /**
+   * Set false for lightweight status polling: the backend returns the same
+   * scan shape with an empty `issues` list and accurate summary/queue metadata.
+   */
+  includeIssues?: boolean
+}
+
 export async function fetchSavedScan(
   scanId: string,
-  token: string
+  token: string,
+  options: FetchSavedScanOptions = {}
 ): Promise<SavedScanDetail> {
-  const response = await fetch(`${API_BASE_URL}/scans/${scanId}`, {
+  const url = new URL(`/scans/${scanId}`, API_BASE_URL)
+  if (options.includeIssues === false) {
+    url.searchParams.set("include_issues", "false")
+  }
+
+  const response = await fetch(url.toString(), {
     headers: authHeaders(token),
     cache: "no-store",
   })

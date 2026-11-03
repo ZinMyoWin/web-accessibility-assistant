@@ -1,12 +1,19 @@
 from __future__ import annotations
 
 import json
+import logging
+import os
 import re
+from pathlib import Path
 from urllib.request import urlopen
 
 from app.schemas.scan import ScanIssue
 
+logger = logging.getLogger(__name__)
+
 AXE_CDN_URL = "https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.10.2/axe.min.js"
+AXE_ASSET_PATH = Path(__file__).resolve().parent.parent / "assets" / "axe.min.js"
+AXE_SCRIPT_PATH_ENV = "AXE_SCRIPT_PATH"
 
 DEFAULT_WCAG_STANDARD = "wcag21aa"
 BEST_PRACTICE_TAG = "best-practice"
@@ -37,13 +44,59 @@ OVERLAP_AXE_TO_CUSTOM: dict[str, str] = {
 _axe_script_cache: str | None = None
 
 
+def _local_axe_script_paths() -> list[Path]:
+    """Path candidates for the vendored axe-core asset, override first."""
+    paths: list[Path] = []
+    override = os.getenv(AXE_SCRIPT_PATH_ENV, "").strip()
+    if override:
+        paths.append(Path(override))
+    paths.append(AXE_ASSET_PATH)
+    return paths
+
+
+def _read_local_axe_script() -> str | None:
+    for path in _local_axe_script_paths():
+        try:
+            script = path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        if script.strip():
+            return script
+    return None
+
+
+def _download_axe_script() -> str:
+    logger.warning(
+        "Vendored axe-core asset not found or unreadable; falling back to CDN %s",
+        AXE_CDN_URL,
+    )
+    with urlopen(AXE_CDN_URL, timeout=15) as response:
+        return response.read().decode("utf-8")
+
+
 def _get_axe_script() -> str:
-    """Download and cache the axe-core script in memory."""
+    """Load the axe-core script from the vendored asset, falling back to the CDN.
+
+    The result is cached in memory for the lifetime of the process, so the
+    first scan in a worker pays any load cost and every later scan is free.
+    """
     global _axe_script_cache
     if _axe_script_cache is None:
-        with urlopen(AXE_CDN_URL, timeout=15) as response:
-            _axe_script_cache = response.read().decode("utf-8")
+        script = _read_local_axe_script()
+        if script is None:
+            script = _download_axe_script()
+        _axe_script_cache = script
     return _axe_script_cache
+
+
+def warm_axe_cache() -> bool:
+    """Preload the axe-core script so the first user scan does not pay for it."""
+    try:
+        _get_axe_script()
+    except Exception:
+        logger.warning("Could not warm the axe-core script cache", exc_info=True)
+        return False
+    return True
 
 
 def _parse_wcag_standard(wcag_standard: str) -> tuple[str, str] | None:

@@ -68,6 +68,10 @@ class ScanPageResponse(BaseModel):
     last_error: str | None = None
     summary: ScanSummary
     issues: list[ScanIssue]
+    # Additive, optional phase timings produced by the scanner engine (for
+    # example {"browser_setup": 1.2, "render_wait": 0.4, ...} in seconds).
+    # Kept optional so existing callers/serialized responses are unchanged.
+    timings: dict[str, float] | None = None
 
 
 class ScanQueuePageRequest(BaseModel):

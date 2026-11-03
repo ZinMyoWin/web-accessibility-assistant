@@ -3034,3 +3034,163 @@ Keep the two new CI jobs green on future PRs, and extend the suite when the rema
 
 Keep the log append-only; the Lead-owned `docs/README.md` index and `docs/tracking/feature-inventory.md` status table need their own refresh, and future entries should be added when the conversational assistant or hosted deployment verification evidence lands.
 
+## 2026-11-03 - Performance Baseline And Benchmark Harness
+
+### Completed work
+
+- added a reproducible benchmark harness under `scripts/perf/`: `bench_scan.py` (scanner-level, local deterministic fixtures) and `bench_db.py` (repository-level, in-memory SQLite seeded with 200 scans × 100 issues plus a second user for scoping)
+- scanner scenarios: clean page, issue-dense page with screenshots, issue-dense without screenshots, JS-rendered SPA, 5-page crawls at delay 0 and delay 250 ms, browser-unavailable raw-HTML fallback, plus later worker-mode and render-failure scenarios; 1 warm-up + 7 measured iterations (single-page) and + 5 (multi-page), medians/p90/stdev recorded
+- phase instrumentation without editing application code (monkeypatched `BrowserSession`, render waits, axe run, screenshot pipeline, parse/checks, fetch) plus a cold-vs-warm process study and axe-cache cold/warm measurement
+- captured machine, Python/Playwright/Chromium versions, per-iteration samples, phase shares, issue counts, and SHA-256 hashes of the JSON artifacts
+- wrote the baseline report with a ranked bottleneck list: per-job browser lifecycle ≈1.7 s/scan, render waits ≈895 ms/page, screenshots ≈1.5 s on dense pages, axe CDN cold ≈294 ms, crawl-memory 797 ms/20,200 ORM rows, history N+1 45 SQL statements at limit 50, progress write amplification 5 row-writes per final issue
+
+### Why
+
+The scan pipeline was slow in production and local runs. Optimising without a measured baseline would have been guesswork; the harness makes the bottleneck ranking and the later before/after comparison reproducible on this machine.
+
+### Files changed
+
+- `scripts/perf/bench_scan.py`, `scripts/perf/bench_db.py`
+- `scripts/perf/baseline.json`, `scripts/perf/db_baseline.json`, `scripts/perf/baseline_addendum.json`
+- `docs/architecture/performance-baseline.md`
+
+### Verification
+
+- baseline medians (production per-call shape): single clean 2,783.3 ms; issue-dense + screenshots 4,279.9 ms; 5-page crawl delay 0 7,254.4 ms; delay 250 8,577.3 ms
+- DB baseline: crawl-memory 797.52 ms / 2 SQL / 20,200 ORM rows; history limit 50 92.42 ms / 45 SQL; progress publish 127.19 ms / 2,500 row writes (3.0× insert amplification); axe cold fetch 294.0 ms
+- scanner run 257.5 s, DB run 23.9 s; host calibration drift +3.8 % recorded
+
+### Next step
+
+Implement scanner/DB/API/frontend optimisations against the ranked bottlenecks, then re-run the same harness for a like-for-like comparison.
+
+## 2026-11-03 - Scanner Engine: Worker Browser Reuse, Render Waits, Screenshot Cap, Vendored axe-core, SSRF
+
+### Completed work
+
+- added `browser_session` injection to `scan_page()`; `scan_worker.py` now owns one process-level `BrowserSession` (`WorkerBrowserManager`) reused across queued jobs, recreated on disconnect/browser-fatal errors, recycled after `SCAN_BROWSER_MAX_JOBS` (default 250), and closed on shutdown. `SCAN_BROWSER_REUSE_ENABLED=false` restores the old per-scan lifecycle for rollback/local direct mode
+- tuned render waits: `SCAN_RENDER_IDLE_TIMEOUT_MS` (default 1500, was effectively 3000) and `SCAN_RENDER_SETTLE_MS` (default 100, was 250–600), keeping the `load` + network-idle waits so late-rendered SPA content is still captured
+- capped screenshots per page with `SCAN_MAX_SCREENSHOTS` (default 10), keeping dedupe-by-selector and concurrent Cloudinary uploads
+- vendored axe-core 4.10.2 as `backend/app/assets/axe.min.js` (553,283 bytes, pinned + SHA-256 recorded, Apache-2.0 notice) with `AXE_SCRIPT_PATH` override, local-first loading and CDN fallback only when the asset is unreadable; `warm_axe_cache()` runs at worker startup
+- added phase timings (`browser_setup`, `goto`, `render_wait`, `page_content`, `parse`, `custom_checks`, `axe`, `merge`, `screenshots`, `session_teardown`) exposed as an optional `timings` field on the scan response; the worker logs one structured `scan_timing` JSON line per scan
+- added a bounded multi-page time budget (`SCAN_MAX_SECONDS`, default 240 s) that fails cleanly between pages instead of running unbounded
+- fixed the raw-HTML fallback path so axe-core actually runs (previously a swallowed `NameError` reduced fallback results to custom-check-only)
+- hardened scan-target validation in `url_utils.py`: reject non-http(s)/credentialed/over-length URLs, optional private/loopback/link-local/reserved blocking via `SCAN_ALLOW_PRIVATE_TARGETS=false`, and re-validate the post-navigation/redirect final URL
+
+### Why
+
+The baseline ranked per-job browser setup/teardown as the dominant fixed cost (~1.7 s/scan), followed by self-imposed render waits, screenshot capture and the axe CDN fetch; the fallback axe defect and SSRF surface were reliability/security gaps found during the same inspection.
+
+### Files changed
+
+- `backend/app/services/page_scanner.py`, `backend/app/services/axe_scanner.py`, `backend/app/scan_worker.py`
+- `backend/app/utils/url_utils.py`, `backend/app/schemas/scan.py`
+- `backend/app/assets/axe.min.js`, `backend/app/assets/README.md` (new)
+- `backend/tests/test_scan_perf_unit.py` (new), `backend/tests/test_scan_worker_unit.py`, `backend/tests/test_page_scanner_unit.py`
+
+### Verification
+
+- scanner-focused pytest tests green; the full backend suite reached 201 tests after the perf workstreams
+- measured production-shape results: single clean 2,783.3 → **850.5 ms (−69.4 %)**, issue-dense + screenshots 4,279.9 → **1,584.7 ms (−63.0 %)**, 5-page crawl delay 0 7,254.4 → **4,188.8 ms (−42.3 %)**, delay 250 8,577.3 → **5,190.2 ms (−39.5 %)**
+- render wait 895.6 → **618.7 ms/page**; screenshot pipeline 1,516.9 → **824.4 ms with 19 → 10 unique captures**; axe cold fetch 294.0 → **0.87 ms**; first scan in a fresh process 3,129.9 → **1,974.3 ms**
+- like-for-like per-call recheck (same harness against baseline commit): clean −30.4 %, issue-dense −17.6 %, crawl delay 0 −16.5 %
+- functional equivalence PASS except the two intended changes: screenshot cap (19 → 10 captures; 22 → 13 issues with an image) and the raw-HTML fallback now reporting the correct axe result set (6 → 22 issues on the dense fixture)
+
+### Next step
+
+Run the official before/after benchmark (perf-harness) and re-check the full backend suite; then move to DB/API optimisations.
+
+## 2026-11-03 - DB/API Performance And Observability: Indexes, Incremental Writes, Lightweight Reads, Metrics, Rate Limiting
+
+### Completed work
+
+- migration `9848b576f075` adds four non-unique composite indexes: `ix_scan_runs_user_id_started_at` (history/crawl memory), `ix_scan_runs_status_started_at` (worker claim), `ix_scan_runs_status_heartbeat_at` (stale recovery) and `ix_scan_issues_scan_run_id_position` (ordered issue loads)
+- rewrote `get_previously_scanned_page_urls_for_domain` to select only `requested_url`, `final_url` and `scanned_page_urls` for the user's complete scans (no issue eager-loading), keeping identical returned-set semantics
+- progress persistence is now append-only: `append_scan_issue_records` inserts only the unpersisted tail of the streamed issue list (with continuing positions and updated summary counts); a retried claim clears partial rows first; the final completion write keeps the authoritative replace
+- saved-scan history list batches issue-page-URL lookups into one column-only query (constant statement count, no N+1)
+- `GET /scans/{scan_id}` gained `include_issues` (default true); `false` returns the same response shape with `issues: []` and skips the issue query for lightweight dashboard polling
+- added env-driven PostgreSQL pool settings (`DB_POOL_SIZE`, `DB_MAX_OVERFLOW`, `DB_POOL_TIMEOUT`, `DB_POOL_RECYCLE`, `DB_POOL_PRE_PING`)
+- added in-process token-bucket rate limiting (`RATE_LIMIT_ENABLED`, `RATE_LIMIT_SCAN_PER_MINUTE` per user, `RATE_LIMIT_AUTH_PER_MINUTE` per client IP) returning HTTP 429 with `Retry-After`; limits are documented as per-process
+- added `GET /metrics` (Prometheus text; counters `scan_requests_total`, `scan_issues_total`, `rate_limited_total`; histogram `scan_duration_seconds`; gauges `scan_queue_depth`, `scan_worker_attempts_total` refreshed from the DB at scrape time; 404 when `METRICS_ENABLED=false`) and structured slow-scan logging above `SCAN_SLOW_LOG_SECONDS` (default 10 s), including metrics hooks on terminal scan transitions
+
+### Why
+
+The baseline showed the crawl-memory lookup blocking a request for ~800 ms and 20,200 ORM rows, history lists issuing 45 statements, and progress publishes performing 3× insert amplification (2,500 row writes for 500 final issues) because each publish deleted and re-inserted the accumulated issue set. The dashboard also refetched full issue payloads every 2 s, and there was no abuse protection or runtime visibility.
+
+### Files changed
+
+- `backend/app/main.py`, `backend/app/db.py`, `backend/app/repositories/scan_repository.py`
+- `backend/app/schemas/history.py`, `backend/app/schemas/scan.py`
+- `backend/app/services/metrics.py` (new), `backend/app/services/rate_limit.py` (new)
+- `backend/alembic/versions/9848b576f075_add_scan_performance_indexes.py`
+- `backend/tests/test_perf_api_unit.py` (new), `backend/tests/test_scan_repository_unit.py`, `backend/tests/test_api_smoke.py`
+
+### Verification
+
+- full backend suite: **201 passed**; migration chain linear with a single head `9848b576f075`
+- crawl-memory lookup **797.52 → 14.88 ms (−98.1 %)**, SQL 2 → 1, ORM rows **20,200 → 0**
+- history list limit 50 **92.42 → 8.17 ms (−91.2 %)**, SQL 45 → 3; limit 10 30.70 → 5.50 ms, 12 → 3
+- progress publish **127.19 → 55.66 ms (−56.2 %)**; issue-row writes **2,500 → 500 (−80 %)**; insert amplification 3.0× → 1.0×; per-publish cost flat (~11 ms) instead of growing to ~37 ms
+- status-only read (`include_issues=false`) measured at **0.37 ms / 1 SQL / 1 ORM row**
+- write paths (complete/save) showed +10–24 % in SQLite (absolute +1–2.4 ms) attributable to the new observability hooks; documented as the only write-path regression candidate rather than hidden
+
+### Next step
+
+Adopt the lightweight polling endpoint in the dashboard, validate the f075 indexes on production PostgreSQL, and move rate limiting/metrics to a shared store if the deployment scales beyond one process.
+
+## 2026-11-03 - Frontend Lightweight Status Polling
+
+### Completed work
+
+- `fetchSavedScan(scanId, token, { includeIssues?: boolean })` now appends `include_issues=false` when requested while keeping the previous call signature working for existing callers
+- the dashboard polling loop uses the lightweight status response (status/queue/summary) every 2 s and fetches the full scan detail only when `summary.total_issues` changes or the scan reaches a terminal state; at most one full fetch is in flight
+- preserved all existing behavior: partial-issue streaming, "N issues found so far" progress text, cancel handling (`ScanCancelledError`, polling stop), terminal notifications, partial-result display, retry/limit messages and the fake progress animation
+- updated the Playwright E2E scan-detail stub so it matches both `/scans/{id}` and `/scans/{id}?include_issues=false` and mirrors the contract (`issues: []` for lightweight polls, issue payload for full fetches)
+
+### Why
+
+A queued/running scan was polling up to 180 times with a full saved-scan payload whose issue list grows with every scanned page, so the dashboard's 2 s poll became O(issues) in payload and serialization. The backend already exposes a status-only read.
+
+### Files changed
+
+- `frontend/src/lib/saved-scans.ts`
+- `frontend/src/hooks/useDashboardScan.ts`
+- `frontend/src/hooks/useDashboardScan.test.tsx`
+- `frontend/e2e/helpers/backend.ts`
+
+### Verification
+
+- `npx tsc --noEmit` clean; `npm test` -> **11 files / 42 tests passed**; Playwright `npx playwright test` -> **8 passed** against the production-build webServer
+- backend status-only read measured at 0.37 ms / 1 SQL / 1 row (versus full detail 5.08 ms / 2 SQL / 101 rows on the 100-issue fixture)
+
+### Next step
+
+Optionally make the poll interval adaptive for very long scans and consider a seeded-backend E2E mode; keep the E2E stub aligned if the fetch options change again.
+
+## 2026-11-03 - Performance Results, Verification, And Documentation Sync
+
+### Completed work
+
+- completed the official before/after measurement on the same machine/harness/fixtures as the baseline, including worker-mode scenarios and a controlled recheck of baseline commit `a2bc609` with the current harness to confirm like-for-like per-call deltas
+- verified functional equivalence across all scenarios: issue counts, per-rule counts, severities and sources match except two intended output changes (screenshot cap and the correctly-running raw-HTML fallback)
+- documented results, caveats and attribution in `performance-results.md`; the Lead/perf-harness analysis docs (`scan-performance-analysis.md`, `performance-baseline.md`) remain their source of truth
+- integrated the performance work into the canonical docs: a new `Performance & Observability` checklist section plus resolved gap entries; architecture updates for browser lifecycle, all new env knobs, vendored axe loading, `include_issues`, `/metrics`, rate limiting, SSRF rules, migration head `9848b576f075`, timing fields, testing counts and remaining follow-ups; README updates for the new env variables, `/metrics`, benchmark commands/docs, migration head and performance headline table
+
+### Why
+
+`docs/README.md` requires tracking, architecture and README updates whenever behavior changes. After the perf workstreams the canonical docs still described the pre-optimization scan path, migration head f074, 130 backend / 41 frontend tests, and an open SSRF question.
+
+### Files changed
+
+- `docs/tracking/feature-checklist.md`
+- `docs/tracking/implementation-log.md`
+- `docs/architecture/system-architecture.md`
+- `README.md`
+
+### Verification
+
+- authoritative numbers from `performance-results.md` §1/§10: single-page clean 2,783.3 → 850.5 ms (−69.4 %); issue-dense + screenshots 4,279.9 → 1,584.7 ms (−63.0 %); 5-page crawl delay 0 7,254.4 → 4,188.8 ms (−42.3 %); delay 250 8,577.3 → 5,190.2 ms (−39.5 %)
+- crawl-memory 797.5 → 14.9 ms / 20,200 → 0 ORM rows; history limit 50 92.4 → 8.2 ms / 45 → 3 SQL; progress publish 2,500 → 500 row writes; status-only poll 0.37 ms / 1 SQL / 1 row; axe cold fetch 294.0 → 0.87 ms; functional equivalence PASS with the two documented changes
+- current suites: **201 backend pytest tests** (collection re-checked), **42 frontend Vitest tests**, **8 Playwright E2E tests**; migration `9848b576f075` single head
+- docs cross-checked against code at the current working tree (`a2bc609` + uncommitted perf changes); `git status` for this entry shows only the checklist, this log, the architecture document and the root README
+

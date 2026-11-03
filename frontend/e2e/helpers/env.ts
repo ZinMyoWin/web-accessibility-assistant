@@ -10,7 +10,16 @@ import path from "node:path"
  * values come from the workflow `env:` block.
  */
 
-export const BASE_URL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:3000"
+/**
+ * Port the E2E web server binds to. Defaults to 3000 (CI); override with
+ * `E2E_PORT` when another local process already owns 3000 (for example a
+ * different project's dev server), so the suite never silently reuses a
+ * foreign app through Playwright's `reuseExistingServer`.
+ */
+export const E2E_PORT = process.env.E2E_PORT ?? "3000"
+
+export const BASE_URL =
+  process.env.E2E_BASE_URL ?? `http://127.0.0.1:${E2E_PORT}`
 
 function readLocalEnv(): Record<string, string> {
   try {

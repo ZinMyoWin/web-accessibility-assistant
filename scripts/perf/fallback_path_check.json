@@ -1,0 +1,38 @@
+{
+  "generated_at_utc": "2026-11-02T17:25:30.633535+00:00",
+  "generated_by": "scripts/perf/check_fallback_path.py",
+  "app_code_modified": false,
+  "code_reference": "backend/app/services/page_scanner.py:837-896 - _run_playwright_analysis() has no `options` parameter, yet line 874 passes options.wcag_standard / options.include_best_practices; the NameError is swallowed by the surrounding `except Exception`, so the fallback path never merges axe-core results.",
+  "end_to_end": {
+    "url": "http://127.0.0.1:61828/issue-dense",
+    "normal_rendered_scan": {
+      "issues": 22,
+      "sources": [
+        "axe-core",
+        "both",
+        "custom"
+      ],
+      "axe_or_both_sourced": 20
+    },
+    "forced_fallback_scan": {
+      "issues": 6,
+      "sources": [
+        "custom"
+      ],
+      "axe_or_both_sourced": 0
+    }
+  },
+  "direct_call": {
+    "browser_pages_opened": 1,
+    "axe_core_calls": 0,
+    "returned": {
+      "issues": 1,
+      "sources": [
+        "custom"
+      ],
+      "axe_or_both_sourced": 0
+    },
+    "exception_propagated": null
+  },
+  "conclusion": "With the browser available but _scan_rendered_page forced to return None, the fallback returns custom-checks-only issues: axe-core was never invoked and the undefined `options` NameError was swallowed. This is a correctness/performance observation only; application code was not modified by this harness."
+}

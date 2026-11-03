@@ -1,8 +1,8 @@
 # Feature Inventory
 
-Snapshot date: 2026-11-02
-Code revision: `4e329f6` (`fullstack-dev`, merged with `master`; both local tips identical) plus the 2026-11-02 feature batch committed as `75c765f`.
-Evidence basis: source inspection + executed verification — `130` backend pytest passed, `41` frontend Vitest passed, `8` Playwright browser E2E passed, `npx tsc --noEmit` clean, `next build` succeeded (15 routes + middleware).
+Snapshot date: 2026-11-03 (performance batch)
+Code revision: `a2bc609` (`fullstack-dev`, including the 2026-11-02 feature batch) plus the uncommitted 2026-11-03 performance/observability batch (scanner engine, DB/API, polling, security, metrics, E2E portability).
+Evidence basis: source inspection + executed verification — `201` backend pytest passed, `42` frontend Vitest passed, `8` Playwright browser E2E passed (run on an isolated port due to a local port-3000 collision), `npx tsc --noEmit` clean, `next build` succeeded (15 routes + middleware). Performance evidence: `docs/architecture/performance-baseline.md`, `performance-results.md`, `scan-performance-analysis.md`.
 
 This document is a **report-ready inventory** of what the AccessAudit web accessibility assistant does. `feature-checklist.md` remains the source of truth for status; this file explains what each feature is, where it lives, and how complete it is.
 
@@ -24,7 +24,7 @@ AccessAudit scans a webpage, detects accessibility (WCAG) problems with a mix of
 | Frontend | Next.js 15, React 19, TypeScript, Tailwind CSS v4, shadcn/ui (new-york), NextAuth v4 |
 | Backend | FastAPI 0.135, SQLAlchemy 2.0, Pydantic 2, Alembic, uvicorn |
 | Scanning | Playwright/Chromium (rendered DOM), axe-core 4.10.2, custom `HTMLParser` checks |
-| Persistence | PostgreSQL (7 tables, 16 Alembic migrations, head `9848b576f074`) |
+| Persistence | PostgreSQL (7 tables, 17 Alembic migrations, head `9848b576f075`) |
 | Queue | Dedicated `scan-worker` process with DB claiming, retries, stale recovery, cancellation |
 | AI | OpenAI and DeepSeek HTTP APIs for grouped repair suggestions |
 | Infra & tests | Docker Compose (prod + dev), 4-job GitHub Actions gate (78 unit/API/smoke + 8 browser E2E tests), Render/Vercel deployment docs |
@@ -144,16 +144,25 @@ AccessAudit scans a webpage, detects accessibility (WCAG) problems with a mix of
 | Feature | Status | Where | Notes |
 |---|---|---|---|
 | PostgreSQL schema | Implemented | `backend/app/models/*`, `backend/alembic/versions/*` | 7 tables: users, user_sessions, password_reset_tokens, scan_runs, scan_issues, app_preferences, repair_suggestions |
-| Alembic migrations | Implemented | `backend/alembic/` | 16 revisions, single head `9848b576f074`; run automatically by `start.sh` |
+| Alembic migrations | Implemented | `backend/alembic/` | 17 revisions, single head `9848b576f075`; run automatically by `start.sh` |
 | Production Docker stack | Implemented | `docker-compose.yml` | db, backend, scan-worker, frontend; healthchecks; worker replicas |
 | Development Docker stack | Implemented | `docker-compose.dev.yml` | Hot reload via bind mounts |
 | CI quality gate | Implemented | `.github/workflows/quality-gate.yml` | 4 jobs: frontend typecheck + Vitest, production build, Playwright E2E, backend compileall + pytest |
 | Frontend production build gate in CI | Implemented | `.github/workflows/quality-gate.yml` (`frontend-build`) | `npm run build` gated on every push/PR |
-| Browser E2E suite | Implemented | `frontend/e2e/*.spec.ts`, `frontend/playwright.config.ts` | 8 Playwright tests across 5 specs, backend mocked via `page.route()`, runs against a production build; no DB/backend needed |
+| Browser E2E suite | Implemented | `frontend/e2e/*.spec.ts`, `frontend/playwright.config.ts` | 8 Playwright tests across 5 specs, backend mocked via `page.route()`, runs against a production build; no DB/backend needed. Port is configurable (`E2E_PORT`) so local runs cannot silently reuse a foreign server on port 3000 |
+| Worker browser reuse | Implemented | `backend/app/scan_worker.py` (`WorkerBrowserManager`) | One Playwright/Chromium per worker process, reused across jobs (crash/disconnect recovery, recycle every `SCAN_BROWSER_MAX_JOBS`); `SCAN_BROWSER_REUSE_ENABLED=false` restores per-scan lifecycle |
+| Scanner performance tuning | Implemented | `backend/app/services/page_scanner.py` | Render waits configurable (`SCAN_RENDER_IDLE_TIMEOUT_MS`, `SCAN_RENDER_SETTLE_MS`), screenshot cap (`SCAN_MAX_SCREENSHOTS`), multi-page time budget (`SCAN_MAX_SECONDS`), phase timings in responses + structured worker log |
+| Vendored axe-core | Implemented | `backend/app/assets/axe.min.js` | Pinned 4.10.2 (MPL-2.0, SHA-256 recorded), loaded from disk with CDN fallback only; warmed at worker start |
+| DB indexes (migration f075) | Implemented | `backend/alembic/versions/9848b576f075_*` | `(user_id, started_at)`, `(status, started_at)`, `(status, heartbeat_at)`, `(scan_run_id, position)` |
+| Query/persistence optimisation | Implemented | `backend/app/repositories/scan_repository.py` | Crawl-memory lookup loads only URL columns (20,200 → 0 ORM rows); history list N+1 removed (45 → 3 SQL); incremental issue appends replace delete+reinsert (2,500 → 500 row writes) with retry cleanup |
+| Lightweight polling | Implemented | `GET /scans/{id}?include_issues=false`, `frontend/src/hooks/useDashboardScan.ts` | Status/summary polls each 2 s; full issue fetch only when the issue count changes or the scan is terminal |
+| Rate limiting + SSRF hardening | Implemented | `backend/app/services/rate_limit.py`, `backend/app/utils/url_utils.py` | Token buckets on scan/auth endpoints (429 + Retry-After, per-process caveat documented); `SCAN_ALLOW_PRIVATE_TARGETS=false` blocks private/loopback targets and re-validates post-redirect URLs |
+| Metrics + observability | Implemented | `GET /metrics`, `backend/app/services/metrics.py`, worker `scan_timing` log | Prometheus text counters/histogram/gauges (scan status/duration/issues, queue depth, rate limits), per-scan JSON phase log, slow-scan warning (`SCAN_SLOW_LOG_SECONDS`) |
+| DB connection pool config | Implemented | `backend/app/db.py` | `DB_POOL_SIZE`, `DB_MAX_OVERFLOW`, `DB_POOL_TIMEOUT`, `DB_POOL_RECYCLE`, `DB_POOL_PRE_PING` for PostgreSQL |
 | Coverage reporting/thresholds | **Planned** | — | No coverage tooling configured |
 | Hosted deployment verification evidence | **Planned** | — | Render/Vercel setup documented only |
-| Backend tests | Implemented | `backend/tests/` | 130 tests (12 files): API smoke, auth, bundle/cancel API, preferences, scanner, resolver/axe mapping, repositories, worker |
-| Frontend tests | Implemented | `frontend/src/**/*.test.*` | 41 tests (11 files): dashboard hook/cancel/notifications, queue/progress panels, report pages/export, preferences, saved-scan mapping |
+| Backend tests | Implemented | `backend/tests/` | 201 tests (14 files): API/pref/bundle/cancel smoke, auth, scanner, performance unit suites (browser reuse, render waits, screenshots, axe asset, timings, SSRF), repositories, worker |
+| Frontend tests | Implemented | `frontend/src/**/*.test.*` | 42 tests (11 files): dashboard hook (streaming, lightweight polling, cancel), notifications, queue/progress panels, report pages/export, preferences, saved-scan mapping |
 
 ## 3. End-to-end flows
 
@@ -175,21 +184,23 @@ AccessAudit scans a webpage, detects accessibility (WCAG) problems with a mix of
 | Coverage reporting/thresholds and lint gate | Planned | Quality tooling depth |
 | Hosted deployment verification evidence | Planned | Deployment documented but not evidenced |
 | Severity model collapses 4 levels to 3 | Design mismatch | Design tokens expose critical/serious/moderate/minor; storage does not |
-| axe-core fetched from CDN at scan time | Reliability | Offline/blocked environments silently degrade to custom checks |
-| `validate_public_http_url` allows private/localhost targets | Security | SSRF surface for the scanner |
-| Hardcoded secret fallbacks (`AUTH_JWT_SECRET`, Fernet key) | Security | Unsafe defaults if env vars are missing |
+| Private-target scanning allowed by default (`SCAN_ALLOW_PRIVATE_TARGETS=true`) | Security | Needed for local demo/benchmark fixtures; production must set `false`. Residual DNS-rebinding risk; network egress policy recommended |
+| Hardcoded secret fallbacks (`AUTH_JWT_SECRET`, Fernet key) | Security | Unsafe defaults if env vars are missing (fail-fast is a documented follow-up) |
+| Rate limiting is per-process | Scalability | Multi-instance deployments need a shared store (Redis) or edge/WAF limits |
+| Intra-crawl parallelism and reduced network-idle observation | Performance follow-up | Remaining floor ≈508 ms/page idle wait + ~150 ms axe; parallelism deferred (CPU-contention risk on small workers) — see `scan-performance-analysis.md` §14 |
 | `database/` and root `tests/` folders empty; `tsconfig.tsbuildinfo` tracked despite AGENTS.md guidance | Hygiene | Minor doc/repo consistency issues |
 
 ## 5. Repository state notes
 
 - Branch reconciliation (2026-11-02): `master` was merged into `fullstack-dev`; the merged tree was byte-identical to `master` (`git diff master` empty) while preserving all commit history. Local `master` was fast-forwarded to the same tip `4e329f6`. Safety tag: `safety-pre-merge-20261102`. Nothing was pushed.
 - The pre-merge `fullstack-dev` contained no content that `master` lacked: the credentials-auth work was re-implemented as a superset in `master`'s Google-sign-in commit.
-- The 2026-11-02 feature batch (patch-bundle export, preference-driven scans, notification preferences + in-app delivery, scan cancellation, E2E/build CI gate) is implemented, tested, and committed as `75c765f`.
-- Frontend dependencies are installed (`npm ci`) plus `@playwright/test`; stale `.next` artifacts were removed before typechecking. The Playwright suite runs against `next build && next start` (not `next dev`) because dev-server HMR recompiles during a run made multi-test runs flaky.
+- The 2026-11-02 feature batch (patch-bundle export, preference-driven scans, notification preferences + in-app delivery, scan cancellation, E2E/build CI gate) was committed as `a2bc609`.
+- The 2026-11-03 performance batch (worker browser reuse, wait tuning, screenshot cap, vendored axe, timings/budget, SSRF, DB indexes and query/persistence fixes, lightweight polling, rate limiting, metrics, E2E port parameterisation) is implemented, verified, and committed as `9189dc1` together with the analysis, baseline and results documents.
+- Frontend dependencies are installed (`npm ci`) plus `@playwright/test`; stale `.next` artifacts were removed before typechecking. The Playwright suite runs against `next build && next start` (not `next dev`) because dev-server HMR recompiles during a run made multi-test runs flaky; it also supports `E2E_PORT` to avoid local port collisions.
 - E2E output folders and reports are gitignored.
-- `master`'s docs were accurate against its code at merge time; the current checklist is `187 done / 4 open`, the implementation log carries 65 dated entries (including 5 for 2026-11-02), and the migration head is `9848b576f074`.
+- `master`'s docs were accurate against its code at merge time; the current checklist is `211 done / 4 open`, the implementation log carries the dated entries through 2026-11-03, and the migration head is `9848b576f075`.
 
-## Appendix A — API endpoints (24)
+## Appendix A — API endpoints (25)
 
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
@@ -206,7 +217,7 @@ AccessAudit scans a webpage, detects accessibility (WCAG) problems with a mix of
 | POST | `/auth/forgot-password` | — | Issue reset token/link |
 | POST | `/auth/reset-password` | — | Consume reset token |
 | GET | `/scans` | Bearer | Paginated scan history (status/mode/text filters) |
-| GET | `/scans/{scan_id}` | Bearer | Scan detail with issues |
+| GET | `/scans/{scan_id}` | Bearer | Scan detail with issues; `include_issues=false` returns status/summary only (lightweight polling) |
 | GET | `/scans/{scan_id}/repair-suggestion-groups` | Bearer | Issue groups + cached suggestions |
 | POST | `/scans/{scan_id}/repair-suggestion-groups/{group_key}/generate` | Bearer | Generate/regenerate AI suggestion |
 | GET | `/scans/{scan_id}/repair-suggestion-bundle` | Bearer | Export all suggestions (`format=markdown\|json`) |
@@ -214,6 +225,7 @@ AccessAudit scans a webpage, detects accessibility (WCAG) problems with a mix of
 | POST | `/scans/{scan_id}/queue/remove` | Bearer | Exclude a queued URL |
 | POST | `/scans/{scan_id}/queue/prioritize` | Bearer | Move a queued URL to the front |
 | DELETE | `/scans` | Bearer | Delete all scans for the user |
+| GET | `/metrics` | — | Prometheus text metrics (404 when `METRICS_ENABLED=false`) |
 | GET | `/preferences` | Bearer | Read preferences |
 | PUT | `/preferences` | Bearer | Partial update preferences |
 | POST | `/preferences/reset` | Bearer | Reset to defaults |
@@ -225,18 +237,19 @@ AccessAudit scans a webpage, detects accessibility (WCAG) problems with a mix of
 ## Appendix C — Database tables (7)
 
 `users`, `user_sessions`, `password_reset_tokens`, `scan_runs`, `scan_issues`, `app_preferences`, `repair_suggestions`.
-Migration head: `9848b576f074` (16 revisions, linear). Recent columns: `app_preferences.notify_score_threshold_enabled`, `notify_score_threshold`, `notify_severities`, `scan_runs.cancel_requested_at`.
+Migration head: `9848b576f075` (17 revisions, linear). f075 adds performance indexes: `ix_scan_runs_user_id_started_at`, `ix_scan_runs_status_started_at`, `ix_scan_runs_status_heartbeat_at`, `ix_scan_issues_scan_run_id_position`. Recent columns: `app_preferences.notify_score_threshold_enabled`, `notify_score_threshold`, `notify_severities`, `scan_runs.cancel_requested_at`.
 
 ## Appendix D — Test inventory
 
-- Backend (130 across 12 files): `test_api_smoke.py` (22), `test_auth_unit.py` (8), `test_page_scanner_unit.py` (12), `test_repair_suggestion_repository_unit.py` (4), `test_repair_suggestion_service_unit.py` (4), `test_scan_repository_unit.py` (10), `test_scan_worker_unit.py` (2), `test_scan_options_resolver_unit.py` (19), `test_preferences_unit.py` (15), `test_repair_bundle_unit.py` (6), `test_bundle_and_cancel_api.py` (11), `test_scan_cancel_unit.py` (17). All use mocked/in-memory services — no database or network required.
-- Frontend unit/component (41 across 11 files): dashboard hook/streaming/cancel (4), scan notifications (3), notification prefs (6), scan toolbar (4), progress panel (2), queue panel (2), AI suggestions/export (6), pages tab (2), download helper (2), notification policy (8), saved-scan mapping (2).
-- Browser E2E (8 across 5 specs): landing, register, login validation, dashboard guard, mocked scan + issues, cancel confirm/cancel/dismiss flows.
+- Backend (201 across 14 files): the 12 feature-era suites plus `test_scan_perf_unit.py` (44: browser reuse/recycle/disconnect, render-wait config, screenshot cap, vendored axe, timings/budget, SSRF matrix, fallback fix) and `test_perf_api_unit.py` (27: indexes, incremental persistence, include_issues, rate limiting, metrics). All use mocked/in-memory services — no database or network required.
+- Frontend unit/component (42 across 11 files): dashboard hook/streaming/lightweight-polling/cancel (5), scan notifications (3), notification prefs (6), scan toolbar (4), progress panel (2), queue panel (2), AI suggestions/export (6), pages tab (2), download helper (2), notification policy (8), saved-scan mapping (2).
+- Browser E2E (8 across 5 specs): landing, register, login validation, dashboard guard, mocked scan + issues, cancel confirm/cancel/dismiss flows. Run with `npm run test:e2e`; set `E2E_PORT` if the default port 3000 is already in use.
 - Commands:
   - Backend: `cd backend; .\venv\Scripts\python.exe -m pytest -q tests`
   - Frontend: `cd frontend; npx tsc --noEmit; npm test`
   - Browser: `cd frontend; npm run test:e2e`
   - Build: `cd frontend; npm run build`
+  - Performance harness: `backend\venv\Scripts\python.exe scripts\perf\bench_scan.py` and `...\bench_db.py`
 
 ## Update rule
 

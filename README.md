@@ -26,6 +26,7 @@ Scan execution uses the saved Preferences by default (mode, page limits, crawl d
 - Scanning: Playwright/Chromium, axe-core, custom HTML checks
 - Data: PostgreSQL
 - Background work: `backend/app/scan_worker.py`
+- Performance and observability: benchmark harness (`scripts/perf/`), scan phase timings, Prometheus-style `GET /metrics`
 - CI: `.github/workflows/quality-gate.yml` (typecheck, Vitest, production build, Playwright E2E, backend pytest)
 
 ## Repository Structure
@@ -40,6 +41,7 @@ web-accessibility-assistant/
 |  |- src/                  Next.js routes, components, hooks, libraries, tests
 |  `- e2e/                  Playwright browser end-to-end specs
 |- docs/                    architecture, guides, implementation notes, tracking
+|- scripts/perf/            scanner + database benchmark harness
 |- docker-compose.yml       production-style local stack
 |- docker-compose.dev.yml   hot-reload development stack
 |- AGENTS.md                contributor workflow notes
@@ -52,6 +54,9 @@ Why this matters: route handlers live in `backend/app/main.py`; database work us
 
 - `docs/README.md`: documentation index and maintenance rules
 - `docs/architecture/system-architecture.md`: architecture, flows, APIs, data model, risks, glossary, open questions
+- `docs/architecture/scan-performance-analysis.md`: performance analysis, bottleneck ranking, implemented optimizations, remaining work
+- `docs/architecture/performance-baseline.md`: measured pre-optimization baseline (methodology + results)
+- `docs/architecture/performance-results.md`: measured post-optimization results, functional-equivalence checks and caveats
 - `docs/guides/docker-setup-guide.md`: Docker setup walkthrough
 - `docs/guides/database-setup-guide.md`: historical PostgreSQL/Alembic bootstrap guide
 - `docs/implementation/backend-persistence-implementation-guide.md`: historical persistence implementation plan
@@ -109,6 +114,29 @@ OAUTH_PROXY_SECRET=
 ENCRYPTION_KEY=
 ```
 
+Optional performance, reliability and observability variables (defaults shown; all are safe to omit):
+
+```text
+SCAN_BROWSER_REUSE_ENABLED=true      # worker reuses one Chromium across jobs
+SCAN_BROWSER_MAX_JOBS=250            # recycle the reused browser after N jobs
+SCAN_RENDER_IDLE_TIMEOUT_MS=1500     # networkidle ceiling per page
+SCAN_RENDER_SETTLE_MS=100            # extra settle time after load
+SCAN_MAX_SCREENSHOTS=10              # unique screenshots captured per page
+SCAN_MAX_SECONDS=240                 # multi-page wall-clock time budget
+AXE_SCRIPT_PATH=                     # override the vendored axe-core asset path
+SCAN_ALLOW_PRIVATE_TARGETS=false     # recommended in production (default true for local demos)
+DB_POOL_SIZE=5
+DB_MAX_OVERFLOW=10
+DB_POOL_TIMEOUT=30
+DB_POOL_RECYCLE=1800
+DB_POOL_PRE_PING=true
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_SCAN_PER_MINUTE=30
+RATE_LIMIT_AUTH_PER_MINUTE=10
+METRICS_ENABLED=true
+SCAN_SLOW_LOG_SECONDS=10
+```
+
 Common frontend variables are shown in `frontend/.env.example`:
 
 ```text
@@ -128,6 +156,7 @@ Common mistakes:
 - Keep `AUTH_SECRET` and `AUTH_JWT_SECRET` stable across restarts or sessions will break.
 - Set a real `ENCRYPTION_KEY` outside local development so stored provider keys are not protected by the development fallback.
 - Keep `PASSWORD_RESET_LOG_LINKS=false` except for local password-reset testing. It prints reset links to backend logs.
+- Set `SCAN_ALLOW_PRIVATE_TARGETS=false` in production; the default (`true`) exists so local demo/test pages on `127.0.0.1` remain scannable.
 - Run Alembic migrations after pulling schema changes.
 
 ## Run Locally Without Docker
@@ -158,6 +187,7 @@ Open:
 - backend docs: `http://127.0.0.1:8000/docs`
 - deterministic test page: `http://127.0.0.1:8000/test/page-bad`
 - JavaScript-rendered test page: `http://127.0.0.1:8000/test/page-js-rendered`
+- metrics (Prometheus text): `http://127.0.0.1:8000/metrics`
 
 ## Run With Docker
 
@@ -213,7 +243,17 @@ npm run test:e2e
 
 `npm run test:e2e` starts a production build of the Next.js app automatically (`npm run build && npm run start` via `webServer` in `frontend/playwright.config.ts`), so no backend or database is required. The browser suite stubs the FastAPI calls it needs and mints a signed NextAuth session cookie for authenticated flows. The first local run builds the app, so it takes a minute longer than later runs. Add `test:e2e:report` after a failure to open the HTML report.
 
-CI runs four jobs in `.github/workflows/quality-gate.yml`: frontend typecheck + Vitest, frontend production build, Playwright browser E2E (installs Chromium and uploads reports/traces on failure), and backend `compileall` + pytest. It does not run a standalone lint command or enforce coverage thresholds.
+CI runs four jobs in `.github/workflows/quality-gate.yml`: frontend typecheck + Vitest, frontend production build, Playwright browser E2E (installs Chromium and uploads reports/traces on failure), and backend `compileall` + pytest. It does not run a standalone lint command or enforce coverage thresholds. Current suite sizes: 201 backend pytest tests, 42 frontend Vitest tests and 8 Playwright E2E tests.
+
+Performance benchmarks are optional and documented separately:
+
+```powershell
+cd "D:\Lithan\UOR\Final Year Project\web-accessibility-assistant"
+backend\venv\Scripts\python.exe scripts\perf\bench_scan.py --json-out scripts\perf\optimized.json
+backend\venv\Scripts\python.exe scripts\perf\bench_db.py --iterations 20 --json-out scripts\perf\db_optimized.json
+```
+
+See `docs/architecture/scan-performance-analysis.md` for methodology, `performance-baseline.md` for the pre-optimization numbers and `performance-results.md` for the measured post-optimization comparison.
 
 Manual smoke flow:
 
@@ -230,11 +270,12 @@ Manual smoke flow:
 Routes are implemented in `backend/app/main.py`.
 
 - `GET /` and `GET /health`: service checks
+- `GET /metrics`: Prometheus text metrics (counters/histogram/gauges; 404 when `METRICS_ENABLED=false`)
 - `POST /auth/signup`, `POST /auth/login`, `GET /auth/me`, `POST /auth/logout`: account/session flow
 - `POST /auth/google`: env-gated Google profile exchange from the trusted Next.js server
 - `POST /auth/forgot-password`, `POST /auth/reset-password`: single-use reset-token scaffold
 - `POST /scan/page`: create a scan or queued crawl; all fields other than `url` are optional and inherit saved Preferences (`mode`, page limits, crawl depth, delays, URL filters, WCAG standard, best practices), while explicit fields override them
-- `GET /scans`, `GET /scans/{scan_id}`: saved scan list/detail for the current user
+- `GET /scans`, `GET /scans/{scan_id}`: saved scan list/detail for the current user; `GET /scans/{scan_id}?include_issues=false` returns the same shape with an empty `issues` list for lightweight status polling
 - `POST /scans/{scan_id}/cancel`: cancel a queued scan or request that a running scan stop between pages; already-finished scans return 409
 - `GET /scans/{scan_id}/repair-suggestion-bundle?format=markdown|json`: download every grouped repair suggestion for a scan as one document
 - `POST /scans/{scan_id}/queue/remove`, `POST /scans/{scan_id}/queue/prioritize`: queue controls; body is `{ "url": "..." }`
@@ -254,7 +295,7 @@ SQLAlchemy models live in `backend/app/models/`.
 - `AppPreferences` in `backend/app/models/preferences.py`
 - `RepairSuggestion` in `backend/app/models/repair_suggestion.py`
 
-Migrations live in `backend/alembic/versions/` (current head: `9848b576f074`, which adds notification preferences, the scan cancel flag, and the WCAG 2.1 AA default). Apply them with:
+Migrations live in `backend/alembic/versions/` (current head: `9848b576f075`, which adds the scan-performance composite indexes after the notification/cancel/WCAG migrations). Apply them with:
 
 ```powershell
 cd "D:\Lithan\UOR\Final Year Project\web-accessibility-assistant\backend"
@@ -286,6 +327,23 @@ Documentation changes:
 - Update `docs/architecture/system-architecture.md` when flows, routes, or data models change.
 - Add a dated entry to `docs/tracking/implementation-log.md` with actual verification results.
 
+## Performance
+
+Measured on the same machine/harness before and after the optimization work (details and caveats in `docs/architecture/performance-results.md`):
+
+| Workload (production worker shape) | Before | After | Change |
+|---|---|---|---|
+| Single-page clean scan | 2,783.3 ms | **850.5 ms** | −69.4 % |
+| Single-page issue-dense scan with screenshots | 4,279.9 ms | **1,584.7 ms** | −63.0 % |
+| 5-page crawl, delay 0 | 7,254.4 ms | **4,188.8 ms** | −42.3 % |
+| 5-page crawl, delay 250 ms | 8,577.3 ms | **5,190.2 ms** | −39.5 % |
+| Crawl-memory DB lookup (200 scans × 100 issues) | 797.5 ms, 20,200 ORM rows | **14.9 ms, 0 ORM rows** | −98.1 % |
+| Saved-scan history list (limit 50) | 92.4 ms, 45 SQL | **8.2 ms, 3 SQL** | −91.2 % |
+| Progress publish (5-page crawl) | 127.2 ms, 2,500 row writes | **55.7 ms, 500 row writes** | −56.2 % / −80 % |
+| Status-only poll (`include_issues=false`) | full issue payload each poll | **0.37 ms, 1 SQL, 1 row** | O(1) reads |
+
+The wins come from worker-level browser reuse, tuned render waits, a screenshot cap, a vendored axe-core asset, incremental issue writes, cheaper history/crawl-memory queries, and lightweight dashboard polling. Functional equivalence was verified: issue/rule/severity counts are unchanged except for the documented screenshot cap and the raw-HTML fallback now running axe-core (6 → 22 issues on the dense fixture, which is a defect fix). The worker logs one structured `scan_timing` JSON line per scan, and per-scan phase timings are exposed as an optional `timings` field.
+
 ## Risky Areas
 
 - Worker scans: `SCAN_EXECUTION_MODE`, `backend/app/scan_worker.py`, and queue fields in `ScanRun` must agree.
@@ -296,7 +354,11 @@ Documentation changes:
 - AI suggestions: provider keys are encrypted before persistence and must never be exposed in API responses.
 - Scan cancellation: `cancel_requested_at` is a request flag; the worker/background job owns the transition to the terminal `cancelled` status, so never mark `cancelled` from the web request for a running scan.
 - Preferences-driven scans: `scan_options_resolver.py` is the only place saved defaults are merged with request overrides, and the resolved options are what the queued worker consumes.
-- URL validation: `backend/app/utils/url_utils.py` currently checks scheme and host; confirm private-network blocking requirements before treating scans as safe for untrusted public use.
+- Browser reuse: the worker keeps one Chromium process alive (`SCAN_BROWSER_REUSE_ENABLED`, recycler at `SCAN_BROWSER_MAX_JOBS`) — plan for its RAM (~150–300 MB per worker) and keep the kill switch documented for rollback.
+- Performance and observability limits: rate-limit buckets, metrics and phase timings are **per process/worker**; a multi-instance deployment needs a shared limiter/metrics store and should scrape each process.
+- Database sizing: `replicas × (DB_POOL_SIZE + DB_MAX_OVERFLOW)` must stay below the managed PostgreSQL connection limit.
+- URL validation: `backend/app/utils/url_utils.py` now rejects non-http(s), embedded credentials and overlong URLs and can block private/reserved targets via `SCAN_ALLOW_PRIVATE_TARGETS=false` (recommended production setting); DNS rebinding remains a residual risk.
+- Screenshot cap: `SCAN_MAX_SCREENSHOTS` bounds captures per page (default 10), so very noisy pages intentionally have fewer images than issues — locators are unaffected.
 
 ## Current Gaps
 
@@ -307,6 +369,8 @@ Use `docs/tracking/feature-checklist.md` as the source of truth. Known open item
 - conversational remediation assistant and automatic per-issue code repair suggestions
 - automated coverage reporting/thresholds and a lint gate
 
+Remaining performance follow-ups (deliberately deferred; see `scan-performance-analysis.md` §14): bounded intra-crawl page parallelism, a cheaper network-idle detector, worker retry backoff with jitter, Redis-backed rate limiting, OpenTelemetry tracing, fail-fast production secret validation, and validating migration `f075` index effects on PostgreSQL.
+
 ## Troubleshooting
 
 - Backend cannot connect to PostgreSQL: check `DATABASE_URL`; use `localhost` outside Docker or `db` inside Docker.
@@ -315,4 +379,7 @@ Use `docs/tracking/feature-checklist.md` as the source of truth. Known open item
 - Scans stay queued: confirm `scan-worker` is running and shares the same `DATABASE_URL`.
 - Screenshots are missing in production: check `CLOUDINARY_URL` on backend and worker, or use `CLOUDINARY_SCREENSHOT_FALLBACK=data_url` temporarily.
 - New tables are missing: run `alembic upgrade head`.
+- `GET /metrics` returns 404: set `METRICS_ENABLED=true` (default) in the backend environment.
+- Scanning a localhost/private page fails with "URL resolves to a private or reserved network address": remove `SCAN_ALLOW_PRIVATE_TARGETS=false` locally (the default allows private targets) and keep it `false` in production.
+- Scan target rejected for credentials/length/scheme: `validate_public_http_url` only accepts http(s) URLs up to 2048 characters without embedded credentials.
 

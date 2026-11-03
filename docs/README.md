@@ -10,6 +10,7 @@ This folder contains deeper project documentation. Start with the root `README.m
 | How do the frontend, API, worker, scanner, and database fit together? | `architecture/system-architecture.md` |
 | What is implemented now? | `tracking/feature-checklist.md` |
 | What does each feature do, where does it live, and how complete is it? | `tracking/feature-inventory.md` |
+| How fast is scanning, what were the bottlenecks, and what was optimised? | `architecture/scan-performance-analysis.md` (baseline: `architecture/performance-baseline.md`; results: `architecture/performance-results.md`) |
 | What changed, when, and how was it verified? | `tracking/implementation-log.md` |
 | How was Docker introduced? | `guides/docker-setup-guide.md` |
 | How was PostgreSQL and Alembic originally bootstrapped? | `guides/database-setup-guide.md` |
