@@ -22,6 +22,16 @@ function renderToolbar(overrides: Partial<Parameters<typeof ScanToolbar>[0]> = {
 }
 
 describe("ScanToolbar cancel controls", () => {
+  it("labels the website field and submits its current scan settings with Enter", () => {
+    const props = renderToolbar({ isScanning: false })
+    const url = screen.getByRole("textbox", { name: "Website URL" })
+    fireEvent.change(url, { target: { value: "https://new.example.com" } })
+    expect(props.onUrlChange).toHaveBeenCalledWith("https://new.example.com")
+    fireEvent.keyDown(url, { key: "Enter" })
+    expect(props.onScan).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole("combobox", { name: "Scan mode" })).toBeInTheDocument()
+  })
+
   it("shows the cancel button only for a cancellable scan", () => {
     const { unmount } = render(
       <ScanToolbar

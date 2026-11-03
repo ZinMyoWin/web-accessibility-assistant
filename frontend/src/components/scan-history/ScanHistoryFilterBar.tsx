@@ -57,9 +57,9 @@ export function ScanHistoryFilterBar({
   onSortChange,
 }: ScanHistoryFilterBarProps) {
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-md border-[0.5px] border-border bg-card p-3">
+    <div className="flex min-w-0 flex-col gap-5 rounded-[18px] border border-border bg-card p-5">
       {/* Search */}
-      <div className="relative min-w-[200px] max-w-[280px] flex-1">
+      <div className="relative min-w-0 w-full">
         <svg
           className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
           viewBox="0 0 16 16"
@@ -71,25 +71,24 @@ export function ScanHistoryFilterBar({
           <path d="M10 10l3 3" strokeLinecap="round" />
         </svg>
         <Input
-          type="text"
+          type="search"
+          aria-label="Search scans by URL or domain"
           placeholder="Search by URL or domain\u2026"
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="h-8 bg-muted pl-8 text-xs"
+          className="h-11 bg-background pl-10 text-sm"
         />
       </div>
 
-      <div className="h-5 w-px bg-border" />
-
       {/* Status pills */}
-      <span className="text-[11px] text-muted-foreground">Status</span>
-      <div className="flex gap-1">
+      <div className="flex min-w-0 flex-wrap items-center gap-2" role="group" aria-label="Scan status"><span className="mr-2 text-sm font-medium">Status</span>
         {STATUS_OPTIONS.map((opt) => (
           <button
             key={opt.value}
             onClick={() => onStatusChange(opt.value)}
+            aria-pressed={statusFilter === opt.value}
             className={cn(
-              "cursor-pointer whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] transition-colors",
+              "cursor-pointer whitespace-nowrap rounded-[10px] border px-3 py-2 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
               statusFilter === opt.value
                 ? "border-accent-foreground/30 bg-secondary font-medium text-accent-foreground"
                 : "border-border bg-transparent text-muted-foreground hover:border-accent-foreground/30 hover:text-accent-foreground"
@@ -100,17 +99,15 @@ export function ScanHistoryFilterBar({
         ))}
       </div>
 
-      <div className="h-5 w-px bg-border" />
-
       {/* Mode pills */}
-      <span className="text-[11px] text-muted-foreground">Mode</span>
-      <div className="flex gap-1">
+      <div className="flex min-w-0 flex-wrap items-center gap-2" role="group" aria-label="Scan mode"><span className="mr-2 text-sm font-medium">Mode</span>
         {MODE_OPTIONS.map((opt) => (
           <button
             key={opt.value}
             onClick={() => onModeChange(opt.value)}
+            aria-pressed={modeFilter === opt.value}
             className={cn(
-              "cursor-pointer whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] transition-colors",
+              "cursor-pointer whitespace-nowrap rounded-[10px] border px-3 py-2 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
               modeFilter === opt.value
                 ? "border-accent-foreground/30 bg-secondary font-medium text-accent-foreground"
                 : "border-border bg-transparent text-muted-foreground hover:border-accent-foreground/30 hover:text-accent-foreground"
@@ -121,16 +118,14 @@ export function ScanHistoryFilterBar({
         ))}
       </div>
 
-      <div className="h-5 w-px bg-border" />
-
       {/* Sort select */}
       <Select
         value={sortBy}
         onValueChange={(v) => onSortChange(v as SortBy)}
       >
         <SelectTrigger
-          size="sm"
-          className="h-7 min-w-28 border bg-muted text-[11px] shadow-none"
+          aria-label="Sort saved scans"
+          className="h-10 w-full border bg-background text-sm shadow-none sm:w-44"
         >
           <SelectValue />
         </SelectTrigger>

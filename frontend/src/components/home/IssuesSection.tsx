@@ -18,19 +18,21 @@ export function IssuesSection({
   onFilterChange,
 }: IssuesSectionProps) {
   return (
-    <section className="rounded-[var(--radius-lg)] border-[0.5px] border-border bg-card px-5 py-[18px] shadow-[var(--shadow-panel)]">
+    <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">
       <div className="mb-3.5 flex flex-col items-start gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-        <span className="text-[15px] font-medium text-foreground">
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">
           Issues Found
-        </span>
-        <div className="flex flex-wrap gap-1.5">
+        </h2>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Filter scan issues by severity">
           {severityFilters.map((value) => (
             <button
               key={value}
-              className={`rounded-full border-[0.5px] px-3 py-1 text-[11px] font-medium transition-all duration-150 ${
+              type="button"
+              aria-pressed={filter === value}
+              className={`min-h-9 rounded-lg border px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                 filter === value
-                  ? "border-primary bg-primary text-white"
-                  : "border-border bg-transparent text-[var(--text-secondary)] hover:border-muted-foreground"
+                  ? "border-primary/30 bg-brand-50 text-brand-700"
+                  : "border-border bg-transparent text-muted-foreground hover:border-brand-300"
               }`}
               onClick={() => onFilterChange(value)}
             >
@@ -42,13 +44,13 @@ export function IssuesSection({
         </div>
       </div>
 
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-3">
         {!result ? (
-          <div className="py-2 text-xs text-muted-foreground">
-            Run a scan to see issues.
+          <div className="rounded-xl bg-background/70 px-5 py-10 text-center text-sm leading-relaxed text-muted-foreground">
+            Run your first scan to see the issues that affect your visitors, with guidance for each fix.
           </div>
         ) : issues.length === 0 ? (
-          <div className="py-2 text-xs text-muted-foreground">
+          <div className="rounded-xl bg-background/70 px-5 py-10 text-center text-sm text-muted-foreground">
             No issues at this severity level.
           </div>
         ) : (

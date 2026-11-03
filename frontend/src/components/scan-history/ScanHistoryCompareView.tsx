@@ -75,7 +75,7 @@ export function ScanHistoryCompareView({ compareIds, onBack }: ScanHistoryCompar
 
   if (loading) {
     return (
-      <div className="flex animate-in fade-in flex-col items-center justify-center gap-4 rounded-xl border border-border bg-card py-20 text-muted-foreground">
+      <div className="flex animate-in fade-in flex-col items-center justify-center gap-4 rounded-[18px] border border-border bg-card py-20 text-muted-foreground">
         <svg className="size-6 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
           <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
@@ -87,7 +87,7 @@ export function ScanHistoryCompareView({ compareIds, onBack }: ScanHistoryCompar
 
   if (error || !scans) {
     return (
-      <div className="rounded-xl border border-red-600/20 bg-[var(--severity-critical-bg)] p-6">
+      <div className="rounded-[18px] border border-red-600/20 bg-[var(--severity-critical-bg)] p-6">
         <p className="text-sm text-[var(--severity-critical-text)]">{error || "Could not compare scans."}</p>
         <Button variant="outline" size="sm" onClick={onBack} className="mt-4">
           Go back
@@ -133,7 +133,7 @@ export function ScanHistoryCompareView({ compareIds, onBack }: ScanHistoryCompar
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={onBack} className="h-7 px-2 text-xs text-muted-foreground">
+            <Button variant="outline" size="sm" onClick={onBack} className="gap-1.5 text-sm text-muted-foreground">
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="mr-1 size-3">
                 <path d="M10 3L5 8l5 5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
@@ -148,7 +148,7 @@ export function ScanHistoryCompareView({ compareIds, onBack }: ScanHistoryCompar
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <DiffCard
           title="Score"
           oldValue={oldScore}
@@ -170,8 +170,8 @@ export function ScanHistoryCompareView({ compareIds, onBack }: ScanHistoryCompar
         />
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <div className="rounded-xl border-[0.5px] border-border bg-card p-4">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="rounded-[18px] border border-border bg-card p-5">
           <div className="flex items-center justify-between border-b border-border pb-3">
             <h3 className="font-medium text-severity-minor-text">Resolved ({resolvedIssues.length})</h3>
           </div>
@@ -186,7 +186,7 @@ export function ScanHistoryCompareView({ compareIds, onBack }: ScanHistoryCompar
           </div>
         </div>
 
-        <div className="rounded-xl border-[0.5px] border-border bg-card p-4">
+        <div className="rounded-[18px] border border-border bg-card p-5">
           <div className="flex items-center justify-between border-b border-border pb-3">
             <h3 className="font-medium text-severity-critical-text">New Issues ({newIssues.length})</h3>
           </div>
@@ -201,7 +201,7 @@ export function ScanHistoryCompareView({ compareIds, onBack }: ScanHistoryCompar
           </div>
         </div>
 
-        <div className="rounded-xl border-[0.5px] border-border bg-card p-4">
+        <div className="rounded-[18px] border border-border bg-card p-5">
           <div className="flex items-center justify-between border-b border-border pb-3">
             <h3 className="font-medium text-muted-foreground">Persistent ({persistentIssues.length})</h3>
           </div>
@@ -223,7 +223,7 @@ export function ScanHistoryCompareView({ compareIds, onBack }: ScanHistoryCompar
 function DiffCard({ title, oldValue, newValue, diff, invertColors = false }: { title: string, oldValue: number | null, newValue: number | null, diff: number, invertColors?: boolean }) {
   if (oldValue == null || newValue == null) {
     return (
-      <div className="rounded-xl border-[0.5px] border-border bg-card p-4">
+      <div className="rounded-[18px] border border-border bg-card p-5">
         <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
         <div className="mt-2 text-sm text-muted-foreground">Not available</div>
       </div>
@@ -240,7 +240,7 @@ function DiffCard({ title, oldValue, newValue, diff, invertColors = false }: { t
     : "text-severity-minor-text bg-[var(--severity-minor-bg)]"
 
   return (
-    <div className="rounded-xl border-[0.5px] border-border bg-card p-4">
+    <div className="rounded-[18px] border border-border bg-card p-5">
       <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
       <div className="mt-2 flex items-baseline gap-3">
         <span className="text-2xl font-semibold tracking-tight">{newValue}</span>
@@ -260,14 +260,14 @@ function DiffCard({ title, oldValue, newValue, diff, invertColors = false }: { t
 
 function IssueCard({ issue }: { issue: SavedScanIssue }) {
   return (
-    <div className="flex flex-col gap-1.5 rounded-md border-[0.5px] border-border/50 bg-muted/30 p-2.5">
+    <div className="flex flex-col gap-1.5 rounded-[10px] border border-border/50 bg-muted/30 p-2.5">
       <div className="flex items-start justify-between gap-2">
-        <span className="line-clamp-2 text-xs font-medium text-foreground">{issue.message}</span>
-        <Badge variant={issue.severity} className="shrink-0 px-1.5 py-0 text-[9px] uppercase">
+        <span className="line-clamp-2 text-sm font-medium text-foreground">{issue.message}</span>
+        <Badge variant={issue.severity} className="shrink-0 px-1.5 py-0 text-xs">
           {issue.severity}
         </Badge>
       </div>
-      <code className="line-clamp-1 rounded bg-muted px-1 py-0.5 text-[10px] text-muted-foreground">
+      <code className="line-clamp-1 rounded bg-muted px-1 py-0.5 text-xs text-muted-foreground">
         {issue.element}
       </code>
     </div>

@@ -45,7 +45,7 @@ function Badge({ className, variant = "default", ...props }: BadgeProps) {
     <span
       data-slot="badge"
       className={cn(
-        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors",
+        "inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium leading-4 transition-colors",
         variantStyles[variant],
         className
       )}

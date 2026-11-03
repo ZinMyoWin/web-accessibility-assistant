@@ -14,7 +14,7 @@ export function CompareBanner({
   onCancel,
 }: CompareBannerProps) {
   return (
-    <div className="flex animate-in slide-in-from-top-1 items-center gap-3 rounded-md border border-accent-foreground/30 bg-secondary p-3 text-sm font-medium text-accent-foreground">
+    <div className="flex animate-in slide-in-from-top-1 flex-wrap items-center gap-3 rounded-[18px] border border-accent-foreground/30 bg-secondary p-4 text-sm font-medium text-accent-foreground">
       <svg
         className="size-3.5 shrink-0"
         viewBox="0 0 16 16"
@@ -32,7 +32,7 @@ export function CompareBanner({
       <div className="ml-auto flex gap-2">
         <Button
           size="sm"
-          className="h-6 px-3 text-[11px]"
+          className="px-3 text-sm"
           disabled={selectedCount !== 2}
           onClick={onCompare}
         >
@@ -41,7 +41,7 @@ export function CompareBanner({
         <Button
           variant="outline"
           size="sm"
-          className="h-6 border-accent-foreground/30 px-3 text-[11px] text-accent-foreground"
+          className="border-accent-foreground/30 px-3 text-sm text-accent-foreground"
           onClick={onCancel}
         >
           Cancel

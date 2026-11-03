@@ -21,7 +21,7 @@ export function AuthAlert({ tone, children }: AuthAlertProps) {
       role={tone === "error" ? "alert" : "status"}
       aria-live={tone === "error" ? "assertive" : "polite"}
       className={cn(
-        "mb-4 rounded-md border px-3 py-2 text-caption",
+        "mb-5 rounded-xl border px-4 py-3 text-sm leading-6",
         toneStyles[tone]
       )}
     >

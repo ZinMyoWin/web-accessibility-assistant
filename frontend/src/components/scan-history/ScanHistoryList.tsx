@@ -1,6 +1,5 @@
 "use client"
 
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { ScanHistoryRow } from "@/components/scan-history/ScanHistoryRow"
 import type { SavedScanListItem } from "@/lib/saved-scans"
 
@@ -25,7 +24,7 @@ export function ScanHistoryList({
 }: ScanHistoryListProps) {
   if (scans.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
+      <div className="flex flex-col items-center justify-center gap-4 rounded-[18px] border border-dashed border-border bg-card px-5 py-16 text-center">
         <div className="flex size-12 items-center justify-center rounded-lg bg-muted">
           <svg
             className="size-6 text-muted-foreground"
@@ -47,8 +46,8 @@ export function ScanHistoryList({
   }
 
   return (
-    <ScrollArea className="flex-1">
-      <div className="flex flex-col gap-2">
+    <div className="min-w-0">
+      <div className="flex flex-col gap-3">
         {scans.map((scan) => (
           <ScanHistoryRow
             key={scan.id}
@@ -62,6 +61,6 @@ export function ScanHistoryList({
           />
         ))}
       </div>
-    </ScrollArea>
+    </div>
   )
 }

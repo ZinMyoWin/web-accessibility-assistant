@@ -3,7 +3,7 @@ interface ScoreRingProps {
   size?: number
 }
 
-export function ScoreRing({ score, size = 110 }: ScoreRingProps) {
+export function ScoreRing({ score, size = 136 }: ScoreRingProps) {
   if (score == null) {
     return (
       <div className="flex flex-col items-center">
@@ -19,11 +19,11 @@ export function ScoreRing({ score, size = 110 }: ScoreRingProps) {
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-2xl font-bold text-muted-foreground">-</span>
-            <span className="text-[10px] text-muted-foreground">score pending</span>
+            <span className="text-[32px] font-semibold text-muted-foreground">-</span>
+            <span className="text-xs text-muted-foreground">score pending</span>
           </div>
         </div>
-        <span className="mt-2 text-[11px] font-medium text-muted-foreground">
+        <span className="mt-3 text-xs font-medium text-muted-foreground">
           Accessibility Score
         </span>
       </div>
@@ -35,7 +35,7 @@ export function ScoreRing({ score, size = 110 }: ScoreRingProps) {
   const circumference = 2 * Math.PI * radius
   const offset = circumference - (score / 100) * circumference
 
-  const color = score >= 80 ? "var(--primary)" : score >= 50 ? "var(--medium)" : "var(--high)"
+  const color = score >= 80 ? "var(--primary)" : score >= 50 ? "var(--medium-text)" : "var(--high-text)"
 
   return (
     <div className="flex flex-col items-center">
@@ -63,13 +63,13 @@ export function ScoreRing({ score, size = 110 }: ScoreRingProps) {
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-2xl font-bold" style={{ color }}>
+          <span className="text-[32px] font-semibold" style={{ color }}>
             {score}
           </span>
-          <span className="text-[10px] text-muted-foreground">/ 100</span>
+          <span className="text-xs text-muted-foreground">/ 100</span>
         </div>
       </div>
-      <span className="mt-2 text-[11px] font-medium text-muted-foreground">
+      <span className="mt-3 text-xs font-medium text-muted-foreground">
         Accessibility Score
       </span>
     </div>

@@ -23,9 +23,9 @@ export const severityBarClass: Record<IssueSeverity, string> = {
 }
 
 export const severityValueClass: Record<IssueSeverity, string> = {
-  high: "text-[var(--high)]",
-  medium: "text-[var(--medium)]",
-  low: "text-[var(--low)]",
+  high: "text-[var(--high-text)]",
+  medium: "text-[var(--medium-text)]",
+  low: "text-[var(--low-text)]",
 }
 
 export const progressStateClass: Record<ProgressState, string> = {

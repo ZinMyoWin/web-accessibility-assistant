@@ -1,23 +1,11 @@
+import { Accessibility } from "lucide-react"
+
 export function AboutHero() {
   return (
-    <section className="relative overflow-hidden pb-sp16 pt-sp28 text-center max-md:pt-sp20">
-      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-        <div className="marketing-hero-mesh" />
-      </div>
-
-      <div className="marketing-wrap relative z-10 mx-auto max-w-3xl">
-        <span className="marketing-hero-fade text-caption font-semibold uppercase tracking-widest text-brand-500">
-          About AccessAudit
-        </span>
-        <h1 className="marketing-hero-fade marketing-hero-fade-delay-1 mt-sp3 text-3xl font-extrabold tracking-tight text-text-pri md:text-4xl lg:text-5xl">
-          The web should work for{" "}
-          <span className="text-brand-500">everyone</span>
-        </h1>
-        <p className="marketing-hero-fade marketing-hero-fade-delay-2 mx-auto mt-sp5 max-w-2xl text-lead leading-relaxed text-text-muted">
-          AccessAudit exists to make accessibility testing fast,
-          understandable, and actually actionable, so teams can find what is
-          broken and know exactly how to fix it.
-        </p>
+    <section className="marketing-hero">
+      <div className="marketing-wrap grid gap-10 lg:grid-cols-[1.4fr_.6fr] lg:items-end">
+        <div><h1 className="max-w-4xl text-[clamp(3rem,6vw,5.5rem)] font-semibold leading-[1.06] tracking-[-0.065em]">The web should work for everyone.</h1><p className="mt-7 max-w-2xl text-lg leading-relaxed text-muted-foreground">We’re making accessibility testing easier to understand, so finding a barrier becomes the beginning of a better experience.</p></div>
+        <div className="flex aspect-[1.6] items-center justify-center rounded-[24px] bg-brand-100 lg:aspect-square" aria-hidden="true"><Accessibility className="size-28 text-brand-700" strokeWidth={1.1} /></div>
       </div>
     </section>
   )

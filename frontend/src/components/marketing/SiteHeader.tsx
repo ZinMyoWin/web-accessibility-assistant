@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Menu, X } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { MarketingLogo } from "./Logo"
@@ -20,28 +20,28 @@ const isActiveLink = (href: string, pathname: string) =>
 
 export function SiteHeader() {
   const pathname = usePathname()
-  const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const menuButton = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8)
-    onScroll()
-    window.addEventListener("scroll", onScroll, { passive: true })
-    return () => window.removeEventListener("scroll", onScroll)
-  }, [])
+    if (!menuOpen) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMenuOpen(false)
+        menuButton.current?.focus()
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [menuOpen])
 
   const closeMenu = () => setMenuOpen(false)
 
   return (
     <header
-      className={cn(
-        "sticky top-0 z-50 border-b bg-surface-0/80 backdrop-blur-xl transition-[border-color,box-shadow]",
-        scrolled
-          ? "border-border-soft shadow-nav"
-          : "border-transparent shadow-none"
-      )}
+      className="sticky top-0 z-40 border-b border-border-soft bg-surface-0/95 backdrop-blur-md"
     >
-      <div className="marketing-wrap flex h-16 items-center gap-sp8">
+      <div className="marketing-wrap flex h-20 items-center gap-6">
         <Link
           href="/"
           className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -51,7 +51,7 @@ export function SiteHeader() {
           <MarketingLogo />
         </Link>
 
-        <nav aria-label="Primary" className="ml-sp4 hidden gap-sp6 md:flex">
+        <nav aria-label="Primary" className="ml-auto hidden items-center gap-7 md:flex">
           {navLinks.map((link) => {
             const active = isActiveLink(link.href, pathname)
             return (
@@ -60,7 +60,7 @@ export function SiteHeader() {
                 href={link.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "text-label font-medium transition-colors hover:text-text-pri focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  "rounded-sm py-3 text-sm font-medium transition-colors hover:text-text-pri focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                   active ? "text-text-pri" : "text-text-muted"
                 )}
               >
@@ -70,22 +70,23 @@ export function SiteHeader() {
           })}
         </nav>
 
-        <div className="ml-auto flex items-center gap-sp3">
+        <div className="ml-auto flex items-center gap-3 md:ml-6">
           <Link
             href="/login"
-            className="rounded-md px-sp3 py-control-y text-label font-medium text-text-pri transition-colors hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="hidden rounded-md px-3 py-3 text-sm font-medium text-text-pri transition-colors hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:block"
           >
             Log in
           </Link>
-          <Button asChild className="shadow-card hover:bg-brand-700">
+          <Button asChild className="hidden sm:inline-flex">
             <Link href="/register">Start free</Link>
           </Button>
           <button
+            ref={menuButton}
             type="button"
             aria-label={menuOpen ? "Close menu" : "Open menu"}
             aria-expanded={menuOpen}
             aria-controls="mobile-menu"
-            className="inline-flex size-9 items-center justify-center rounded-md text-text-pri transition-colors hover:bg-brand-50 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:hidden"
+            className="inline-flex size-11 items-center justify-center rounded-md text-text-pri transition-colors hover:bg-brand-50 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:hidden"
             onClick={() => setMenuOpen((open) => !open)}
           >
             {menuOpen ? (

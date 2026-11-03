@@ -18,22 +18,23 @@ export function AuthSegmentedControl() {
   const pathname = usePathname()
 
   return (
-    <div
-      className="mb-8 grid grid-cols-2 gap-1 rounded-md border border-border-soft bg-surface-1 p-1"
-      role="tablist"
+    <nav
+      className="mb-9 grid grid-cols-2 gap-1 rounded-xl bg-surface-1 p-1"
       aria-label="Authentication mode"
     >
       {segments.map((segment) => {
-        const active = pathname === segment.href
+        const active =
+          pathname === segment.href ||
+          (pathname === "/signup" && segment.href === "/register")
         return (
           <Link
             key={segment.href}
             href={segment.href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "rounded-sm py-2 text-center text-label font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+              "flex min-h-11 items-center justify-center rounded-[10px] px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
               active
-                ? "bg-surface-0 text-brand-700 shadow-xs"
+                ? "bg-surface-0 text-foreground shadow-xs"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
@@ -41,6 +42,6 @@ export function AuthSegmentedControl() {
           </Link>
         )
       })}
-    </div>
+    </nav>
   )
 }

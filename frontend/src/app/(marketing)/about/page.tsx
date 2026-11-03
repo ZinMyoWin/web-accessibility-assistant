@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 export default function AboutPage() {
   return (
-    <main className="bg-surface-0 text-text-pri">
+    <main id="main-content" tabIndex={-1} className="bg-surface-0 text-text-pri">
       <AboutHero />
       <ProblemStats />
       <MissionProse />

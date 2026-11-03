@@ -1,14 +1,12 @@
-import { CheckCircle } from "lucide-react"
+import { Accessibility } from "lucide-react"
 
 export function MarketingLogo() {
   return (
-    <span className="flex items-center gap-sp2">
-      <span className="flex size-8 items-center justify-center rounded-sm bg-brand-500 text-primary-foreground shadow-card">
-        <CheckCircle aria-hidden="true" className="size-5" strokeWidth={2} />
+    <span className="inline-flex items-center gap-2.5">
+      <span className="flex size-9 items-center justify-center rounded-xl bg-brand-500 text-white">
+        <Accessibility aria-hidden="true" className="size-6" strokeWidth={1.8} />
       </span>
-      <span className="text-base font-bold leading-none tracking-tight text-brand-900">
-        AccessAudit
-      </span>
+      <span className="text-lg font-bold leading-none tracking-[-0.045em] text-foreground">AccessAudit</span>
     </span>
   )
 }

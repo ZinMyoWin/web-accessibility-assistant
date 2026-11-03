@@ -79,10 +79,10 @@ export default function RegisterPage() {
   return (
     <section className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight text-foreground">
+        <h1 className="text-[30px] font-semibold leading-tight tracking-[-0.035em] text-foreground">
           Create your account
-        </h2>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+        </h1>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">
           Start auditing for free. No card required.
         </p>
       </div>
@@ -91,7 +91,7 @@ export default function RegisterPage() {
         <GoogleButton label="Sign up with Google" onError={setError} />
       </div>
 
-      <div className="my-6 flex items-center gap-3">
+      <div className="my-6 flex items-center gap-4">
         <span className="h-px flex-1 bg-border-soft" />
         <span className="text-caption text-muted-foreground">or</span>
         <span className="h-px flex-1 bg-border-soft" />
@@ -117,7 +117,7 @@ export default function RegisterPage() {
             required
             aria-required="true"
             disabled={submitting}
-            className="h-11 bg-surface-1 text-body focus-visible:bg-surface-0"
+            className="h-12 bg-surface-0 text-base"
           />
         </div>
 
@@ -138,7 +138,7 @@ export default function RegisterPage() {
             required
             aria-required="true"
             disabled={submitting}
-            className="h-11 bg-surface-1 text-body focus-visible:bg-surface-0"
+            className="h-12 bg-surface-0 text-base"
           />
         </div>
 
@@ -157,7 +157,7 @@ export default function RegisterPage() {
 
         <Label
           htmlFor={termsId}
-          className="my-2 mb-6 items-start gap-2 text-caption font-normal leading-relaxed text-muted-foreground"
+          className="my-2 mb-6 items-start gap-2 text-sm font-normal leading-relaxed text-muted-foreground"
         >
           <Checkbox
             id={termsId}
@@ -170,11 +170,11 @@ export default function RegisterPage() {
           />
           <span>
             I agree to the{" "}
-            <Link href="#" className="text-brand-700 hover:underline">
+            <Link href="#" className="rounded-sm font-medium text-brand-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
               Terms of Service
             </Link>{" "}
             and{" "}
-            <Link href="#" className="text-brand-700 hover:underline">
+            <Link href="#" className="rounded-sm font-medium text-brand-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
               Privacy Policy
             </Link>
             .
@@ -184,7 +184,7 @@ export default function RegisterPage() {
         <Button
           type="submit"
           disabled={submitting || !acceptedTerms}
-          className="h-11 w-full gap-2"
+          className="h-12 w-full gap-2"
         >
           {submitting ? (
             <>
@@ -200,11 +200,11 @@ export default function RegisterPage() {
         </Button>
       </form>
 
-      <p className="mt-6 text-center text-caption text-muted-foreground">
+      <p className="mt-7 text-center text-sm text-muted-foreground">
         Already have an account?{" "}
         <Link
           href="/login"
-          className="font-semibold text-brand-700 hover:underline"
+          className="rounded-sm font-semibold text-brand-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-4"
         >
           Log in
         </Link>

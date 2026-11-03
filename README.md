@@ -4,6 +4,12 @@ A full-stack web app for scanning webpages, finding accessibility issues, saving
 
 Start here when you are new to the project. Deeper explanations live in `docs/`.
 
+The frontend uses a unified AccessAudit design system across public pages,
+account access and the audit workspace: Manrope typography, high-contrast blue
+actions, neutral surfaces, responsive layouts and shared accessible controls.
+See [the redesign guide](docs/design/2026-11-03-accessaudit-redesign.md) for the
+what, why and how, visual foundations, scope and verification limits.
+
 ## What The Project Does
 
 AccessAudit lets a signed-in user:

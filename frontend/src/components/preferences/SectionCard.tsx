@@ -20,43 +20,45 @@ export function SectionCard({
   children,
 }: SectionCardProps) {
   return (
-    <div
+    <section
       id={id}
+      aria-labelledby={`${id}-title`}
       className={cn(
-        "overflow-hidden rounded-xl border-[0.5px] bg-card",
+        "scroll-mt-6 overflow-hidden rounded-[18px] border bg-card",
         danger ? "border-[var(--high-text)]/20" : "border-border"
       )}
     >
       <div
         className={cn(
-          "flex items-center gap-3 border-b-[0.5px] px-5 py-4",
+          "flex items-center gap-3 border-b px-5 py-5 sm:px-6",
           danger ? "border-[var(--high-text)]/15" : "border-border"
         )}
       >
         <div
           className={cn(
-            "flex size-[30px] shrink-0 items-center justify-center rounded",
+            "flex size-10 shrink-0 items-center justify-center rounded-[10px]",
             iconClass
           )}
         >
           {icon}
         </div>
         <div className="flex-1">
-          <div
+          <h2
+            id={`${id}-title`}
             className={cn(
-              "text-sm font-semibold",
+              "text-base font-semibold",
               danger ? "text-[var(--high-text)]" : "text-foreground"
             )}
           >
             {title}
-          </div>
-          <div className="mt-0.5 text-[11px] text-muted-foreground">
+          </h2>
+          <div className="mt-0.5 text-xs text-muted-foreground">
             {subtitle}
           </div>
         </div>
       </div>
-      <div className="flex flex-col gap-4 px-5 py-4">{children}</div>
-    </div>
+      <div className="flex flex-col gap-6 px-5 py-6 sm:px-6">{children}</div>
+    </section>
   )
 }
 
@@ -66,19 +68,21 @@ export function FieldRow({
   hint,
   children,
   horizontal,
+  htmlFor,
 }: {
   label: string
   hint?: string
   children: React.ReactNode
   horizontal?: boolean
+  htmlFor?: string
 }) {
   if (horizontal) {
     return (
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-start justify-between gap-4">
         <div className="flex flex-col">
-          <span className="text-xs font-medium text-foreground">{label}</span>
+          {htmlFor ? <label htmlFor={htmlFor} className="text-sm font-medium text-foreground">{label}</label> : <span className="text-sm font-medium text-foreground">{label}</span>}
           {hint && (
-            <span className="mt-0.5 text-[11px] text-muted-foreground">
+            <span className="mt-0.5 text-xs text-muted-foreground">
               {hint}
             </span>
           )}
@@ -90,10 +94,10 @@ export function FieldRow({
 
   return (
     <div className="flex flex-col gap-2">
-      <label className="text-xs font-medium text-foreground">{label}</label>
+      {htmlFor ? <label htmlFor={htmlFor} className="text-sm font-medium text-foreground">{label}</label> : <span className="text-sm font-medium text-foreground">{label}</span>}
       {children}
       {hint && (
-        <span className="text-[11px] text-muted-foreground">{hint}</span>
+        <span className="text-xs text-muted-foreground">{hint}</span>
       )}
     </div>
   )

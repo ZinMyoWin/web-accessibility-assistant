@@ -265,13 +265,13 @@ function IssuesPageContent() {
     : "Select a saved scan to inspect its issues."
 
   return (
-    <div className="flex h-screen min-h-0 flex-col overflow-hidden">
-      <header className="shrink-0 flex items-center justify-between gap-3 border-b border-border bg-card px-5 py-3.5">
-        <div>
-          <h1 className="text-base font-medium text-foreground">Issues</h1>
-          <p className="mt-0.5 text-xs text-muted-foreground">{headerSubtitle}</p>
+    <div className="mx-auto flex max-w-[1500px] flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+      <header className="flex flex-col justify-between gap-5 xl:flex-row xl:items-end">
+        <div className="min-w-0">
+          <h1 className="text-[28px] font-bold tracking-tight sm:text-[32px]">Issues</h1>
+          <p className="mt-2 break-all text-sm leading-relaxed text-muted-foreground">{headerSubtitle}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-3">
           <Select
             value={activeScanId ?? ""}
             onValueChange={(value) => {
@@ -282,7 +282,8 @@ function IssuesPageContent() {
           >
             <SelectTrigger
               size="sm"
-              className="h-8 min-w-44 border bg-muted text-xs shadow-none"
+              aria-label="Saved scan"
+              className="h-11 w-full min-w-0 border bg-card text-sm shadow-none sm:w-[270px]"
             >
               <SelectValue placeholder="Select a scan" />
             </SelectTrigger>
@@ -294,22 +295,10 @@ function IssuesPageContent() {
               ))}
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" className="gap-1.5 text-xs" disabled>
-            <svg className="size-3.5" viewBox="0 0 16 16" fill="none">
-              <path
-                d="M3 10v3h10v-3M8 2v8M5 7l3 3 3-3"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            Export
-          </Button>
           <Button
             variant="default"
             size="sm"
-            className="gap-1.5 text-xs"
+            className="h-11 gap-2 text-sm"
             disabled={!activeScanId}
             onClick={() => activeScanId && router.push(`/reports?scanId=${activeScanId}`)}
           >
@@ -318,8 +307,8 @@ function IssuesPageContent() {
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[1fr_var(--width-detail-panel)]">
-        <div className="flex min-h-0 flex-col overflow-hidden border-r border-border">
+      <div className="grid min-h-[620px] grid-cols-1 overflow-hidden rounded-2xl border border-border bg-card lg:h-[calc(100dvh-220px)] lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px]">
+        <div className="flex min-h-0 min-w-0 flex-col overflow-hidden lg:border-r lg:border-border">
           <IssueFilterBar
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
@@ -338,7 +327,7 @@ function IssuesPageContent() {
           <IssueCountBar total={filteredIssues.length} counts={counts} />
 
           {error ? (
-            <div className="m-3 rounded-md border border-red-600/20 bg-[var(--high-bg)] px-4 py-3 text-[13px] text-[var(--high-text)]">
+            <div role="alert" className="m-4 rounded-xl border border-red-600/20 bg-[var(--high-bg)] px-4 py-4 text-sm text-[var(--high-text)]">
               {error}
             </div>
           ) : loadingScans || loadingIssues ? (
@@ -359,7 +348,7 @@ function IssuesPageContent() {
           )}
         </div>
 
-        <div className="hidden min-h-0 md:flex md:flex-col md:overflow-hidden">
+        <div className="hidden min-h-0 bg-background/35 lg:flex lg:flex-col lg:overflow-hidden">
           <IssueDetailPanel issue={selectedIssue} />
         </div>
       </div>

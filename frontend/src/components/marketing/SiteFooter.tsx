@@ -12,19 +12,18 @@ const footerGroups = [
     ],
   },
   {
-    title: "Company",
+    title: "Explore",
     links: [
       { href: "/about", label: "About" },
-      { href: "#", label: "Contact" },
-      { href: "#", label: "Accessibility statement" },
+      { href: "/#how", label: "The audit workflow" },
     ],
   },
   {
-    title: "Legal",
+    title: "Your workspace",
     links: [
-      { href: "#", label: "Privacy policy" },
-      { href: "#", label: "Terms of service" },
-      { href: "#", label: "Cookie policy" },
+      { href: "/dashboard", label: "Run an audit" },
+      { href: "/scan-history", label: "Scan history" },
+      { href: "/reports", label: "Reports" },
     ],
   },
 ]
@@ -44,7 +43,7 @@ export function SiteFooter() {
             >
               <MarketingLogo />
             </Link>
-            <p className="mt-sp4 max-w-xs text-caption leading-relaxed text-text-muted">
+            <p className="mt-5 max-w-xs text-sm leading-7 text-text-muted">
               Automated web accessibility audits with AI-guided repair
               suggestions, checked against WCAG 2.2.
             </p>
@@ -52,7 +51,7 @@ export function SiteFooter() {
 
           {footerGroups.map((group) => (
             <div key={group.title}>
-              <h2 className="mb-sp4 text-caption font-semibold uppercase tracking-widest text-text-muted">
+              <h2 className="mb-4 text-sm font-semibold text-foreground">
                 {group.title}
               </h2>
               <ul className="flex flex-col">
@@ -60,7 +59,7 @@ export function SiteFooter() {
                   <li key={link.label}>
                     <Link
                       href={link.href}
-                      className="block py-sp2 text-label font-medium text-text-pri transition-colors hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      className="block w-fit rounded-sm py-2.5 text-sm text-muted-foreground transition-colors hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     >
                       {link.label}
                     </Link>

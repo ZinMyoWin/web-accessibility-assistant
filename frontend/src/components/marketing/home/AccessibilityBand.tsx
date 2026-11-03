@@ -1,48 +1,22 @@
-import { Check, CheckCircle } from "lucide-react"
-import { Reveal } from "@/components/marketing/Reveal"
-
-const badges = [
-  "Keyboard navigable",
-  "ARIA-conformant",
-  "Reduced-motion aware",
-]
+import { Keyboard, MoveRight } from "lucide-react"
 
 export function AccessibilityBand() {
   return (
-    <section className="marketing-section-pad bg-surface-0" id="about">
+    <section className="marketing-section-pad">
       <div className="marketing-wrap">
-        <Reveal className="marketing-band-card marketing-band-grid items-center gap-sp10 rounded-2xl bg-gradient-to-br from-brand-900 to-brand-700 p-sp8 text-center md:p-sp16 md:text-left">
-          <div className="relative z-10">
-            <span className="text-caption font-semibold uppercase tracking-widest text-brand-300">
-              Built accessible
-            </span>
-            <h2 className="mt-sp3 text-2xl font-bold tracking-tight text-primary-foreground md:text-band">
-              An accessibility tool that holds itself to the standard
-            </h2>
-            <p className="mt-sp4 max-w-xl text-base leading-relaxed text-primary-foreground/80">
-              AccessAudit is built on accessible component foundations with full
-              keyboard and screen-reader support. The product is designed to
-              pass the same WCAG 2.2 checks it runs on everyone else.
-            </p>
-            <div className="mt-sp6 flex flex-wrap gap-sp3 max-md:justify-center">
-              {badges.map((badge) => (
-                <span
-                  key={badge}
-                  className="inline-flex items-center gap-sp2 rounded-full border border-primary-foreground/20 bg-primary-foreground/10 px-sp3 py-sp2 text-caption font-medium leading-none text-primary-foreground"
-                >
-                  <Check aria-hidden="true" className="size-3 text-brand-300" />
-                  {badge}
-                </span>
-              ))}
-            </div>
+        <div className="grid gap-10 rounded-[24px] bg-[#e7f2ed] p-7 sm:p-12 lg:grid-cols-[1.3fr_.7fr] lg:items-center lg:p-16">
+          <div>
+            <h2 className="marketing-heading max-w-2xl">Accessibility belongs in the everyday.</h2>
+            <p className="mt-5 max-w-xl text-base leading-7 text-[#425f51]">A clear label. A visible focus ring. A description that makes an image meaningful. Small details can open up a whole experience.</p>
+            <p className="mt-4 max-w-xl text-sm leading-7 text-[#425f51]">Automated checks are a starting point. Pair the findings with keyboard, screen-reader, and real-user testing for a fuller picture.</p>
           </div>
-
-          <div className="relative z-10 mx-auto flex size-40 items-center justify-center rounded-full border-2 border-dashed border-primary-foreground/30">
-            <div className="flex size-28 items-center justify-center rounded-lg bg-brand-500 text-primary-foreground shadow-float">
-              <CheckCircle aria-hidden="true" className="size-14" />
-            </div>
+          <div className="rounded-2xl bg-white p-6" aria-label="Example of a keyboard focus indicator">
+            <Keyboard className="mb-6 size-7 text-[#236345]" aria-hidden="true" strokeWidth={1.5} />
+            <div className="rounded-lg border border-border p-3 text-sm text-muted-foreground">Move through the page</div>
+            <div className="mt-4 flex items-center justify-between rounded-lg bg-brand-500 p-3 text-sm font-medium text-white outline-2 outline-offset-4 outline-brand-500">Know where you are <MoveRight className="size-4" aria-hidden="true" /></div>
+            <p className="mt-6 text-caption text-muted-foreground"><kbd className="rounded border border-border bg-surface-1 px-2 py-1 font-sans">Tab</kbd><span className="ml-2">A visible path, one step at a time.</span></p>
           </div>
-        </Reveal>
+        </div>
       </div>
     </section>
   )

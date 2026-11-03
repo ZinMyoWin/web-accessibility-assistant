@@ -4,7 +4,6 @@ import { useId, useState, type ReactNode } from "react"
 import { Eye, EyeOff } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { cn } from "@/lib/utils"
 
 type PasswordFieldProps = {
   label: string
@@ -56,16 +55,15 @@ export function PasswordField({
           aria-required={required || undefined}
           aria-describedby={describedBy}
           disabled={disabled}
-          className={cn(
-            "h-11 bg-surface-1 pr-11 text-body focus-visible:bg-surface-0"
-          )}
+          className="h-12 bg-surface-0 pr-12 text-base"
         />
         <button
           type="button"
           onClick={() => setVisible((prev) => !prev)}
           aria-label={visible ? "Hide password" : "Show password"}
+          aria-pressed={visible}
           disabled={disabled}
-          className="absolute right-1.5 top-1/2 flex -translate-y-1/2 rounded-sm p-1.5 text-muted-foreground transition-colors hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+          className="absolute right-0.5 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center rounded-[10px] text-muted-foreground transition-colors hover:bg-brand-50 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:pointer-events-none disabled:opacity-50"
         >
           <ToggleIcon className="size-4" aria-hidden="true" />
         </button>

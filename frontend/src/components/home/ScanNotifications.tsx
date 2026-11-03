@@ -70,21 +70,21 @@ export function ScanNotifications({
             key={notification.kind}
             data-testid={`scan-notification-${notification.kind}`}
             className={cn(
-              "flex items-start gap-3 rounded-[var(--radius)] border-[0.5px] px-4 py-3",
+              "flex items-start gap-3 rounded-xl border px-5 py-4",
               container,
               animate && "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1"
             )}
           >
             <Icon className={cn("mt-0.5 size-4 shrink-0", icon)} aria-hidden="true" />
             <div className="min-w-0 flex-1">
-              <div className="text-xs font-semibold">{notification.title}</div>
-              <div className="mt-0.5 text-[11px] leading-relaxed opacity-90">
+              <div className="text-sm font-semibold">{notification.title}</div>
+              <div className="mt-1 text-sm leading-relaxed">
                 {notification.body}
               </div>
             </div>
             <button
               type="button"
-              className="rounded-sm p-1 opacity-70 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex size-8 shrink-0 items-center justify-center rounded-lg opacity-70 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               aria-label="Dismiss notification"
               data-testid="dismiss-scan-notification"
               onClick={() => onDismiss(notification.kind)}

@@ -2,7 +2,6 @@
 
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge, type BadgeVariant } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import type { IssueListItem } from "@/lib/saved-scans"
 
 interface IssueDetailPanelProps {
@@ -33,7 +32,7 @@ export function IssueDetailPanel({ issue }: IssueDetailPanelProps) {
 
   return (
     <ScrollArea className="h-full min-h-0">
-      <div className="flex flex-col gap-4 p-5">
+      <div className="flex flex-col gap-6 p-5 sm:p-6">
         {/* Header */}
         <div className="flex items-start gap-2.5">
           <Badge
@@ -42,7 +41,7 @@ export function IssueDetailPanel({ issue }: IssueDetailPanelProps) {
           >
             {issue.severity}
           </Badge>
-          <h2 className="text-sm font-medium leading-snug text-foreground">
+          <h2 className="text-base font-semibold leading-relaxed text-foreground">
             {issue.title}
           </h2>
         </div>
@@ -51,7 +50,7 @@ export function IssueDetailPanel({ issue }: IssueDetailPanelProps) {
         <section>
           <SectionLabel>Why it matters</SectionLabel>
           <div className="rounded-lg bg-muted p-3">
-            <p className="text-xs leading-relaxed text-foreground/80">
+            <p className="text-sm leading-relaxed text-muted-foreground">
               {issue.impact}
             </p>
           </div>
@@ -101,11 +100,11 @@ export function IssueDetailPanel({ issue }: IssueDetailPanelProps) {
           <SectionLabel>Find this on the page</SectionLabel>
           <div className="rounded-lg bg-muted p-3">
             <div className="mb-3 rounded-md border border-border bg-card p-3">
-              <p className="text-xs leading-relaxed text-foreground/80">
+              <p className="text-sm leading-relaxed text-muted-foreground">
                 {issue.finderHint}
               </p>
               <a
-                className="mt-2 inline-flex text-xs font-medium text-primary underline underline-offset-2"
+                className="mt-3 inline-flex text-sm font-semibold text-primary underline underline-offset-4"
                 href={issue.pageUrl}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -145,19 +144,14 @@ export function IssueDetailPanel({ issue }: IssueDetailPanelProps) {
             {issue.pages.map((page) => (
               <div
                 key={page}
-                className="flex items-center gap-2 rounded-md bg-muted px-2 py-1.5 text-xs text-foreground/80"
+                className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground"
               >
-                <span className="size-1.5 shrink-0 rounded-full bg-primary" />
-                <span>{page}</span>
+                <span className="break-all">{page}</span>
               </div>
             ))}
           </div>
         </section>
 
-        {/* Action */}
-        <Button className="mt-1 w-full" disabled>
-          Mark as resolved
-        </Button>
       </div>
     </ScrollArea>
   )
@@ -165,7 +159,7 @@ export function IssueDetailPanel({ issue }: IssueDetailPanelProps) {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="mb-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+    <h3 className="mb-3 text-sm font-semibold text-foreground">
       {children}
     </h3>
   )
@@ -179,10 +173,10 @@ interface WcagRowProps {
 
 function WcagRow({ label, value, mono }: WcagRowProps) {
   return (
-    <div className="flex items-center justify-between border-b border-border py-1.5 text-xs last:border-b-0">
-      <span className="text-muted-foreground">{label}</span>
+    <div className="flex flex-col gap-1.5 border-b border-border py-2.5 text-sm last:border-b-0">
+      <span className="text-xs text-muted-foreground">{label}</span>
       <span
-        className={`font-medium text-foreground ${mono ? "font-mono text-[11px]" : ""}`}
+        className={`break-all font-medium leading-relaxed text-foreground ${mono ? "font-mono text-xs" : ""}`}
       >
         {value}
       </span>

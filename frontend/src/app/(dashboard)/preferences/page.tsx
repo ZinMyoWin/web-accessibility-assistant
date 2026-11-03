@@ -61,26 +61,22 @@ export default function PreferencesPage() {
 
   if (isLoading || !draft) {
     return (
-      <div className="flex h-full items-center justify-center">
+      <div className="flex min-h-[360px] items-center justify-center px-4">
         <p className="text-sm text-muted-foreground">Loading preferences...</p>
       </div>
     )
   }
 
   return (
-    <div className="flex h-screen min-h-0 flex-col overflow-hidden">
-      {/* Topbar */}
-      <header className="flex shrink-0 items-center gap-3 border-b border-border bg-card px-6 py-3 pl-14 md:pl-6">
-        <h1 className="text-sm font-semibold text-foreground">Preferences</h1>
+    <div className="min-w-0 space-y-7 px-4 py-7 sm:px-6 lg:px-8 lg:py-9">
+      <header>
+        <h1 className="text-[28px] font-semibold tracking-tight text-foreground sm:text-[32px]">Preferences</h1>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Set up your scan defaults, repair suggestions, and workspace preferences.</p>
       </header>
-
-      <div className="flex min-h-0 flex-1 overflow-hidden">
-        {/* Side nav */}
+      <div className="grid min-w-0 items-start gap-6 xl:grid-cols-[200px_minmax(0,1fr)]">
         <PreferencesNav activeSection={activeSection} onSectionClick={scrollToSection} />
-
-        {/* Settings body */}
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <div className="mx-auto flex w-full max-w-[680px] flex-col gap-5 p-6">
+        <div className="min-w-0 max-w-[860px] space-y-6">
+          <div className="flex min-w-0 flex-col gap-6">
             <AiProviderSection draft={draft} updateDraft={updateDraft} />
             <CrawlDefaultsSection draft={draft} updateDraft={updateDraft} />
             <WcagStandardSection draft={draft} updateDraft={updateDraft} />
@@ -104,11 +100,13 @@ export default function PreferencesPage() {
 
       {/* Toast */}
       <div
-        className={`fixed bottom-6 right-6 z-[200] flex items-center gap-2 rounded-md bg-[#04342C] px-4 py-3 text-xs font-medium text-white shadow-lg transition-all duration-250 ${
+        role="status"
+        aria-live="polite"
+        className={`fixed bottom-6 left-4 right-4 sm:left-auto sm:right-6 z-[200] flex items-center gap-2 rounded-[10px] bg-foreground px-4 py-3 text-sm font-medium text-white shadow-lg transition-all duration-250 ${
           toast ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-2 opacity-0"
         }`}
       >
-        <svg viewBox="0 0 16 16" fill="none" stroke="#5DCAA5" strokeWidth="2" className="size-3.5">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" className="size-3.5">
           <path d="M3 8l4 4 6-7" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
         {toast}

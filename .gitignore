@@ -45,3 +45,6 @@ frontend/playwright-report/
 frontend/playwright-results/
 playwright-report/
 playwright-results/
+output/playwright/
+.playwright-mcp/
+frontend/tsconfig.tsbuildinfo

@@ -51,26 +51,24 @@ interface PreferencesNavProps {
 
 export function PreferencesNav({ activeSection, onSectionClick }: PreferencesNavProps) {
   return (
-    <div className="hidden h-full w-56 shrink-0 border-r border-border/70 bg-background p-6 md:block">
-      <div className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-        Preferences
-      </div>
+    <nav aria-label="Preference sections" className="flex flex-wrap gap-2 xl:sticky xl:top-6 xl:flex-col">
       {sections.map((section) => (
         <button
           key={section.id}
+          aria-current={activeSection === section.id ? "location" : undefined}
           onClick={() => onSectionClick(section.id)}
           className={cn(
-            "mb-0.5 flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs font-medium transition-colors",
+            "flex items-center gap-2 rounded-[10px] px-3 py-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
             activeSection === section.id
-              ? "bg-card text-accent-foreground"
-              : "text-muted-foreground hover:bg-card hover:text-foreground",
-            section.id === "sec-danger" && "mt-3 text-[var(--high-text)]"
+              ? "bg-secondary text-primary"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground",
+            section.id === "sec-danger" && "text-[var(--high-text)]"
           )}
         >
           {icons[section.icon]}
           {section.label}
         </button>
       ))}
-    </div>
+    </nav>
   )
 }

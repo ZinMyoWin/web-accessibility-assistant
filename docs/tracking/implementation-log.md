@@ -19,6 +19,59 @@ This document is meant to support:
 - testing evidence
 - supervisor updates
 
+## 2026-11-03 - Complete AccessAudit Interface Redesign
+
+### What
+
+Redesigned all 12 public/account/workspace routes using a shared semantic palette,
+Manrope typography, accessible control foundations and responsive page layouts.
+The public home/about pages now use a product-led finding/repair preview and open
+editorial layouts. Canonical auth pages and `/signup` share AuthShell and the same
+MarketingLogo as the workspace.
+
+Workspace navigation and mobile issue inspection now use Radix dialogs with
+Escape, focus containment and return. History rows provide real links and compare
+checkboxes. Reports use responsive natural flow and keep page findings in print.
+Preferences have associated labels, selected-state announcements and readable
+descriptions. Nonfunctional placeholder actions and the local-only WCAG-display
+toggle were removed. No backend, auth, scan hook, API mapping or dependency changes.
+
+### Why
+
+The old interface combined dense small type, low-contrast descriptions, repeated
+gradient/card treatments and inconsistent auth layouts. Mobile issue details were
+unavailable; history rows required a pointer; the mobile sidebar lacked keyboard
+focus management. The redesign addresses those usability issues while retaining
+working scan, queue, report, AI guidance, export and preference-save behavior.
+
+### Files
+
+- `frontend/src/app/globals.css` and root/route-group layouts
+- Public, auth, dashboard, home, issues, history, report, preference and UI components
+- Auth/navigation/disclosure/history/provider component regression tests
+- `frontend/e2e/redesign.spec.ts`
+- `docs/design/2026-11-03-accessaudit-redesign.md`, README, architecture and checklist
+
+### How verified
+
+- `npm run build`: passed; all routes compiled and generated.
+- `npx.cmd tsc --noEmit --incremental false`: passed.
+- `npm test`: 17 files / 55 tests passed.
+- Complete Playwright suite on production preview: 16 tests passed.
+- All 12 routes checked at 320, 375, 768, 1024 and 1440px: no horizontal overflow;
+  no automated WCAG A/AA violations from the vendored axe engine.
+- Desktop/mobile/tablet, inspector and print screenshots reviewed; generated
+  evidence retained locally in ignored `output/playwright/`.
+- Subagent source/accessibility review; action, muted-copy, control-boundary and
+  score-text contrast corrections integrated.
+
+### Remaining verification limits
+
+Real provider-backed scans, external Google OAuth and backend persistence were
+not re-run; browser tests use deterministic API fixtures. Manual screen-reader
+and real-device cross-browser testing remain separate. Existing legal placeholder
+links and globally unapplied theme/high-contrast/density preferences remain.
+
 ## 2026-06-18 - Junior Developer Documentation Refresh
 
 ### Completed work

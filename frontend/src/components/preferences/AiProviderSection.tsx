@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import {
@@ -36,9 +35,7 @@ interface AiProviderSectionProps {
 }
 
 export function AiProviderSection({ draft, updateDraft }: AiProviderSectionProps) {
-  const [activeProvider, setActiveProvider] = useState<Provider>(
-    (draft.ai_provider as Provider) || "openai"
-  )
+  const activeProvider = (draft.ai_provider as Provider) || "openai"
 
   const connectedProvider = draft.active_suggestion_provider as Provider
 
@@ -47,32 +44,32 @@ export function AiProviderSection({ draft, updateDraft }: AiProviderSectionProps
       id="sec-ai"
       title="AI Provider"
       subtitle="API keys and model selection for repair suggestions"
-      iconClass="bg-[#F3F0FF] text-[#6D28D9]"
+      iconClass="bg-secondary text-primary"
       icon={
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-[15px]">
           <path d="M3 8a5 5 0 0110 0M8 3v1M8 12v1M12.2 5.2l-.7.7M4.5 10.5l-.7.7M13 8h-1M4 8H3" strokeLinecap="round" />
         </svg>
       }
     >
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {providers.map((p) => (
           <button
             key={p}
+            aria-pressed={activeProvider === p}
             onClick={() => {
-              setActiveProvider(p)
               updateDraft({ ai_provider: p, ai_model: providerModels[p][0] })
             }}
             className={cn(
-              "flex items-center gap-2 rounded-md border-[0.5px] px-3 py-2 text-xs font-medium transition-all",
+              "flex items-center gap-2 rounded-[10px] border px-3 py-2 text-sm font-medium transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
               activeProvider === p
-                ? "border-primary bg-card text-accent-foreground shadow-[0_0_0_2px_rgba(29,158,117,0.08)]"
+                ? "border-primary bg-secondary text-primary ring-2 ring-primary/10"
                 : "border-input bg-muted text-muted-foreground hover:border-primary/50 hover:text-accent-foreground"
             )}
           >
             <span className={cn("size-[7px] rounded-full", activeProvider === p ? "bg-primary" : "bg-input")} />
             {providerLabels[p]}
             {connectedProvider === p && (
-              <span className="rounded-full bg-secondary px-1.5 py-px text-[10px] font-medium text-accent-foreground">
+              <span className="rounded-full bg-secondary px-1.5 py-px text-sm font-medium text-accent-foreground">
                 Connected
               </span>
             )}
@@ -83,13 +80,14 @@ export function AiProviderSection({ draft, updateDraft }: AiProviderSectionProps
       {providers.map((p) =>
         activeProvider !== p ? null : (
           <div key={p} className="flex flex-col gap-4">
-            <FieldRow label="API Key">
+            <FieldRow label="API Key" htmlFor="preference-api-key">
               <div className="relative flex items-center">
                 <Input
+                  id="preference-api-key"
                   type="password"
                   value={draft.api_key ?? ""}
                   placeholder={draft.has_api_key ? "API key stored. Enter a new key to replace." : "Enter API key"}
-                  className="h-9 pr-20 font-mono text-xs"
+                  className="h-11 pr-20 text-sm"
                   onChange={(e) =>
                     updateDraft({ api_key: e.target.value, clear_api_key: false })
                   }
@@ -98,7 +96,7 @@ export function AiProviderSection({ draft, updateDraft }: AiProviderSectionProps
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-6 gap-1 px-2 text-[10px]"
+                    className="h-8 gap-1 px-2 text-xs"
                     onClick={() => updateDraft({ api_key: "", clear_api_key: true })}
                   >
                     Clear
@@ -106,7 +104,7 @@ export function AiProviderSection({ draft, updateDraft }: AiProviderSectionProps
                 </div>
               </div>
               <div className={cn(
-                "flex items-center gap-2 rounded-md px-3 py-2.5 text-[11px]",
+                "flex items-center gap-2 rounded-[10px] px-3 py-2.5 text-xs",
                 draft.has_api_key || draft.api_key
                   ? "bg-secondary text-accent-foreground"
                   : "bg-muted text-muted-foreground"
@@ -116,9 +114,9 @@ export function AiProviderSection({ draft, updateDraft }: AiProviderSectionProps
               </div>
             </FieldRow>
 
-            <FieldRow label="Model" hint="Used for repair suggestion generation and natural language explanations.">
+            <FieldRow label="Model" htmlFor="preference-model" hint="Used for repair suggestion generation and natural language explanations.">
               <Select value={draft.ai_model} onValueChange={(val) => updateDraft({ ai_model: val })}>
-                <SelectTrigger className="h-9 border-input bg-muted text-xs">
+                <SelectTrigger id="preference-model" className="h-11 border-input bg-background text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -134,9 +132,9 @@ export function AiProviderSection({ draft, updateDraft }: AiProviderSectionProps
 
       <div className="h-px bg-border" />
 
-      <FieldRow label="Active provider for suggestions" hint="Which provider is used when generating repair suggestions" horizontal>
+      <FieldRow label="Active provider for suggestions" htmlFor="active-suggestion-provider" hint="Which provider is used when generating repair suggestions">
         <Select value={draft.active_suggestion_provider} onValueChange={(val) => updateDraft({ active_suggestion_provider: val })}>
-          <SelectTrigger className="h-9 w-40 border-input bg-muted text-xs">
+          <SelectTrigger id="active-suggestion-provider" className="h-11 w-full border-input bg-background text-sm">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -149,6 +147,7 @@ export function AiProviderSection({ draft, updateDraft }: AiProviderSectionProps
 
       <FieldRow label="Generate suggestions automatically" hint="Run AI suggestions immediately after each scan completes" horizontal>
         <Switch
+          aria-label="Generate suggestions automatically"
           checked={draft.auto_generate_suggestions}
           onCheckedChange={(val) => updateDraft({ auto_generate_suggestions: val })}
         />

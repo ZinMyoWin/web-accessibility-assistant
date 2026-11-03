@@ -20,6 +20,8 @@ describe("PagesTab", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /https:\/\/example.com\/about/ }))
 
+    expect(screen.getByRole("button", { name: /https:\/\/example.com\/about/ })).toHaveAttribute("aria-pressed", "true")
+    expect(screen.getByRole("button", { name: /https:\/\/example.com\/contact/ })).toHaveAttribute("aria-pressed", "false")
     expect(screen.getAllByText("Skipped").length).toBeGreaterThan(0)
     expect(screen.getByText("Skipped by crawl memory")).toBeInTheDocument()
     expect(

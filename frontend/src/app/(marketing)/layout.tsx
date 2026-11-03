@@ -8,6 +8,7 @@ export default function MarketingLayout({
 }) {
   return (
     <>
+      <a href="#main-content" className="skip-link">Skip to content</a>
       <SiteHeader />
       {children}
       <SiteFooter />

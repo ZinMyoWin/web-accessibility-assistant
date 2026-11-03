@@ -78,6 +78,15 @@ Update this checklist whenever a feature is added, removed, or materially change
 
 ## Frontend
 
+- [x] Unified visual system across marketing, account and workspace routes
+- [x] Responsive public home/about and shared account layout, including `/signup`
+- [x] Mobile workspace navigation with Escape, focus containment and focus return
+- [x] Mobile issue inspector with full detail content and focus restoration
+- [x] Keyboard-accessible history links, comparison checkboxes and report actions
+- [x] Explicit preference field labels and selected-state announcements
+- [x] Global operating-system reduced-motion support and visible keyboard focus
+- [x] Browser regression coverage for all routes at mobile, tablet and desktop widths
+
 - [x] Next.js frontend scaffold
 - [x] `src/`-based frontend source structure
 - [x] Shared root layout in `src/app/layout.tsx`
@@ -138,7 +147,7 @@ Update this checklist whenever a feature is added, removed, or materially change
 - [x] In-app terminal scan notifications (complete, failed, high severity, low score, cancelled)
 - [x] Preferences notification threshold/severity settings wired to backend fields
 - [x] Preferences expose current DeepSeek model choices for repair suggestions
-- [x] Automated frontend Vitest suite for scan-state, queue, saved-scan, report, AI-suggestion, notification, cancel, export, and lightweight-polling paths (42 tests)
+- [x] Automated frontend Vitest suite for scan-state, queue, saved-scan, report, AI-suggestion, notification, cancel, export, lightweight polling, and accessible navigation/forms (55 tests)
 - [x] Minimal frontend smoke check via TypeScript gate
 
 ## AI / Intelligent Analysis

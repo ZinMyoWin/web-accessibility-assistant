@@ -63,10 +63,10 @@ function LoginForm() {
   return (
     <section className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight text-foreground">
+        <h1 className="text-[30px] font-semibold leading-tight tracking-[-0.035em] text-foreground">
           Welcome back
-        </h2>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+        </h1>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">
           Log in to run scans and view your reports.
         </p>
       </div>
@@ -75,7 +75,7 @@ function LoginForm() {
         <GoogleButton label="Continue with Google" onError={setError} />
       </div>
 
-      <div className="my-6 flex items-center gap-3">
+      <div className="my-6 flex items-center gap-4">
         <span className="h-px flex-1 bg-border-soft" />
         <span className="text-caption text-muted-foreground">or</span>
         <span className="h-px flex-1 bg-border-soft" />
@@ -101,7 +101,7 @@ function LoginForm() {
             required
             aria-required="true"
             disabled={submitting}
-            className="h-11 bg-surface-1 text-body focus-visible:bg-surface-0"
+            className="h-12 bg-surface-0 text-base"
           />
         </div>
 
@@ -118,7 +118,7 @@ function LoginForm() {
         <div className="mb-6 flex items-center justify-between">
           <Label
             htmlFor={rememberId}
-            className="gap-2 text-caption font-normal text-muted-foreground"
+            className="gap-2 text-sm font-normal text-muted-foreground"
           >
             <Checkbox
               id={rememberId}
@@ -130,13 +130,13 @@ function LoginForm() {
           </Label>
           <Link
             href="/forgot-password"
-            className="text-label font-medium text-brand-700 hover:underline"
+            className="rounded-sm text-sm font-semibold text-brand-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-4"
           >
             Forgot password?
           </Link>
         </div>
 
-        <Button type="submit" disabled={submitting} className="h-11 w-full gap-2">
+        <Button type="submit" disabled={submitting} className="h-12 w-full gap-2">
           {submitting ? (
             <>
               <Loader2 className="size-4 animate-spin" aria-hidden="true" />
@@ -151,11 +151,11 @@ function LoginForm() {
         </Button>
       </form>
 
-      <p className="mt-6 text-center text-caption text-muted-foreground">
+      <p className="mt-7 text-center text-sm text-muted-foreground">
         Don&apos;t have an account?{" "}
         <Link
           href="/register"
-          className="font-semibold text-brand-700 hover:underline"
+          className="rounded-sm font-semibold text-brand-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-4"
         >
           Sign up free
         </Link>

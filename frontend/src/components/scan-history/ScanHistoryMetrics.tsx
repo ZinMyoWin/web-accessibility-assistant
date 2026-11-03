@@ -32,51 +32,51 @@ export function ScanHistoryMetrics({ scans }: ScanHistoryMetricsProps) {
 
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      <div className="rounded-md border-[0.5px] border-border bg-card p-4">
-        <div className="text-[11px] font-medium uppercase tracking-[0.04em] text-muted-foreground">
-          Total scans
+      <div className="rounded-[18px] border border-border bg-card p-5 sm:p-6">
+        <div className="text-xs font-medium  text-muted-foreground">
+          Scans on this page
         </div>
-        <div className="mt-1 text-[22px] font-medium leading-tight text-foreground">
+        <div className="mt-1 text-[30px] font-semibold leading-tight text-foreground">
           {totalScans}
         </div>
-        <div className="mt-0.5 text-[11px] text-muted-foreground">
+        <div className="mt-0.5 text-xs text-muted-foreground">
           &uarr; {thisWeekCount} this week
         </div>
       </div>
 
-      <div className="rounded-md border-[0.5px] border-border bg-card p-4">
-        <div className="text-[11px] font-medium uppercase tracking-[0.04em] text-muted-foreground">
+      <div className="rounded-[18px] border border-border bg-card p-5 sm:p-6">
+        <div className="text-xs font-medium  text-muted-foreground">
           Domains scanned
         </div>
-        <div className="mt-1 text-[22px] font-medium leading-tight text-foreground">
+        <div className="mt-1 text-[30px] font-semibold leading-tight text-foreground">
           {domains}
         </div>
-        <div className="mt-0.5 text-[11px] text-muted-foreground">
-          Unique domains
+        <div className="mt-0.5 text-xs text-muted-foreground">
+          In the current results
         </div>
       </div>
 
-      <div className="rounded-md border-[0.5px] border-border bg-card p-4">
-        <div className="text-[11px] font-medium uppercase tracking-[0.04em] text-muted-foreground">
+      <div className="rounded-[18px] border border-border bg-card p-5 sm:p-6">
+        <div className="text-xs font-medium  text-muted-foreground">
           Avg. issues / scan
         </div>
-        <div className="mt-1 text-[22px] font-medium leading-tight text-foreground">
+        <div className="mt-1 text-[30px] font-semibold leading-tight text-foreground">
           {avgIssues}
         </div>
-        <div className="mt-0.5 text-[11px] text-muted-foreground">
+        <div className="mt-0.5 text-xs text-muted-foreground">
           Completed scans only
         </div>
       </div>
 
-      <div className="rounded-md border-[0.5px] border-border bg-card p-4">
-        <div className="text-[11px] font-medium uppercase tracking-[0.04em] text-muted-foreground">
+      <div className="rounded-[18px] border border-border bg-card p-5 sm:p-6">
+        <div className="text-xs font-medium  text-muted-foreground">
           Pages analysed
         </div>
-        <div className="mt-1 text-[22px] font-medium leading-tight text-foreground">
+        <div className="mt-1 text-[30px] font-semibold leading-tight text-foreground">
           {totalPages}
         </div>
-        <div className="mt-0.5 text-[11px] text-muted-foreground">
-          Across all scans
+        <div className="mt-0.5 text-xs text-muted-foreground">
+          Across this page of scans
         </div>
       </div>
     </div>

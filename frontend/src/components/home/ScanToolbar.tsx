@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { ArrowRight, Globe2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -42,19 +43,29 @@ export function ScanToolbar({
   }, [canCancel])
 
   return (
-    <header className="flex flex-wrap items-center gap-2.5 border-b-[0.5px] border-border bg-card px-4 py-2.5 pl-14 md:px-6 md:py-3 md:pl-6">
+    <section aria-labelledby="new-scan-heading" className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+      <div className="mb-5 flex items-start gap-3">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-primary"><Globe2 className="size-5" aria-hidden="true" /></span>
+        <div><h2 id="new-scan-heading" className="text-lg font-semibold tracking-tight">Start an accessibility scan</h2><p className="mt-1 text-sm leading-relaxed text-muted-foreground">Enter a website URL to find barriers and get practical guidance.</p></div>
+      </div>
+      <div className="flex flex-wrap items-end gap-3">
+      <div className="min-w-0 basis-full sm:basis-0 sm:flex-1">
+      <label htmlFor="scan-website-url" className="mb-2 block text-sm font-medium">Website URL</label>
       <input
-        className="h-9 flex-1 rounded-[var(--radius)] border-[0.5px] border-input bg-muted px-3 text-sm text-foreground outline-none transition-[border-color,box-shadow] duration-150 focus:border-primary focus:shadow-[0_0_0_2px_rgba(29,158,117,0.2)]"
+        id="scan-website-url"
+        className="h-12 w-full min-w-0 rounded-lg border border-input bg-background/60 px-4 text-sm text-foreground outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20"
         type="url"
         placeholder="https://example.com"
         value={url}
         onChange={(event) => onUrlChange(event.target.value)}
         onKeyDown={(event) => event.key === "Enter" && onScan()}
       />
-      <div className="hidden shrink-0 md:block">
+      </div>
+      <div className="min-w-0 flex-1 sm:max-w-[210px]">
+        <span className="mb-2 block text-sm font-medium" aria-hidden="true">Scan mode</span>
         <Select value={scanMode} onValueChange={onScanModeChange}>
           <SelectTrigger
-            className="min-w-[164px] border-[0.5px] bg-muted p-1 shadow-none hover:bg-white focus-visible:ring-2 focus-visible:ring-ring/20"
+            className="h-12 w-full border-input bg-background/60 text-sm shadow-none"
             aria-label="Scan mode"
           >
             <SelectValue placeholder="Select scan mode" />
@@ -65,20 +76,21 @@ export function ScanToolbar({
           </SelectContent>
         </Select>
       </div>
-      <button
-        className="inline-flex h-9 items-center justify-center whitespace-nowrap rounded-[var(--radius)] border-[0.5px] border-primary bg-primary px-5 text-sm font-medium text-white transition-[background] duration-150 hover:bg-accent-foreground disabled:cursor-not-allowed disabled:opacity-65"
+      <Button
+        type="button"
+        className="h-12 gap-3 px-6 text-sm"
         onClick={onScan}
         disabled={isScanning || !url.trim()}
       >
-        {isScanning ? "Scanning..." : "Scan"}
-      </button>
+        {isScanning ? "Scanning..." : "Scan"}<ArrowRight className="size-4" aria-hidden="true" />
+      </Button>
 
       {canCancel && !confirmingCancel && (
         <Button
           type="button"
           variant="outline"
           size="sm"
-          className="h-9 border-severity-critical/30 text-xs text-severity-critical-text hover:bg-severity-critical-bg hover:text-severity-critical-text"
+          className="h-12 border-severity-critical/30 text-sm text-severity-critical-text hover:bg-severity-critical-bg hover:text-severity-critical-text"
           data-testid="cancel-scan-button"
           disabled={isCancelling}
           onClick={() => setConfirmingCancel(true)}
@@ -89,11 +101,11 @@ export function ScanToolbar({
 
       {canCancel && confirmingCancel && (
         <div
-          className="flex items-center gap-2 rounded-md border-[0.5px] border-border bg-muted px-3 py-1.5"
+          className="flex w-full flex-wrap items-center gap-3 rounded-lg border border-border bg-muted p-4"
           role="group"
           aria-label="Confirm scan cancellation"
         >
-          <span className="text-xs font-medium text-foreground">Cancel this scan?</span>
+          <span className="text-sm font-medium text-foreground">Cancel this scan?</span>
           <Button
             type="button"
             variant="destructive"
@@ -121,6 +133,7 @@ export function ScanToolbar({
           </Button>
         </div>
       )}
-    </header>
+      </div>
+    </section>
   )
 }

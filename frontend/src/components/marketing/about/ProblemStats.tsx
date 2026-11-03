@@ -1,62 +1,14 @@
-import { Reveal } from "@/components/marketing/Reveal"
-import { SectionHeading } from "@/components/marketing/home/SectionHeading"
-
-// NOTE: These figures are rounded and illustrative for the marketing page.
-// Source-verify each statistic (WHO disability prevalence, WebAIM Million 2025)
-// against the latest published data before a public launch.
-const stats = [
-  {
-    value: "1 in 6",
-    title: "people live with a significant disability",
-    detail:
-      "An estimated 1.3 billion people worldwide, according to the World Health Organization.",
-  },
-  {
-    value: "~96%",
-    title: "of home pages have detectable WCAG failures",
-    detail:
-      "From the WebAIM Million 2025 analysis of the top one million home pages.",
-  },
-  {
-    value: "Legal",
-    title: "accessibility is a duty, not a nicety",
-    detail:
-      "Public-sector bodies and many organisations are required by regulation to meet accessibility standards.",
-  },
+const barriers = [
+  { symbol: "Tab", title: "A page you can move through", detail: "Keyboard users need a logical path, visible focus, and controls they can reach.", color: "bg-brand-50 text-brand-700" },
+  { symbol: "Aa", title: "Content you can read", detail: "Clear contrast and legible text help people understand and use what you’ve built.", color: "bg-[#e7f2ed] text-[#236345]" },
+  { symbol: "alt", title: "Meaning beyond the visual", detail: "Useful labels, image descriptions, and page structure give assistive technology the context it needs.", color: "bg-[#fff3db] text-[#825114]" },
 ]
 
 export function ProblemStats() {
   return (
-    <section className="marketing-section-pad border-y border-border-soft bg-surface-1">
-      <div className="marketing-wrap">
-        <Reveal>
-          <SectionHeading
-            kicker="Why it matters"
-            title="Most of the web still isn't accessible"
-          >
-            Accessibility is a basic part of building for real users, yet the
-            gap between intention and reality stays stubbornly wide.
-          </SectionHeading>
-        </Reveal>
-
-        <div className="grid gap-sp5 md:grid-cols-3">
-          {stats.map((stat) => (
-            <Reveal
-              key={stat.value}
-              className="rounded-lg border border-border-soft bg-surface-0 p-sp8 text-center"
-            >
-              <strong className="block text-4xl font-extrabold tracking-tight text-brand-700">
-                {stat.value}
-              </strong>
-              <div className="mt-sp3 text-sm font-semibold leading-snug text-text-pri">
-                {stat.title}
-              </div>
-              <div className="mt-sp2 text-caption leading-relaxed text-text-muted">
-                {stat.detail}
-              </div>
-            </Reveal>
-          ))}
-        </div>
+    <section className="border-y border-border-soft bg-surface-1 py-14 sm:py-20">
+      <div className="marketing-wrap grid gap-8 md:grid-cols-3 md:gap-12">
+        {barriers.map(barrier => <div key={barrier.symbol}><span className={`inline-flex h-14 min-w-14 items-center justify-center rounded-2xl px-3 text-xl font-semibold ${barrier.color}`} aria-hidden="true">{barrier.symbol}</span><h2 className="mt-6 text-xl font-semibold tracking-tight">{barrier.title}</h2><p className="mt-3 text-sm leading-7 text-muted-foreground">{barrier.detail}</p></div>)}
       </div>
     </section>
   )

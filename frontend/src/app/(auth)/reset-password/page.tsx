@@ -49,10 +49,10 @@ function ResetPasswordForm() {
   return (
     <section className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight text-foreground">
+        <h1 className="text-[30px] font-semibold leading-tight tracking-[-0.035em] text-foreground">
           Choose a new password
-        </h2>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+        </h1>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">
           Set a new password for your AccessAudit account.
         </p>
       </div>
@@ -88,7 +88,7 @@ function ResetPasswordForm() {
             <Button
               type="submit"
               disabled={submitting || done}
-              className="mt-2 h-11 w-full gap-2"
+              className="mt-2 h-12 w-full gap-2"
             >
               {submitting ? (
                 <>
@@ -106,10 +106,10 @@ function ResetPasswordForm() {
         )}
       </div>
 
-      <p className="mt-6 text-center text-caption text-muted-foreground">
+      <p className="mt-7 text-center text-sm text-muted-foreground">
         <Link
           href="/login"
-          className="font-semibold text-brand-700 hover:underline"
+          className="rounded-sm font-semibold text-brand-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-4"
         >
           Back to log in
         </Link>

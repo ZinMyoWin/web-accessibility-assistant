@@ -2,6 +2,8 @@
 
 import { Suspense, useEffect, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { ExportBar } from "@/components/reports/ExportBar"
 import { ReportHeader } from "@/components/reports/ReportHeader"
@@ -18,7 +20,7 @@ import { useAuth } from "@/lib/contexts/AuthContext"
 
 export default function ReportsPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">Loading report...</div>}>
+    <Suspense fallback={<div className="flex min-h-[360px] items-center justify-center px-4 text-sm text-muted-foreground">Loading report...</div>}>
       <ReportsPageContent />
     </Suspense>
   )
@@ -100,7 +102,7 @@ function ReportsPageContent() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
+      <div className="flex min-h-[360px] items-center justify-center px-4 text-sm text-muted-foreground">
         Loading report...
       </div>
     )
@@ -108,8 +110,10 @@ function ReportsPageContent() {
 
   if (error || !report) {
     return (
-      <div className="m-6 rounded-md border border-red-600/20 bg-[var(--high-bg)] px-4 py-3 text-[13px] text-[var(--high-text)]">
-        {error || "Report data is unavailable."}
+      <div className="m-4 rounded-[18px] border border-border bg-card px-6 py-10 sm:m-6 lg:m-8">
+        <h1 className="text-[28px] font-semibold tracking-tight">Your accessibility report</h1>
+        <p role="alert" className="mt-3 text-sm leading-relaxed text-muted-foreground">{error || "Report data is unavailable."}</p>
+        <Button asChild className="mt-6"><Link href="/dashboard">Run a scan</Link></Button>
       </div>
     )
   }
@@ -119,9 +123,11 @@ function ReportsPageContent() {
     (report.severityBreakdown.find((item) => item.key === "serious")?.count ?? 0)
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <ExportBar report={report} onToast={showToast} />
-      <ReportHeader reportMeta={report.meta} />
+    <div className="min-w-0 space-y-7 px-4 py-7 sm:px-6 lg:px-8 lg:py-9 print:space-y-4 print:p-0">
+      <header className="flex min-w-0 flex-col justify-between gap-5 xl:flex-row xl:items-start">
+        <ReportHeader reportMeta={report.meta} />
+        <ExportBar report={report} onToast={showToast} />
+      </header>
       <SummaryGrid
         reportMeta={report.meta}
         severityBreakdown={report.severityBreakdown}
@@ -130,16 +136,16 @@ function ReportsPageContent() {
 
       <Tabs
         defaultValue="pages"
-        className="mx-6 mt-5 h-[720px] min-h-[620px] overflow-hidden rounded-xl border-[0.5px] border-border bg-card print:mx-0 print:mt-2 print:h-auto print:min-h-0 print:rounded-none print:border-0"
+        className="min-w-0 overflow-hidden rounded-[18px] border border-border bg-card print:rounded-none print:border-0"
       >
-        <TabsList className="shrink-0 gap-0 border-b border-border bg-card px-0 print:hidden">
-          <TabsTrigger value="pages" className="gap-1.5">
+        <TabsList className="h-auto w-full justify-start gap-2 overflow-x-auto rounded-none border-b border-border bg-card px-3 py-3 print:hidden">
+          <TabsTrigger value="pages" className="shrink-0 gap-2 rounded-[10px] px-4 py-3 text-sm">
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-3">
               <rect x="3" y="2" width="10" height="12" rx="1.5" /><path d="M5 6h6M5 9h4" strokeLinecap="round" />
             </svg>
             Pages Crawled
           </TabsTrigger>
-          <TabsTrigger value="ai" className="gap-1.5">
+          <TabsTrigger value="ai" className="shrink-0 gap-2 rounded-[10px] px-4 py-3 text-sm">
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-3">
               <path d="M3 8a5 5 0 0110 0M8 3v1M8 12v1M12.2 5.2l-.7.7M4.5 10.5l-.7.7" strokeLinecap="round" />
             </svg>
@@ -147,10 +153,10 @@ function ReportsPageContent() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="pages" className="min-h-0 flex-1 overflow-hidden">
+        <TabsContent value="pages" className="min-w-0">
           <PagesTab pagesData={report.pagesData} />
         </TabsContent>
-        <TabsContent value="ai" className="min-h-0 flex-1 overflow-y-auto">
+        <TabsContent value="ai" className="min-w-0">
           <AiSuggestionsTab
             scanId={activeScanId}
             totalCriticalSerious={totalCriticalSerious}
@@ -158,14 +164,15 @@ function ReportsPageContent() {
         </TabsContent>
       </Tabs>
 
-      <div className="h-6 shrink-0 print:hidden" />
 
       <div
-        className={`fixed bottom-6 right-6 z-[200] flex items-center gap-2 rounded-md bg-[#04342C] px-4 py-3 text-xs font-medium text-white shadow-lg transition-all duration-250 print:hidden ${
+        role="status"
+        aria-live="polite"
+        className={`fixed bottom-6 left-4 right-4 sm:left-auto sm:right-6 z-[200] flex items-center gap-2 rounded-[10px] bg-foreground px-4 py-3 text-sm font-medium text-white shadow-lg transition-all duration-250 print:hidden ${
           toast ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-2 opacity-0"
         }`}
       >
-        <svg viewBox="0 0 16 16" fill="none" stroke="#5DCAA5" strokeWidth="2" className="size-3.5">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" className="size-3.5">
           <path d="M3 8l4 4 6-7" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
         {toast}

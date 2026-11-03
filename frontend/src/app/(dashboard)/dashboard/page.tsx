@@ -63,7 +63,8 @@ export default function DashboardPage() {
   const categories = useMemo(() => getTopRuleCounts(result), [result])
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="mx-auto flex max-w-[1500px] flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+      <header className="mb-1"><h1 className="text-[28px] font-bold tracking-tight sm:text-[32px]">Accessibility overview</h1><p className="mt-2 text-sm leading-relaxed text-muted-foreground sm:text-[15px]">Understand what needs attention. Build a web that everyone can use.</p></header>
       <ScanToolbar
         url={url}
         scanMode={scanMode}
@@ -76,9 +77,9 @@ export default function DashboardPage() {
         onCancel={() => void cancelScan()}
       />
 
-      <main className="flex flex-1 flex-col gap-4 overflow-y-auto p-4 md:p-6">
+      <div className="flex flex-1 flex-col gap-6">
         {error && (
-          <div className="rounded-md border border-red-600/20 bg-[var(--high-bg)] px-4 py-3 text-[13px] text-[var(--high-text)]">
+          <div role="alert" className="rounded-xl border border-red-600/20 bg-[var(--high-bg)] px-5 py-4 text-sm text-[var(--high-text)]">
             {error}
           </div>
         )}
@@ -117,7 +118,7 @@ export default function DashboardPage() {
           issues={filteredIssues}
           onFilterChange={setFilter}
         />
-      </main>
+      </div>
     </div>
   )
 }

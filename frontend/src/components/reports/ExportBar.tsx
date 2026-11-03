@@ -32,8 +32,8 @@ export function ExportBar({ report, onToast }: ExportBarProps) {
   ]
 
   return (
-    <div className="flex items-center gap-2 bg-foreground px-5 py-3 print:hidden">
-      <span className="flex-1 text-[11px] text-muted-foreground/75">
+    <div className="flex shrink-0 flex-wrap items-center gap-2 print:hidden">
+      <span className="mr-1 text-sm text-muted-foreground">
         Export report
       </span>
       {actions.map(({ label, icon, onClick }) => (
@@ -41,10 +41,10 @@ export function ExportBar({ report, onToast }: ExportBarProps) {
           key={label}
           variant="outline"
           size="sm"
-          className="gap-1.5 border-muted-foreground/30 bg-transparent text-[11px] text-muted-foreground/90 hover:bg-muted-foreground/10 hover:text-white"
+          className="gap-2 text-sm"
           onClick={onClick}
         >
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-3">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true" className="size-4">
             {icon}
           </svg>
           {label}

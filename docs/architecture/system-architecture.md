@@ -709,6 +709,25 @@ axe-core is run with `runOnly` tags derived from the user's saved `wcag_standard
 
 ## 8. Current Frontend Status
 
+### Shared visual foundations (3 November 2026)
+
+The public, account and workspace route groups share semantic design tokens in
+`frontend/src/app/globals.css`, Manrope loaded through `next/font`, and the existing
+Radix/Tailwind UI primitives. The visual redesign preserves the API, authentication,
+scan hooks, saved-scan mapping and preference contexts as the behavior owners.
+
+`MarketingLogo` is shared across public, account and workspace chrome. `AuthShell`
+provides one layout for canonical auth pages and legacy `/signup`. `DashboardShell`
+owns the workspace's single main landmark, desktop sidebar, skip link and mobile
+Radix navigation dialog. Below 1024px, `IssueList` presents the complete existing
+`IssueDetailPanel` in a modal inspector and returns focus to the selected issue.
+
+History rows expose working links and comparison controls; reports flow naturally
+and retain their page list in print. Preference controls keep draft/save/discard
+ownership and now have associated labels. Operating-system reduced motion applies
+globally. Stored theme/high-contrast/density settings still have their existing
+runtime limitations. Details: `docs/design/2026-11-03-accessaudit-redesign.md`.
+
 ### Home dashboard
 
 Implemented:

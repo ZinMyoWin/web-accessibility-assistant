@@ -47,7 +47,7 @@ export function GoogleButton({
       onClick={handleClick}
       disabled={loading}
       aria-busy={loading}
-      className="h-11 w-full gap-2 border-border-soft bg-surface-0 text-label text-foreground hover:border-brand-300 hover:bg-surface-1"
+      className="h-12 w-full gap-3 border-border bg-surface-0 text-sm font-semibold text-foreground hover:border-brand-300 hover:bg-brand-50"
     >
       {loading ? (
         <Loader2 className="size-5 animate-spin" aria-hidden="true" />

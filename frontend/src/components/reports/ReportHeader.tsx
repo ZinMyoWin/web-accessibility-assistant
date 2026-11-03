@@ -4,9 +4,9 @@ import type { ReportMeta } from "@/lib/saved-scans"
 
 export function ReportHeader({ reportMeta }: { reportMeta: ReportMeta }) {
   return (
-    <div className="px-6 py-5">
+    <div className="min-w-0 flex-1">
       {/* Breadcrumb */}
-      <div className="mb-3 flex items-center gap-1 text-[11px] text-muted-foreground">
+      <div className="mb-4 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
         {reportMeta.breadcrumb.map((crumb, i) => (
           <span key={i} className="flex items-center gap-1">
             {i > 0 && (
@@ -22,37 +22,38 @@ export function ReportHeader({ reportMeta }: { reportMeta: ReportMeta }) {
       </div>
 
       {/* Title row */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight text-foreground">
-            {reportMeta.url}
+      <div className="flex min-w-0 flex-wrap items-start gap-3">
+        <div className="min-w-0">
+          <h1 className="text-[28px] font-semibold tracking-tight sm:text-[32px] text-foreground">
+            Accessibility report
           </h1>
-          <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+          <p className="mt-2 break-all text-sm font-medium text-foreground">{reportMeta.url}</p>
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="size-3">
                 <rect x="2" y="2" width="12" height="12" rx="1.5" /><path d="M2 6h12" /><circle cx="5" cy="4" r=".5" fill="currentColor" />
               </svg>
               {reportMeta.scanDate}
             </span>
-            <span>|</span>
+            <span aria-hidden="true" className="text-border">·</span>
             <span>{reportMeta.scanMode}</span>
-            <span>|</span>
+            <span aria-hidden="true" className="text-border">·</span>
             <span>{reportMeta.pagesScanned} pages</span>
             {reportMeta.pagesSkipped > 0 && (
               <>
-                <span>|</span>
+                <span aria-hidden="true" className="text-border">·</span>
                 <span>{reportMeta.pagesSkipped} skipped</span>
               </>
             )}
-            <span>|</span>
+            <span aria-hidden="true" className="text-border">·</span>
             <span>{reportMeta.totalIssues} issues</span>
-            <span>|</span>
+            <span aria-hidden="true" className="text-border">·</span>
             <span>{reportMeta.wcagLevel}</span>
-            <span>|</span>
+            <span aria-hidden="true" className="text-border">·</span>
             <span>Duration: {reportMeta.scanDuration}</span>
           </div>
         </div>
-        <Badge variant="serious" className="shrink-0">
+        <Badge variant="outline" className="shrink-0">
           {reportMeta.status}
         </Badge>
       </div>

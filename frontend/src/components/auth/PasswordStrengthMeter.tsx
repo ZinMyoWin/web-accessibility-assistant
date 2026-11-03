@@ -43,7 +43,7 @@ export function PasswordStrengthMeter({
           />
         ))}
       </div>
-      <p id={hintId} className="mt-1.5 text-caption text-muted-foreground">
+      <p id={hintId} className="mt-2 text-xs leading-5 text-muted-foreground">
         Use 8+ characters with a mix of letters and numbers.
       </p>
     </>

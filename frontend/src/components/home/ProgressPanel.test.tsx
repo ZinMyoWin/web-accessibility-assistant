@@ -4,6 +4,10 @@ import { describe, expect, it } from "vitest"
 import { ProgressPanel } from "@/components/home/ProgressPanel"
 
 describe("ProgressPanel", () => {
+  it("exposes the scan percentage to assistive technology", () => {
+    render(<ProgressPanel progress={42} progressText="Scanning pages" progressState="active" />)
+    expect(screen.getByRole("progressbar", { name: "Scan progress" })).toHaveAttribute("aria-valuenow", "42")
+  })
   it("renders active scan progress and percentage", () => {
     render(
       <ProgressPanel

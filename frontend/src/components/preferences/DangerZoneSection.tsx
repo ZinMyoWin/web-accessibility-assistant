@@ -37,10 +37,10 @@ export function DangerZoneSection({
       }
       danger
     >
-      <div className="flex items-center justify-between gap-4 rounded-md border-[0.5px] border-[var(--high-text)]/20 bg-[var(--high-bg)] p-4">
+      <div className="flex flex-col items-start justify-between gap-4 rounded-[10px] sm:flex-row sm:items-center border border-[var(--high-text)]/20 bg-[var(--high-bg)] p-4">
         <div>
-          <div className="text-xs font-medium text-[var(--high-text)]">Clear scan history</div>
-          <div className="mt-0.5 text-[11px] text-[var(--high-text)]/70">
+          <div className="text-sm font-medium text-[var(--high-text)]">Clear scan history</div>
+          <div className="mt-0.5 text-xs text-[var(--high-text)]">
             Permanently removes all past scan records and reports
           </div>
         </div>
@@ -82,10 +82,10 @@ export function DangerZoneSection({
         </Dialog>
       </div>
 
-      <div className="flex items-center justify-between gap-4 rounded-md border-[0.5px] border-[var(--high-text)]/20 bg-[var(--high-bg)] p-4">
+      <div className="flex flex-col items-start justify-between gap-4 rounded-[10px] sm:flex-row sm:items-center border border-[var(--high-text)]/20 bg-[var(--high-bg)] p-4">
         <div>
-          <div className="text-xs font-medium text-[var(--high-text)]">Reset all preferences</div>
-          <div className="mt-0.5 text-[11px] text-[var(--high-text)]/70">
+          <div className="text-sm font-medium text-[var(--high-text)]">Reset all preferences</div>
+          <div className="mt-0.5 text-xs text-[var(--high-text)]">
             Restores all settings to defaults, including API keys
           </div>
         </div>

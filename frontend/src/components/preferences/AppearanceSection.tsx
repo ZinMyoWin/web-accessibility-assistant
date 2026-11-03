@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import { Switch } from "@/components/ui/switch"
 import { SectionCard, FieldRow } from "@/components/preferences/SectionCard"
 import { cn } from "@/lib/utils"
@@ -14,7 +13,7 @@ interface AppearanceSectionProps {
 const themes = [
   { value: "light", label: "Light", previewClass: "bg-[#F5F5F3]", sidebarClass: "bg-[#EEECEA]", barClass: "bg-[#EEECEA]" },
   { value: "dark", label: "Dark", previewClass: "bg-[#1A1A18]", sidebarClass: "bg-[#2A2A28]", barClass: "bg-[#2A2A28]" },
-  { value: "system", label: "System", previewClass: "bg-gradient-to-r from-[#F5F5F3] via-[#F5F5F3] to-[#1A1A18]", sidebarClass: "bg-gradient-to-r from-[#EEECEA] to-[#2A2A28]", barClass: "bg-gradient-to-r from-[#EEECEA] to-[#2A2A28]" },
+  { value: "system", label: "System", previewClass: "bg-[#E7EBF4]", sidebarClass: "bg-[#8791A4]", barClass: "bg-[#8791A4]" },
 ]
 
 const densities = ["Compact", "Default", "Comfortable"]
@@ -27,12 +26,8 @@ export function AppearanceSection({ draft, updateDraft }: AppearanceSectionProps
     default: "Default",
     compact: "Compact"
   }
-  
-  const currentDensityLabel = densityMap[draft.density?.toLowerCase()] || "Default"
 
-  // Local states for UI options not in schema
-  const [showReferences, setShowReferences] = useState(true)
-  const [animateProgress, setAnimateProgress] = useState(true)
+  const currentDensityLabel = densityMap[draft.density?.toLowerCase()] || "Default"
 
   return (
     <SectionCard
@@ -48,15 +43,16 @@ export function AppearanceSection({ draft, updateDraft }: AppearanceSectionProps
     >
       {/* Theme cards */}
       <FieldRow label="Theme">
-        <div className="flex gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row">
           {themes.map((t) => (
             <button
               key={t.value}
+              aria-pressed={draft.theme === t.value}
               onClick={() => updateDraft({ theme: t.value })}
               className={cn(
-                "flex flex-1 flex-col overflow-hidden rounded-md border-[0.5px] transition-all",
+                "flex flex-1 flex-col overflow-hidden rounded-[10px] border transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                 draft.theme === t.value
-                  ? "border-primary shadow-[0_0_0_2px_rgba(29,158,117,0.1)]"
+                  ? "border-primary ring-2 ring-primary/10"
                   : "border-input hover:border-primary/50"
               )}
             >
@@ -71,11 +67,11 @@ export function AppearanceSection({ draft, updateDraft }: AppearanceSectionProps
               </div>
               {/* Label */}
               <div className="flex items-center px-3 py-2.5">
-                <span className={cn("text-xs font-medium", draft.theme === t.value ? "text-accent-foreground" : "text-foreground")}>
+                <span className={cn("text-sm font-medium", draft.theme === t.value ? "text-accent-foreground" : "text-foreground")}>
                   {t.label}
                 </span>
                 <div className={cn(
-                  "ml-auto flex size-3.5 items-center justify-center rounded-full border-[0.5px]",
+                  "ml-auto flex size-3.5 items-center justify-center rounded-full border",
                   draft.theme === t.value ? "border-primary bg-primary" : "border-input bg-muted"
                 )}>
                   {draft.theme === t.value && <div className="size-1.5 rounded-full bg-white" />}
@@ -88,15 +84,16 @@ export function AppearanceSection({ draft, updateDraft }: AppearanceSectionProps
 
       {/* Density */}
       <FieldRow label="Interface density">
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {densities.map((d) => (
             <button
               key={d}
+              aria-pressed={currentDensityLabel === d}
               onClick={() => updateDraft({ density: d.toLowerCase() })}
               className={cn(
-                "flex-1 rounded-md border-[0.5px] px-3 py-2 text-center text-xs font-medium transition-all",
+                "flex-1 rounded-[10px] border px-3 py-2 text-center text-sm font-medium transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                 currentDensityLabel === d
-                  ? "border-primary bg-card text-accent-foreground"
+                  ? "border-primary bg-secondary text-primary"
                   : "border-input bg-muted text-muted-foreground hover:border-primary/50"
               )}
             >
@@ -106,17 +103,13 @@ export function AppearanceSection({ draft, updateDraft }: AppearanceSectionProps
         </div>
       </FieldRow>
 
-      <FieldRow label="Show WCAG criterion references" hint='Display criterion codes (e.g. 1.1.1) alongside issue titles' horizontal>
-        <Switch checked={showReferences} onCheckedChange={setShowReferences} />
-      </FieldRow>
-
       <FieldRow label="Animate scan progress" hint="Show live progress bar animation during active scans" horizontal>
-        <Switch 
-          checked={!draft.reduced_motion && animateProgress} 
+        <Switch
+          aria-label="Animate scan progress"
+          checked={!draft.reduced_motion}
           onCheckedChange={(val) => {
-            setAnimateProgress(val)
             updateDraft({ reduced_motion: !val })
-          }} 
+          }}
         />
       </FieldRow>
     </SectionCard>

@@ -1,10 +1,10 @@
 import type { Metadata } from "next"
-import { Inter } from "next/font/google"
+import { Manrope } from "next/font/google"
 import { AuthProvider } from "@/lib/contexts/AuthContext"
 import { PreferencesProvider } from "@/lib/contexts/PreferencesContext"
 import "./globals.css"
 
-const inter = Inter({ subsets: ["latin"] })
+const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope", display: "swap" })
 
 export const metadata: Metadata = {
   title: "AccessAudit - Find and fix web accessibility issues",
@@ -20,7 +20,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${inter.className} bg-background text-foreground antialiased`}
+        className={`${manrope.className} ${manrope.variable} bg-background text-foreground antialiased`}
       >
         <AuthProvider>
           <PreferencesProvider>{children}</PreferencesProvider>

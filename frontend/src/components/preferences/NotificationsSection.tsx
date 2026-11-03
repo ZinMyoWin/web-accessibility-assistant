@@ -116,12 +116,9 @@ export function NotificationsSection({ draft, updateDraft }: NotificationsSectio
 
       {/* Score threshold */}
       <div
-        className={cn(
-          "flex flex-col gap-2 border-l-2 border-border pl-5 transition-opacity",
-          !draft.notify_score_threshold_enabled && "pointer-events-none opacity-40"
-        )}
+        className="flex flex-col gap-2 border-l-2 border-border pl-5"
       >
-        <label htmlFor={thresholdId} className="text-xs font-medium text-foreground">
+        <label htmlFor={thresholdId} className="text-sm font-medium text-foreground">
           Score threshold
         </label>
         <div className="flex items-center gap-3">
@@ -132,12 +129,12 @@ export function NotificationsSection({ draft, updateDraft }: NotificationsSectio
             min={0}
             max={100}
             disabled={!draft.notify_score_threshold_enabled}
-            className="h-9 w-20 bg-muted text-xs"
+            className="h-11 w-20 bg-background text-sm"
             onChange={(e) =>
               updateDraft({ notify_score_threshold: clampThreshold(Number(e.target.value)) })
             }
           />
-          <span className="text-[11px] text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             Scans scoring below{" "}
             <strong className="text-foreground">{draft.notify_score_threshold}</strong> / 100
             will be flagged
@@ -147,11 +144,11 @@ export function NotificationsSection({ draft, updateDraft }: NotificationsSectio
 
       {/* Severity levels */}
       <div className="flex flex-col gap-2">
-        <span className="text-xs font-medium text-foreground">Alert on severity</span>
-        <span className="mb-1 text-[11px] text-muted-foreground">
+        <span className="text-sm font-medium text-foreground">Alert on severity</span>
+        <span className="mb-1 text-xs text-muted-foreground">
           Trigger an alert whenever a new scan finds issues of these severities
         </span>
-        <div className="flex gap-2" role="group" aria-label="Alert severity levels">
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Alert severity levels">
           {severities.map((sev) => {
             const colors = sevColorMap[sev.key]
             const checked = selectedSeverities.includes(sev.key)
@@ -160,7 +157,7 @@ export function NotificationsSection({ draft, updateDraft }: NotificationsSectio
               <label
                 key={sev.key}
                 className={cn(
-                  "flex flex-1 cursor-pointer items-center justify-center gap-1 rounded-full border-[0.5px] px-2 py-2 text-[11px] font-medium transition-all",
+                  "flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-[10px] focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring border px-2 py-2 text-sm font-medium transition-all",
                   checked
                     ? `${colors.bg} ${colors.border} ${colors.text}`
                     : "border-input bg-muted text-muted-foreground"
@@ -168,7 +165,7 @@ export function NotificationsSection({ draft, updateDraft }: NotificationsSectio
               >
                 <input
                   type="checkbox"
-                  className="sr-only"
+                  className="peer sr-only"
                   checked={checked}
                   aria-label={`Alert on ${sev.label.toLowerCase()} severity issues`}
                   onChange={() => toggleSeverity(sev.key)}

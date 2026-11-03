@@ -3,191 +3,87 @@
 import * as React from "react"
 import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
+import { ArrowUpRight, ChartNoAxesCombined, History, LayoutDashboard, ListChecks, LogOut, Menu, Settings2, X } from "lucide-react"
+import { MarketingLogo } from "@/components/marketing/Logo"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { useAuth } from "@/lib/contexts/AuthContext"
 
-const iconClass = "w-4 h-4 shrink-0"
-
 const NAV_ITEMS = [
-  {
-    label: "Dashboard",
-    href: "/dashboard",
-    icon: (
-      <svg className={iconClass} viewBox="0 0 16 16" fill="none">
-        <rect x="1" y="1" width="6" height="6" rx="1" fill="currentColor" />
-        <rect x="9" y="1" width="6" height="6" rx="1" fill="currentColor" opacity=".4" />
-        <rect x="1" y="9" width="6" height="6" rx="1" fill="currentColor" opacity=".4" />
-        <rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor" opacity=".4" />
-      </svg>
-    ),
-  },
-  {
-    label: "Issues",
-    href: "/issues",
-    icon: (
-      <svg className={iconClass} viewBox="0 0 16 16" fill="none">
-        <path d="M2 4h12M2 8h8M2 12h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    label: "Scan History",
-    href: "/scan-history",
-    icon: (
-      <svg className={iconClass} viewBox="0 0 16 16" fill="none">
-        <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
-        <path d="M8 5v3.5l2 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    label: "Reports",
-    href: "/reports",
-    icon: (
-      <svg className={iconClass} viewBox="0 0 16 16" fill="none">
-        <path d="M3 12V8M6 12V5M9 12V7M12 12V4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    ),
-  },
+  { label: "Dashboard", href: "/dashboard", Icon: LayoutDashboard },
+  { label: "Issues", href: "/issues", Icon: ListChecks },
+  { label: "Scan History", href: "/scan-history", Icon: History },
+  { label: "Reports", href: "/reports", Icon: ChartNoAxesCombined },
 ]
 
-interface DashboardShellProps {
-  children: React.ReactNode
+function Brand() {
+  return <Link href="/" aria-label="AccessAudit home"><MarketingLogo /></Link>
 }
 
-export function DashboardShell({ children }: DashboardShellProps) {
+function Navigation({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
+  return <nav aria-label="Workspace" className="flex flex-col gap-1.5">
+    {NAV_ITEMS.map(({ label, href, Icon }) => <Link key={href} href={href} onClick={onNavigate} aria-current={pathname === href ? "page" : undefined}
+      className={cn("flex min-h-11 items-center gap-3 rounded-lg px-3.5 py-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary", pathname === href ? "bg-brand-100 text-brand-700" : "text-muted-foreground hover:bg-white hover:text-foreground")}>
+      <Icon className="size-[18px] shrink-0" aria-hidden="true" />{label}
+    </Link>)}
+    <div className="my-4 border-t border-border" />
+    <Link href="/preferences" onClick={onNavigate} aria-current={pathname === "/preferences" ? "page" : undefined}
+      className={cn("flex min-h-11 items-center gap-3 rounded-lg px-3.5 py-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary", pathname === "/preferences" ? "bg-brand-100 text-brand-700" : "text-muted-foreground hover:bg-white hover:text-foreground")}>
+      <Settings2 className="size-[18px]" aria-hidden="true" />Preferences
+    </Link>
+  </nav>
+}
+
+export function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const { status, user, signOut } = useAuth()
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
 
-  React.useEffect(() => {
-    if (status === "anonymous") {
-      router.replace("/login")
-    }
-  }, [router, status])
+  React.useEffect(() => { if (status === "anonymous") router.replace("/login") }, [router, status])
 
   async function handleSignOut() {
     await signOut()
     router.replace("/login")
   }
 
-  if (status === "loading") {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
-        Checking your session...
+  if (status === "loading") return <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground" role="status">Checking your session...</div>
+  if (status === "anonymous") return null
+
+  const account = <div className="mt-auto border-t border-border pt-5">
+    <div className="mb-4 flex min-w-0 items-center gap-3">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-semibold text-brand-700" aria-hidden="true">{user?.name?.slice(0, 1).toUpperCase() || "A"}</span>
+      <div className="min-w-0"><p className="truncate text-sm font-semibold">{user?.name}</p><p className="mt-0.5 truncate text-xs text-muted-foreground">{user?.email}</p></div>
+    </div>
+    <Button type="button" variant="ghost" className="w-full justify-start gap-3 px-3 text-muted-foreground" onClick={handleSignOut}><LogOut className="size-4" aria-hidden="true" />Log out</Button>
+  </div>
+
+  return <>
+    <a href="#main-content" className="sr-only z-[100] rounded-lg bg-primary px-5 py-3 text-primary-foreground focus:not-sr-only focus:fixed focus:left-4 focus:top-4">Skip to content</a>
+    <div className="grid min-h-screen grid-cols-1 md:grid-cols-[var(--width-sidebar)_1fr]">
+      <aside className="sticky top-0 hidden h-dvh flex-col border-r border-border bg-brand-50/50 px-5 py-7 md:flex print:hidden">
+        <Brand />
+        <div className="mb-3 mt-10 px-3.5 text-xs font-medium text-muted-foreground">Your workspace</div>
+        <Navigation pathname={pathname} />
+        <Link href="/about" className="mt-8 flex items-center justify-between rounded-xl border border-border bg-white/70 p-4 text-sm leading-relaxed text-muted-foreground hover:text-primary">Make the web work for everyone.<ArrowUpRight className="ml-2 size-4 shrink-0" aria-hidden="true" /></Link>
+        {account}
+      </aside>
+      <div className="flex min-w-0 flex-col">
+        <Dialog open={sidebarOpen} onOpenChange={setSidebarOpen}>
+          <header className="flex h-16 items-center justify-between border-b border-border bg-card px-4 md:hidden print:hidden">
+            <Brand />
+            <DialogTrigger asChild><Button variant="outline" size="icon" aria-label="Toggle sidebar"><Menu className="size-5" aria-hidden="true" /></Button></DialogTrigger>
+          </header>
+          <DialogContent className="left-0 top-0 flex h-dvh max-h-none w-[300px] max-w-[calc(100vw_-_2rem)] translate-x-0 translate-y-0 flex-col rounded-none bg-background p-5">
+            <div className="flex items-center justify-between"><DialogTitle className="text-lg">Workspace navigation</DialogTitle><DialogClose asChild><Button variant="ghost" size="icon" aria-label="Close navigation"><X className="size-5" aria-hidden="true" /></Button></DialogClose></div>
+            <DialogDescription className="mb-6 text-sm">Your accessibility workspace.</DialogDescription>
+            <Navigation pathname={pathname} onNavigate={() => setSidebarOpen(false)} />
+            {account}
+          </DialogContent>
+        </Dialog>
+        <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 outline-none">{children}</main>
       </div>
-    )
-  }
-
-  if (status === "anonymous") {
-    return null
-  }
-
-  return (
-    <>
-      {/* Mobile sidebar overlay */}
-      <div
-        className={sidebarOpen ? "fixed inset-0 bg-black/30 z-20 md:hidden" : "hidden"}
-        onClick={() => setSidebarOpen(false)}
-      />
-
-      <div className="grid min-h-screen grid-cols-1 md:grid-cols-[var(--width-sidebar)_1fr]">
-        {/* Sidebar */}
-        <aside
-          className={cn(
-            "fixed left-0 top-0 z-30 flex h-screen w-sidebar flex-col overflow-y-auto border-r border-border bg-card transition-transform duration-200",
-            sidebarOpen
-              ? "translate-x-0 shadow-lg"
-              : "-translate-x-full",
-            "md:sticky md:top-0 md:z-0 md:translate-x-0 md:shadow-none md:transition-none"
-          )}
-        >
-          <div className="border-b border-border px-4 pb-3.5 pt-4">
-            <div className="text-sm font-bold tracking-tight text-primary">
-              AccessAudit
-            </div>
-            <div className="mt-0.5 text-xs text-muted-foreground">
-              v1.0 &middot; BSc Project
-            </div>
-          </div>
-
-          <nav className="flex flex-col gap-0.5 py-2">
-            {NAV_ITEMS.map((item) => {
-              const active = pathname === item.href
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-2.5 border-l-2 px-4 py-2 text-sm transition-colors",
-                    active
-                      ? "border-l-primary bg-secondary text-primary font-medium [&_svg]:opacity-100"
-                      : "border-l-transparent text-muted-foreground hover:bg-background hover:text-foreground [&_svg]:opacity-65"
-                  )}
-                >
-                  {item.icon}
-                  {item.label}
-                </Link>
-              )
-            })}
-          </nav>
-
-          <div className="px-4 pb-1.5 pt-4 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-            Settings
-          </div>
-          <Link
-            href="/preferences"
-            className={cn(
-              "flex items-center gap-2.5 border-l-2 px-4 py-2 text-sm transition-colors",
-              pathname === "/preferences"
-                ? "border-l-primary bg-secondary text-primary font-medium [&_svg]:opacity-100"
-                : "border-l-transparent text-muted-foreground hover:bg-background hover:text-foreground [&_svg]:opacity-65"
-            )}
-          >
-            <svg className={iconClass} viewBox="0 0 16 16" fill="none">
-              <circle cx="8" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.5" />
-              <path d="M8 1v2M8 13v2M1 8h2M13 8h2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-            Preferences
-          </Link>
-
-          <div className="mt-auto border-t border-border p-4">
-            <div className="mb-3 min-w-0">
-              <div className="truncate text-xs font-semibold text-foreground">
-                {user?.name}
-              </div>
-              <div className="truncate text-[11px] text-muted-foreground">
-                {user?.email}
-              </div>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              className="h-8 w-full text-xs"
-              onClick={handleSignOut}
-            >
-              Log out
-            </Button>
-          </div>
-        </aside>
-
-        {/* Main content area */}
-        <div className="flex min-h-screen flex-col">
-          {/* Mobile menu button — rendered inside each page's topbar if needed */}
-          <button
-            className="fixed left-3 top-3 z-10 flex size-9 items-center justify-center rounded-md border border-border bg-card text-muted-foreground md:hidden"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            aria-label="Toggle sidebar"
-          >
-            <svg className="size-4" viewBox="0 0 16 16" fill="none">
-              <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-          </button>
-          {children}
-        </div>
-      </div>
-    </>
-  )
+    </div>
+  </>
 }

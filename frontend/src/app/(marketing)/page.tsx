@@ -7,7 +7,7 @@ import { TrustStrip } from "@/components/marketing/home/TrustStrip"
 
 export default function MarketingHomePage() {
   return (
-    <main className="bg-surface-0 text-text-pri">
+    <main id="main-content" tabIndex={-1} className="bg-surface-0 text-text-pri">
       <Hero />
       <TrustStrip />
       <Features />
