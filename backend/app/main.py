@@ -107,6 +107,7 @@ from app.repositories.preferences_repository import (
     update_preferences,
 )
 from app.utils.encryption import decrypt_api_key
+from app.mcp_routes import router as mcp_router
 
 logger = logging.getLogger("app.main")
 
@@ -194,6 +195,7 @@ def _enforce_rate_limit(request: Request, *, scope: str, identity: str) -> None:
 
 
 app = FastAPI(title="Web Accessibility Assistant API")
+app.include_router(mcp_router)
 
 app.add_middleware(
     CORSMiddleware,

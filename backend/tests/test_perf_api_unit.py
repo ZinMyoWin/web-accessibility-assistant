@@ -322,11 +322,12 @@ def _load_migration_f075():
     return module
 
 
-def test_migration_f075_is_single_head_after_f074():
+def test_migrations_have_single_head_and_preserve_f075_ancestry():
     config = Config(str(BACKEND_DIR / "alembic.ini"))
     script = ScriptDirectory.from_config(config)
 
-    assert script.get_heads() == ["9848b576f075"]
+    assert script.get_heads() == ["9848b576f076"]
+    assert script.get_revision("9848b576f076").down_revision == "9848b576f075"
     revision = script.get_revision("9848b576f075")
     assert revision.down_revision == "9848b576f074"
 

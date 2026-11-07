@@ -42,3 +42,5 @@ npm run build
 ```
 
 Read `AGENTS.md` for repository-wide workflow and `docs/architecture/system-architecture.md` for current application architecture.
+
+Whenever you explain code or write documentation, assume I am learning. Explain what happens, why it happens, and how it connects to the rest of the application. Always use simple English, real examples, and step-by-step explanations. Never use complicated technical terms without explaining them.

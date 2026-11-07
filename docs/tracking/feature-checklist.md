@@ -6,6 +6,16 @@ Update this checklist whenever a feature is added, removed, or materially change
 
 ## Backend
 
+- [x] Optional authenticated remote MCP endpoint using official TypeScript SDK v2
+- [x] OAuth issuer/audience/JWKS/scope verification and protected-resource metadata
+- [x] Explicit application-session plus OAuth identity linking and immediate unlink revocation
+- [x] Ownership-scoped scan summaries and SQL-paginated issue projections without screenshots
+- [x] Shared database MCP request limits, safe errors, and operation audit events
+- [x] Three read tools, usage resource, and saved-scan review prompt
+- [x] Protocol, crypto, account-isolation, pagination, concurrency, and link tests
+- [ ] Configure production OAuth provider and HTTPS ingress; migrate intended database
+- [ ] Verify hosted ChatGPT and Claude OAuth consent and tool calls with real accounts
+
 - [x] FastAPI application entry point
 - [x] Root endpoint `GET /`
 - [x] Health endpoint `GET /health`

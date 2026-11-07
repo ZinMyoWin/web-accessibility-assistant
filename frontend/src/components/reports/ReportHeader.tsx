@@ -22,11 +22,15 @@ export function ReportHeader({ reportMeta }: { reportMeta: ReportMeta }) {
       </div>
 
       {/* Title row */}
-      <div className="flex min-w-0 flex-wrap items-start gap-3">
-        <div className="min-w-0">
-          <h1 className="text-[28px] font-semibold tracking-tight sm:text-[32px] text-foreground">
-            Accessibility report
-          </h1>
+      <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <h1 className="text-[28px] font-semibold tracking-tight sm:text-[32px] text-foreground">
+              Accessibility report
+            </h1>
+            <Badge variant="outline" className="shrink-0">
+              {reportMeta.status}
+            </Badge>
+          </div>
           <p className="mt-2 break-all text-sm font-medium text-foreground">{reportMeta.url}</p>
           <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
@@ -52,10 +56,6 @@ export function ReportHeader({ reportMeta }: { reportMeta: ReportMeta }) {
             <span aria-hidden="true" className="text-border">·</span>
             <span>Duration: {reportMeta.scanDuration}</span>
           </div>
-        </div>
-        <Badge variant="outline" className="shrink-0">
-          {reportMeta.status}
-        </Badge>
       </div>
     </div>
   )

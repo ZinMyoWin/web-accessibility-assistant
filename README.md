@@ -27,6 +27,13 @@ Scan execution uses the saved Preferences by default (mode, page limits, crawl d
 
 ## Tech Stack
 
+Authenticated remote AI access is available through the optional MCP integration at
+`/api/mcp`. It exposes three bounded read tools for saved scans, a usage resource,
+and a review prompt. OAuth provider configuration and an explicit account link are
+required; missing configuration leaves MCP disabled. See the
+[MCP integration guide](docs/guides/mcp-integration.md) for architecture, environment
+variables, account linking, deployment prerequisites, and ChatGPT/Claude setup.
+
 - Frontend: Next.js 15, React 19, Auth.js, Tailwind CSS v4, Vitest, Testing Library, Playwright
 - Backend: FastAPI, Pydantic, SQLAlchemy, Alembic, pytest
 - Scanning: Playwright/Chromium, axe-core, custom HTML checks
@@ -163,6 +170,7 @@ Common mistakes:
 - Set a real `ENCRYPTION_KEY` outside local development so stored provider keys are not protected by the development fallback.
 - Keep `PASSWORD_RESET_LOG_LINKS=false` except for local password-reset testing. It prints reset links to backend logs.
 - Set `SCAN_ALLOW_PRIVATE_TARGETS=false` in production; the default (`true`) exists so local demo/test pages on `127.0.0.1` remain scannable.
+- Strict URL validation is not a complete network boundary: redirects and browser subrequests can reach a private address before the final URL check. Apply network egress restrictions and review the [security audit](docs/audits/code-quality-report.md).
 - Run Alembic migrations after pulling schema changes.
 
 ## Run Locally Without Docker
@@ -184,6 +192,16 @@ cd "D:\Lithan\UOR\Final Year Project\web-accessibility-assistant\frontend"
 npm install
 npm run dev
 ```
+
+If `SCAN_EXECUTION_MODE=worker`, start the scan worker in another terminal from
+`backend/`, using the same database configuration as the API:
+
+```powershell
+.\venv\Scripts\python.exe -m app.scan_worker
+```
+
+Without the worker, queued scans will not progress. See the
+[developer onboarding guide](docs/getting-started/developer-onboarding.md).
 
 Open:
 
@@ -249,7 +267,7 @@ npm run test:e2e
 
 `npm run test:e2e` starts a production build of the Next.js app automatically (`npm run build && npm run start` via `webServer` in `frontend/playwright.config.ts`), so no backend or database is required. The browser suite stubs the FastAPI calls it needs and mints a signed NextAuth session cookie for authenticated flows. The first local run builds the app, so it takes a minute longer than later runs. Add `test:e2e:report` after a failure to open the HTML report.
 
-CI runs four jobs in `.github/workflows/quality-gate.yml`: frontend typecheck + Vitest, frontend production build, Playwright browser E2E (installs Chromium and uploads reports/traces on failure), and backend `compileall` + pytest. It does not run a standalone lint command or enforce coverage thresholds. Current suite sizes: 201 backend pytest tests, 42 frontend Vitest tests and 8 Playwright E2E tests.
+CI runs four jobs in `.github/workflows/quality-gate.yml`: frontend typecheck + Vitest, frontend production build, Playwright browser E2E (installs Chromium and uploads reports/traces on failure), and backend `compileall` + pytest. It does not run a standalone lint command or enforce coverage thresholds. See [audit progress](docs/PROGRESS.md) for checks actually run in the current working tree.
 
 Performance benchmarks are optional and documented separately:
 
@@ -301,7 +319,7 @@ SQLAlchemy models live in `backend/app/models/`.
 - `AppPreferences` in `backend/app/models/preferences.py`
 - `RepairSuggestion` in `backend/app/models/repair_suggestion.py`
 
-Migrations live in `backend/alembic/versions/` (current head: `9848b576f075`, which adds the scan-performance composite indexes after the notification/cancel/WCAG migrations). Apply them with:
+Migrations live in `backend/alembic/versions/`. The current working tree has head `9848b576f076` for MCP account links and rate limits; a revision file does not establish that a database has applied it. Review the [migration guide](docs/architecture/database-migrations.md) and confirm the target database before applying migrations:
 
 ```powershell
 cd "D:\Lithan\UOR\Final Year Project\web-accessibility-assistant\backend"

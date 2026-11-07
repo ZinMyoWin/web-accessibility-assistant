@@ -19,6 +19,81 @@ This document is meant to support:
 - testing evidence
 - supervisor updates
 
+## 2026-11-04 - Authenticated Remote MCP Integration
+
+### What
+
+Added a stateless Streamable HTTP MCP endpoint in the existing Next.js Node
+deployment using official stable SDK v2.4.0, with current 2026-07-28 protocol and
+2025-era compatibility. Three read tools list scans, read summaries, and page
+through issues; a static resource explains usage and a prompt guides scan reviews.
+Strict schemas and SQL projections exclude screenshots, account settings, secrets,
+worker diagnostics, and unbounded issue collections.
+
+External OAuth JWTs require asymmetric JWKS verification, exact issuer/resource
+audience, expiry, stable subject, and `scans:read`. Account linking proves both an
+existing application session and the OAuth identity; unlinking immediately removes
+bindings. A dedicated internal assertion expires within 60 seconds, and FastAPI
+resolves the persisted binding and enforces scan ownership on each call. Migration
+`9848b576f076` adds identity links and shared atomic per-user request counters.
+
+Added configuration examples, Compose wiring, and the detailed
+[integration guide](../guides/mcp-integration.md). Applied compatible dependency
+security updates, including Next.js 15.5.28 and PostCSS 8.5.32; a narrow Next.js
+PostCSS override resolves its formerly pinned older copy. No forced major upgrade
+of the existing test framework was performed.
+
+### Why
+
+External assistants need delegated, scoped access to existing users' saved scans.
+The existing NextAuth login is an OAuth client, so a real external authorization
+server supplies consent, PKCE, registration and issuance. Keeping transport inside
+Next.js avoids another deployment while FastAPI remains the ownership boundary.
+Explicit links prevent email-based account guessing and shared counters preserve
+limits when API processes scale.
+
+### Files
+
+Frontend MCP route, metadata routes, linking route, and `src/lib/mcp/`; backend
+MCP router, authentication helper, repository projections, models and migration;
+MCP tests and the existing migration-head assertion; package manifests/lock;
+environment examples, both Compose files, README, architecture, feature checklist,
+documentation index, and the integration guide. Existing local secret files were
+not modified.
+
+### How verified
+
+- Backend: all 234 tests passed, including 33 new MCP cases; compilation passed.
+- Frontend: all 129 tests across 22 files passed, including 74 MCP cases;
+  TypeScript and production build passed.
+- Existing Chromium browser regression suite: all 16 tests passed against a
+  temporary production server, including sign-in, dashboard, scan cancellation,
+  responsive pages, keyboard dismissal/focus return, and report printing.
+- Official SDK clients exercised current and legacy discovery, tool calls,
+  resources and prompts with real ES256/JWKS fixtures. Backend tests exercised
+  real persisted app sessions, cross-user isolation, linking conflicts/revocation,
+  SQL paging/projections, and concurrent atomic rate accounting.
+- Independent review reproduced and fixed a reverse-proxy authority bug. A running
+  production Next.js server verified metadata HTTP 200, a canonical public Host
+  reaching the OAuth HTTP 401 challenge, and a foreign Host receiving HTTP 403.
+- The new migration's upgrade/downgrade/upgrade cycle passed on disposable SQLite
+  established at the preceding revision; the historical chain uses PostgreSQL
+  JSONB and was not initialized from zero on SQLite. No real database was changed.
+- Both Compose configurations validated with example environment values;
+  `git diff --check` passed. Local dependency inspection confirms Next.js resolves
+  PostCSS 8.5.32 consistently.
+
+### Remaining deployment prerequisites and limits
+
+Configure an OAuth provider, link actual users, migrate the intended PostgreSQL
+database, install HTTPS ingress and unauthenticated traffic controls, and verify
+real ChatGPT/Claude OAuth connections before public release. Provider JWT
+revocation normally waits for token expiry; unlinking provides immediate app-side
+revocation. No write tools or provider-specific onboarding wizard are included.
+Known development-only Vitest dependency advisories remain; a forced test-framework
+major upgrade is outside this change. The final dependency audit was not resubmitted
+after the PostCSS override; local resolution and build/tests were verified.
+
 ## 2026-11-03 - Complete AccessAudit Interface Redesign
 
 ### What

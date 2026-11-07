@@ -19,7 +19,7 @@ export function AuthSegmentedControl() {
 
   return (
     <nav
-      className="mb-9 grid grid-cols-2 gap-1 rounded-xl bg-surface-1 p-1"
+      className="mb-9 grid grid-cols-2 gap-1 rounded-[14px] bg-surface-1 p-1"
       aria-label="Authentication mode"
     >
       {segments.map((segment) => {

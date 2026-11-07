@@ -20,6 +20,23 @@ The current system is designed to do these main jobs:
 
 ## 2. High-Level Architecture
 
+The optional MCP entry point runs in the Next.js Node runtime at `/api/mcp`, using
+official TypeScript SDK v2 and stateless Streamable HTTP. It verifies externally
+issued OAuth JWTs for the exact resource URL and `scans:read` scope, then sends a
+separate internal assertion to FastAPI. Persistent issuer/subject links resolve
+the existing application user; bounded database projections preserve that user's
+scan ownership. `mcp_account_links` and `mcp_rate_limits` are introduced by migration
+`9848b576f076`. Shared atomic database counters limit identity and data reads across
+processes. No write tools, provider keys, screenshots, or worker diagnostics are
+exposed. NextAuth remains the application's browser session layer; the configured
+external provider supplies OAuth consent, PKCE, registration, and token issuance.
+
+The in-app endpoint reuses the frontend deployment and backend connection rather
+than adding a service. Consider a separate service only if MCP traffic needs
+independent capacity or long-lived server push. See the
+[MCP integration guide](../guides/mcp-integration.md) for the detailed trust
+boundaries, configuration, account linking, and operational limits.
+
 The project is split into a frontend, backend, persistence layer, documentation, and tests.
 
 ```text
@@ -184,7 +201,7 @@ Contains setup guides, architecture notes, implementation guides, and project tr
 
 ### `backend/tests/`
 
-Contains 201 backend tests across 14 files: API smoke tests plus unit tests for scanner, repository, worker, auth, preferences, preference resolution, bundle export, cancel behaviour, scanner performance knobs, and the API-level performance/observability paths.
+Contains backend tests: API smoke tests plus unit tests for scanner, repository, worker, auth, preferences, preference resolution, bundle export, cancel behaviour, scanner performance knobs, and the API-level performance/observability paths.
 
 Current coverage includes:
 
@@ -199,8 +216,8 @@ Current coverage includes:
 The frontend automated gate has three tiers:
 
 - TypeScript typechecking (`npx tsc --noEmit`)
-- Vitest + Testing Library unit/component tests: 42 tests across 11 files for scan state, lightweight polling, queue controls, saved-scan mapping, report pages/grouping, AI suggestion generation and export, in-app notifications, scan cancellation, and helper utilities (jsdom, no backend)
-- Playwright browser E2E tests: 8 tests across 5 specs for the public landing/registration pages, login validation, the anonymous dashboard guard redirect, the authenticated dashboard scan flow with mocked API responses, and the scan-cancel flow (`frontend/e2e/`)
+- Vitest + Testing Library unit/component tests cover scan state, lightweight polling, queue controls, saved-scan mapping, report pages/grouping, AI suggestion generation and export, in-app notifications, scan cancellation, and helper utilities (jsdom, no backend)
+- Playwright browser E2E tests cover selected scenarios for the public landing/registration pages, login validation, the anonymous dashboard guard redirect, the authenticated dashboard scan flow with mocked API responses, and the scan-cancel flow (`frontend/e2e/`)
 
 The E2E suite needs no backend or database: it stubs browser-to-backend calls with `page.route()` fixtures and mints a real signed NextAuth session cookie for authenticated specs. Both the production build and the E2E suite are gated in CI.
 
@@ -406,7 +423,7 @@ Current responsibilities:
 
 - always reject non-`http(s)` schemes, URLs with embedded credentials, and URLs longer than 2048 characters
 - when `SCAN_ALLOW_PRIVATE_TARGETS=false` (recommended in production), resolve the hostname and reject private, loopback, link-local, reserved, multicast and non-global IPv4/IPv6 addresses (including resolution failures); the default `true` keeps local demo/test targets working and logs a one-time warning
-- the scanner re-runs validation on the post-navigation/post-fetch final URL so redirects cannot bypass the policy
+- the scanner re-runs validation on the post-navigation/post-fetch final URL, but the redirect destination can already have been contacted and browser subrequests are not covered by that check; see the [security audit](../audits/code-quality-report.md)
 
 ### `backend/app/models/`
 
@@ -492,7 +509,7 @@ Contains database migration files.
 Current responsibility:
 
 - create and track the PostgreSQL schema for saved scans, issues, preferences, users, sessions, password reset tokens, user ownership fields, notification preferences, scan cancellation, repair suggestions, and scan-performance indexes
-- 17 revisions with a single linear head `9848b576f075` (`...f072` notification preferences, `...f073` scan cancel request flag, `...f074` default WCAG standard `wcag21aa`, `...f075` performance indexes)
+- 18 revisions in the working tree with a single linear head `9848b576f076` (`...f072` notification preferences, `...f073` scan cancel request flag, `...f074` default WCAG standard `wcag21aa`, `...f075` performance indexes, and `...f076` MCP account links and rate limits). The f076 file was uncommitted when the audit started; this does not establish the revision of any deployed database.
 - the f075 indexes are `ix_scan_runs_user_id_started_at`, `ix_scan_runs_status_started_at` (worker claim), `ix_scan_runs_status_heartbeat_at` (stale recovery), and `ix_scan_issues_scan_run_id_position` (ordered issue loads); they are non-unique and additive
 
 Production startup rule:
@@ -1095,12 +1112,12 @@ Why this matters: local fallback secrets in `auth_service.py` and `encryption.py
 
 ### Automated tests
 
-- Backend pytest tests live in `backend/tests/` (201 tests across 14 files).
+- Backend pytest tests live in `backend/tests/`.
 - `test_api_smoke.py` exercises FastAPI routes in-process with `TestClient`.
 - `test_page_scanner_unit.py` covers custom checks, crawling, rendering fallback, and scan behavior.
 - `test_scan_repository_unit.py`, `test_auth_unit.py`, `test_scan_options_resolver_unit.py`, `test_scan_cancel_unit.py`, `test_preferences_unit.py`, `test_repair_bundle_unit.py`, `test_bundle_and_cancel_api.py`, `test_scan_perf_unit.py`, `test_perf_api_unit.py`, and the repair suggestion tests cover persistence, domain rules, preference resolution, bundle rendering, cancellation, performance knobs, rate limiting, metrics, and lightweight reads, often with in-memory SQLite.
-- Frontend Vitest tests sit beside components or under `frontend/src/lib/` (42 tests across 11 files); `frontend/src/test/setup.ts` configures Testing Library matchers.
-- Playwright browser E2E tests live in `frontend/e2e/` (8 tests across 5 specs) and run against a production build (`npm run build && npm run start`) via `playwright.config.ts`; they stub browser-to-backend requests and mint a NextAuth session cookie, so no backend is required. Running the suite against `next dev` was avoided because dev-server HMR recompiles during a run made multi-test runs flaky.
+- Frontend Vitest tests sit beside components or under `frontend/src/lib/`; `frontend/src/test/setup.ts` configures Testing Library matchers.
+- Playwright browser E2E tests live in `frontend/e2e/` and run against a production build (`npm run build && npm run start`) via `playwright.config.ts`; they stub browser-to-backend requests and mint a NextAuth session cookie, so no backend is required. Running the suite against `next dev` was avoided because dev-server HMR recompiles during a run made multi-test runs flaky.
 
 Run them with:
 
@@ -1152,7 +1169,7 @@ Auth.js owns the browser session while FastAPI owns users, backend JWTs, and per
 
 ### Untrusted URL scanning
 
-`backend/app/utils/url_utils.py::validate_public_http_url` rejects non-`http(s)` schemes, URLs with embedded credentials, and URLs longer than 2048 characters. When `SCAN_ALLOW_PRIVATE_TARGETS=false` (recommended in production) it resolves the hostname and rejects private, loopback, link-local, reserved, multicast and non-global addresses, including resolution failures; the scanner also re-validates the post-redirect final URL. The default is `true` so local demo/test pages work. DNS rebinding remains a residual risk — mitigate with production egress policy.
+`backend/app/utils/url_utils.py::validate_public_http_url` rejects non-`http(s)` schemes, URLs with embedded credentials, and URLs longer than 2048 characters. When `SCAN_ALLOW_PRIVATE_TARGETS=false`, it resolves the hostname and rejects non-global addresses, including resolution failures. The default is `true` so local demo/test pages work. The scanner re-validates the final URL only after navigation or fetching, so a private redirect destination can already have been contacted; browser subrequests and DNS rebinding also need protection. Enforce network egress restrictions and see the [security audit](../audits/code-quality-report.md).
 
 ### Browser reuse and worker memory
 
@@ -1214,7 +1231,7 @@ The repository is prepared for a split deployment: Next.js on Vercel, plus a Fas
 - Dockerfile: `backend/Dockerfile`
 - Health check: `/health`
 - Startup: keep the image default command so `backend/start.sh` runs `alembic upgrade head` before Uvicorn
-- Current migration head: `9848b576f075` (notification preferences, scan cancel flag, default WCAG 2.1 AA, scan-performance indexes)
+- Working-tree migration head: `9848b576f076` (MCP account links and rate limits); verify the revision of the actual target database independently.
 - Required production values include `DATABASE_URL`, `AUTH_JWT_SECRET`, `FRONTEND_URL`, and a real `ENCRYPTION_KEY`
 - Recommended production additions: `SCAN_ALLOW_PRIVATE_TARGETS=false`, `METRICS_ENABLED=true`, `DB_POOL_SIZE`/`DB_MAX_OVERFLOW` sized to the provider connection cap
 - Add `CORS_ALLOWED_ORIGIN_REGEX` only when preview domains need access
@@ -1255,7 +1272,7 @@ Formal hosted verification evidence is still marked incomplete in `../tracking/f
 ## 20. Open Questions
 
 - Are the production Render/Vercel environments configured with all required auth, encryption, Cloudinary, and OAuth secrets?
-- Has every deployed database applied Alembic migration `9848b576f075`?
+- Has each intended deployed database applied the appropriate Alembic head, including `9848b576f076` if using this MCP implementation?
 - What transactional email provider will deliver password reset links and future scan notifications?
 - Should production add network-egress policy or DNS pinning to harden the remaining DNS-rebinding SSRF risk?
 - Should the empty root `database/` directory be removed or used for database assets?

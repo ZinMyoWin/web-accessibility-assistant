@@ -58,3 +58,5 @@ Recent history uses both imperative summaries and conventional prefixes, for exa
 ## Security & Configuration Tips
 
 Do not commit `.env` or `frontend/.env.local`. Compose requires `AUTH_SECRET` and `AUTH_JWT_SECRET` from the shell or root `.env`. Keep `PASSWORD_RESET_LOG_LINKS=false` except for local reset-link testing, and run Alembic migrations after schema changes.
+
+Whenever you explain code or write documentation, assume I am learning. Explain what happens, why it happens, and how it connects to the rest of the application. Always use simple English, real examples, and step-by-step explanations. Never use complicated technical terms without explaining them.
